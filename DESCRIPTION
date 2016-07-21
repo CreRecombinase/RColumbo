@@ -1,0 +1,11 @@
+Package: RColumbo
+Type: Package
+Title: R Package to accompany the Columbo method
+Version: 0.1.0
+Author: Nicholas Knoblauch
+Maintainer: Who to complain to <yourfault@somewhere.net>
+Description: More about what it does (maybe more than one line)
+License: What license is it under?
+LazyData: TRUE
+Imports: rhdf5,Matrix,dplyr,future,readr
+Suggests: testthat
