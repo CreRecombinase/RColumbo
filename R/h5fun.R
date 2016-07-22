@@ -1,30 +1,30 @@
 #' Reads an HDF5 file into dataframes according to the size of each vector, and the output of
 #' @param lsdf dataframe (as output from h5ls)
 #' @param h5file location of h5file
-h5df <- function(lsdf,h5file){
-  if(!all(lsdf$dim==lsdf$dim[1])){
-    stop("Not all dim are equal")
-  }
-  lsn <- paste0("/",lsdf$name)
-  datl <- lapply(lsn,function(x,file){
-    tn <- substring(x,2)
-    tdat <- c(h5read(file = file,name = x))
+h5df <- function(gdf,h5file){
+  stopifnot(all(gdf$dim==gdf$dim[1]))
+  lsn <- paste0(gdf$group,"/",gdf$name)
+  datl <- lapply(lsn,function(x,filename){
+    tn <- strsplit(x,"/",fixed=T)[[1]][3]
+    tdat <- c(h5read(file = filename,name = x))
     tdf = data_frame(x=tdat)
     colnames(tdf) <- tn
     return(tdf)
-  },file=h5file)
+  },filename=h5file)
   hdf <- bind_cols(datl)
   return(hdf)
 }
+
 
 #'Returns list of dataframes,one for each dimension of the data
 #' @param h5file location of h5file
 h5dfl <- function(h5file){
   require(rhdf5)
   require(dplyr)
-  lsdf <- h5ls(h5file)
-  lsdl <- split(lsdf,lsdf$dim)
+  lsdf <- h5ls(h5file) %>% filter(otype!="H5I_GROUP")
+  lsdl <- split(lsdf,lsdf$group)
   retl <- lapply(lsdl,h5df,h5file=h5file)
+  names(retl) <- substring(names(retl),2)
   return(retl)
 }
 
@@ -45,6 +45,21 @@ vegas.merge <- function(vegasf,gmf){
   gmd <- inner_join(gmd,vegd)
   return(gmd)
 }
+
+#' Merge eQTL results with gencode file to get gene symbols for every eQTL
+#' @param eqtldf eQTL dataframe
+#' @param gmf path to gencode file
+gencode_eqtl <- function(eqtldf,gmf){
+  # gmf <- "/media/nwknoblauch/Data/GTEx/gencode.v19.genes.patched_contigs.gtf.gz"
+  gencode_df <- read.table(gmf,header=F,sep="\t",skip=5,quote='',stringsAsFactors = F)
+  gencode_df <- mutate(gencode_df,gname=gsub(".+gene_name \"(.+)\"; transcript_type.+","\\1",V9))
+  gencode_df <- mutate(gencode_df,ensid=gsub("gene_id \"(ENSG[0-9]+).[0-9]+\"; transcript_id.+","\\1",V9))
+  gencode_df <- select(gencode_df,Gene=gname,ensid) %>% distinct(Gene,ensid)
+  eqtldf <- mutate(eqtldf,ensid=paste0("ENSG",sprintf("%011d",fgeneid)))
+  eqtldf <- inner_join(eqtldf,gencode_df,by="ensid")
+  return(eqtldf)
+}
+
 
 
 .ls.objects <- function (pos = 1, pattern, order.by,

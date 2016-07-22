@@ -69,17 +69,45 @@ subset_ref_panel <- function(rsids=character(0),
 subset_h5_ref <- function(legendfile,mapfile,h5file){
   require(readr)
   h5l <- h5dfl(h5file)
-  snpdf <- h5l[[1]]
-  eqtldf <- h5l[[2]]
+  snpdf <- h5l[["SNP"]]
+  eqtldf <- h5l[["eQTL"]]
+  rm(h5l)
   legenddf <- read_delim(legendfile,delim = " ",col_names = T)
-#  hapmat <- data.matrix(read_delim(hapfile,delim = " ",col_names = F))
+  #  hapmat <- data.matrix(read_delim(hapfile,delim = " ",col_names = F))
   mapdat <- read_delim(mapfile,delim=" ",col_names=c("rsid","pos","dist"))
-  sub_snp <-semi_join(snpdf,eqtldf,by=c("rrsid"="mrsid")) %>% mutate(rrsid=paste0("rs",rrsid)) %>%
-    semi_join(legenddf,by=c("rrsid"="ID")) %>%semi_join(mapdat,by=c("rrsid"="rsid"))
-  rsl <- unique(sub_snp$rrsid)
+  sub_snp <- mutate(snpdf,rsid=paste0("rs",rsid)) %>%
+    semi_join(legenddf,by=c("rsid"="ID")) %>%semi_join(mapdat,by=c("rsid"="rsid"))
+  rsl <- unique(sub_snp$rsid)
   return(rsl)
 }
 
+#' Compute the intersection of genetic map,hdf5 file, and haplotype data for a particular chromosome
+#' @param legendfile IMPUTE format legend file
+#' @param hapfile IMPUTE format genotype file
+#' @param mapfile file containing physical map info
+#' @param h5file HDF5 formatted data with merged eQTL and GWAS data
+#' @param gfile gencode file
+#' @param gene character specifying which gene we want the SNPs for
+subset_h5_ref_gene <- function(legendfile,mapfile,h5file,gfile,gene){
+  gene <- "ABCA7"
+  require(readr)
+  h5l <- h5dfl(h5file)
+  snpdf <- h5l[["SNP"]]
+  eqtldf <- h5l[["eQTL"]]
+  rm(h5l)
+  eqtldf <- gencode_eqtl(eqtldf,gfile)
+  # eqtlc <-group_by(eqtldf,Gene)%>% summarise(neqtl=n(),prode=sum(log(pvale),na.rm = T),prodg=sum(log(pvalg),na.rm=T))
+  # eqtlc <- mutate(eqtlc,hash=as.integer(neqtl>=100))%>%arrange(desc(hash),prode)
+  eqtldf <- filter(eqtldf,Gene==gene)
+
+  legenddf <- read_delim(legendfile,delim = " ",col_names = T)
+  #  hapmat <- data.matrix(read_delim(hapfile,delim = " ",col_names = F))
+  mapdat <- read_delim(mapfile,delim=" ",col_names=c("rsid","pos","dist"))
+  sub_snp <- semi_join(snpdf,eqtldf) %>%mutate(rsid=paste0("rs",rsid)) %>%
+    semi_join(legenddf,by=c("rsid"="ID")) %>%semi_join(mapdat,by=c("rsid"="rsid"))
+  rsl <- unique(sub_snp$rsid)
+  return(rsl)
+}
 
 
 
@@ -373,31 +401,34 @@ gen_LD <- function(ref_list,m,Ne,cutoff){
 }
 #
 #
-# legendfile <- "~/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno.impute.legend"
-# mapfile <- "~/Desktop/LDmapgen/1000-genomes-genetic-maps/interpolated_OMNI/chr19.OMNI.interpolated_genetic_map.gz"
-# h5file <- "~/Desktop/eQTL/Snake/IBD_WholeBlood_eQTL.h5"
-# hapfile <- "~/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno.impute.hap"
-# hl <- readRDS("~/Desktop/LDmapgen/temphl.RDS")
-# nchunks <- 10
-# # # saveRDS(rsl,"~/Desktop/LDmapgen/rsl.RDS")
-# # # saveRDS(hl,"~/Desktop/LDmapgen/temphl.RDS")
+legendfile <- "~/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno.impute.legend"
+mapfile <- "~/Desktop/LDmapgen/1000-genomes-genetic-maps/interpolated_OMNI/chr19.OMNI.interpolated_genetic_map.gz"
+h5file <- "~/Desktop/eQTL/Snake/IBD_WholeBlood_eQTL.h5"
+hapfile <- "~/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno.impute.hap"
+gmf <- "/media/nwknoblauch/Data/GTEx/gencode.v19.genes.patched_contigs.gtf.gz"
+nchunks <- 10
+m=85
+Ne=11490.672741
+cutoff=1e-3
+gene <- "ABCA7"
+
+# # saveRDS(rsl,"~/Desktop/LDmapgen/rsl.RDS")
+# # saveRDS(hl,"~/Desktop/LDmapgen/temphl.RDS")
+# # hl <- readRDS("~/Desktop/LDmapgen/temphl.RDS")
 # # rsl <- readRDS("~/Desktop/LDmapgen/rsl.RDS")
-#
-# m=85
-# Ne=11490.672741
-# cutoff=1e-3
-# nchunks=30
+# # #
+
+# # #
+# # #  compute_LD <-function(legendfile,mapfile,h5file,hapfile,m=85,Ne=11490.672741,cutoff=1e-3,nchunks=10)
+# # #    require(future)
+ rsl <-subset_h5_ref_gene(legendfile,mapfile,h5file,gmf,gene=gene)
+ hl <-subset_ref_panel(rsids=rsl,legendfile=legendfile,
+                         hapfile=hapfile,
+                         mapfile=mapfile)
 # #
-# #  compute_LD <-function(legendfile,mapfile,h5file,hapfile,m=85,Ne=11490.672741,cutoff=1e-3,nchunks=10)
-# #    require(future)
-# #    rsl <-subset_h5_ref(legendfile,mapfile,h5file)
-# #    hl <-subset_ref_panel(rsids=rsl,legendfile=legendfile,
-# #                          hapfile=hapfile,
-# #                          mapfile=mapfile)
-# #
-# H <- hl[["H"]]
-# cummap <- hl[["cummap"]]
-ldm <- fast_LD(H,cummap,m,Ne,cutoff,nchunks)
+ H <- hl[["H"]]
+ cummap <- hl[["cummap"]]
+ ldm <- fast_LD(H,cummap,m,Ne,cutoff,nchunks)
 
 
 
