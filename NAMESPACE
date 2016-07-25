@@ -1,1 +1,4 @@
+useDynLib(RColumbo)
+importFrom(Rcpp,evalCpp)
 exportPattern("^[[:alpha:]]+")
+

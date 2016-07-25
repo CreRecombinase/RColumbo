@@ -14,6 +14,11 @@ h5df <- function(gdf,h5file){
   hdf <- bind_cols(datl)
   return(hdf)
 }
+h5vec <-function(h5file,groupname,dataname){
+  tn <-paste0("/",groupname,"/",dataname)
+  retvec <- c(h5read(h5file,tn))
+  return(retvec)
+}
 
 
 #'Returns list of dataframes,one for each dimension of the data

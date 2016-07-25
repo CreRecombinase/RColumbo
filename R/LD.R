@@ -9,15 +9,15 @@
 #   Check Package:             'Ctrl + Shift + E'
 #   Test Package:              'Ctrl + Shift + T'
 
-
-#' Subsets reference (haplotype) panel data by either rsid or position
 #'
-#' @param rsids  character vector containing rsids that will be used for generating the LD matrix
-#' @param chrom character indicating which chromosome will be used
-#' @param positions integer vector indicating the genomic coordinates that will be used for generating the LD matrix
-#' @param legendfile file containing legend for haplotype data
-#' @param hapfile file containing actual haplotype data
-#' @param mapfile file containing physical map info
+#' #' Subsets reference (haplotype) panel data by either rsid or position
+#' #'
+#' #' @param rsids  character vector containing rsids that will be used for generating the LD matrix
+#' #' @param chrom character indicating which chromosome will be used
+#' #' @param positions integer vector indicating the genomic coordinates that will be used for generating the LD matrix
+#' #' @param legendfile file containing legend for haplotype data
+#' #' @param hapfile file containing actual haplotype data
+#' #' @param mapfile file containing physical map info
 subset_ref_panel <- function(rsids=character(0),
                              positions=integer(0),
                              legendfile,
@@ -60,42 +60,34 @@ subset_ref_panel <- function(rsids=character(0),
   retlist <-list(H=rhapd,cummap=mapdf$cummap)
   return(retlist)
 }
-
-#' Compute the intersection of genetic map,hdf5 file, and haplotype data for a particular chromosome
-#' @param legendfile IMPUTE format legend file
-#' @param hapfile IMPUTE format genotype file
-#' @param mapfile file containing physical map info
-#' @param h5file HDF5 formatted data with merged eQTL and GWAS data
+#'
+#' #' Compute the intersection of genetic map,hdf5 file, and haplotype data for a particular chromosome
+#' #' @param legendfile IMPUTE format legend file
+#' #' @param hapfile IMPUTE format genotype file
+#' #' @param mapfile file containing physical map info
+#' #' @param h5file HDF5 formatted data with merged eQTL and GWAS data
 subset_h5_ref <- function(legendfile,mapfile,h5file){
   require(readr)
-  h5l <- h5dfl(h5file)
-  snpdf <- h5l[["SNP"]]
-  eqtldf <- h5l[["eQTL"]]
-  rm(h5l)
+  snpvec <- h5vec(h5file,"SNP","rsid")
+  snpdf <- data_frame(rsid=paste0("rs",snpvec))
   legenddf <- read_delim(legendfile,delim = " ",col_names = T)
   #  hapmat <- data.matrix(read_delim(hapfile,delim = " ",col_names = F))
   mapdat <- read_delim(mapfile,delim=" ",col_names=c("rsid","pos","dist"))
-  sub_snp <- mutate(snpdf,rsid=paste0("rs",rsid)) %>%
-    semi_join(legenddf,by=c("rsid"="ID")) %>%semi_join(mapdat,by=c("rsid"="rsid"))
+  sub_snp <-  semi_join(snpdf,legenddf,by=c("rsid"="ID")) %>%semi_join(mapdat,by=c("rsid"="rsid"))
   rsl <- unique(sub_snp$rsid)
   return(rsl)
 }
-
-#' Compute the intersection of genetic map,hdf5 file, and haplotype data for a particular chromosome
-#' @param legendfile IMPUTE format legend file
-#' @param hapfile IMPUTE format genotype file
-#' @param mapfile file containing physical map info
-#' @param h5file HDF5 formatted data with merged eQTL and GWAS data
-#' @param gfile gencode file
-#' @param gene character specifying which gene we want the SNPs for
+#'
+#' #' Compute the intersection of genetic map,hdf5 file, and haplotype data for a particular chromosome
+#' #' @param legendfile IMPUTE format legend file
+#' #' @param hapfile IMPUTE format genotype file
+#' #' @param mapfile file containing physical map info
+#' #' @param h5file HDF5 formatted data with merged eQTL and GWAS data
+#' #' @param gfile gencode file
+#' #' @param gene character specifying which gene we want the SNPs for
 subset_h5_ref_gene <- function(legendfile,mapfile,h5file,gfile,gene){
-  gene <- "ABCA7"
   require(readr)
-  h5l <- h5dfl(h5file)
-  snpdf <- h5l[["SNP"]]
-  eqtldf <- h5l[["eQTL"]]
-  rm(h5l)
-  eqtldf <- gencode_eqtl(eqtldf,gfile)
+
   # eqtlc <-group_by(eqtldf,Gene)%>% summarise(neqtl=n(),prode=sum(log(pvale),na.rm = T),prodg=sum(log(pvalg),na.rm=T))
   # eqtlc <- mutate(eqtlc,hash=as.integer(neqtl>=100))%>%arrange(desc(hash),prode)
   eqtldf <- filter(eqtldf,Gene==gene)
@@ -108,220 +100,163 @@ subset_h5_ref_gene <- function(legendfile,mapfile,h5file,gfile,gene){
   rsl <- unique(sub_snp$rsid)
   return(rsl)
 }
-
-
-
-
-#' Turns matrix of diagonals in to sparse banded matrix
 #'
-#' @param bmat matrix of diagonals
-#' @param bwd band width
-from_band <- function(bmat,bwd){
-  tmat <- bandSparse(n = ncol(bmat),m = ncol(bmat),k=-c(0:bwd),diagonals = t(bmat),symmetric = T)
-  return(tmat)
-}
-
-
-
-#' Compute sub covariance matrix and return it as a vector
 #'
-#' @param sH scaled version of original matrix (mean subtracted from every column)
-#' @param i row chunk
-#' @param j column chunk
-#' @param chunksize size of chunk (we're lucky that the covariance matrix is square)
-chunk_covar <- function(sHr,sHc,isDiag=F){
-  ret <- crossprod(sHr,sHc)/(nrow(sHr)-1)
-  if(isDiag){
-    return(ret[upper.tri(ret)])
-  }else{
-    return(c(ret))
-  }
-}
-
-
-#' Compute which rows are going to be subset
+#' #' Compute the intersection of genetic map,hdf5 file, and haplotype data for a particular chromosome
+#' #' @param rslist list of rsids to pull
+#' #' @param h5file HDF5 formatted data with merged eQTL and GWAS data
+#' #' @param gfile gencode file
+#' #' @param gene character specifying which gene we want the SNPs for
+#' subset_h5_gene <- function(rslist,h5file,gfile,gene)
+#'   h5l <- h5dfl(h5file)
+#'   snpdf <- h5l[["SNP"]]
+#'   eqtldf <- h5l[["eQTL"]]
+#'   rm(h5l)
+#'   eqtldf <- mutate(eqtldf,rsid=paste0("rs",rsid)) %>% filter(rsid %in% rslist)
+#'   eqtldf <- gencode_eqtl(eqtldf,gfile)
 #'
-#' @param i integer designation of row chunk
-#' @param chunksize integer size of chunks
-#' @ncols total number of columns in the  (final) covariance matrix
 #'
+#' #' Turns matrix of diagonals in to sparse banded matrix
+#' #'
+#' #' @param bmat matrix of diagonals
+#' #' @param bwd band width
+#' from_band <- function(bmat,bwd){
+#'   tmat <- bandSparse(n = ncol(bmat),m = ncol(bmat),k=-c(0:bwd),diagonals = t(bmat),symmetric = T)
+#'   return(tmat)
+#' }
+#'
+#'
+#'
+#' #' Compute sub covariance matrix and return it as a vector
+#' #'
+#' #' @param sH scaled version of original matrix (mean subtracted from every column)
+#' #' @param i row chunk
+#' #' @param j column chunk
+#' #' @param chunksize size of chunk (we're lucky that the covariance matrix is square)
+#' chunk_covar <- function(sHr,sHc,isDiag=F){
+#'   ret <- crossprod(sHr,sHc)/(nrow(sHr)-1)
+#'   if(isDiag){
+#'     return(ret[upper.tri(ret)])
+#'   }else{
+#'     return(c(ret))
+#'   }
+#' }
+#'
+#'
+#' #' Compute which rows are going to be subset
+#' #'
+#' #' @param i integer designation of row chunk
+#' #' @param chunksize integer size of chunks
+#' #' @ncols total number of columns in the  (final) covariance matrix
+#' #'
 subrows <- function(i,chunksize,ncols){
   rows <-((i-1)*chunksize+1):min(ncols,(i)*chunksize)
   return(rows)
 }
-
-#' Compute which columns are going to be subset
 #'
-#' @param j integer designation of column chunk
-#' @param chunksize integer size of chunks
-#' @ncols total number of columns in the  (final) covariance matrix
-#'
+#' #' Compute which columns are going to be subset
+#' #'
+#' #' @param j integer designation of column chunk
+#' #' @param chunksize integer size of chunks
+#' #' @ncols total number of columns in the  (final) covariance matrix
+#' #'
 subcols <-function(j,chunksize,ncols){
   cols <-((j-1)*chunksize+1):min(ncols,(j)*chunksize)
   return(cols)
 }
 
-#' Compute covariance matrix by breaking the problem up in to several sub problems
 #'
-#' @param H original matrix
-#' @param nchunks integer specifying number of chunks to break up in to
-fast_covar <- function(H,nchunks){
-  nSNPs <-ncol(H)
-  H <- scale(H,center=T,scale=F)
-  chunksize <-ceiling(nSNPs/nchunks)
-  tl <- list()
-  ivec <- rep(1:nchunks,nchunks:1)
-  jvec <- unlist(sapply(1:4,function(x,y){x:y},y=nchunks))
-  for(i in 1:length(ivec)){
-    sHr <- H[,subrows(ivec[i],chunksize,nSNPs),drop=F]
-    sHc <- H[,subcols(jvec[i],chunksize,nSNPs),drop=F]
-    tl[[i]] <-future({
-      ivec
-      jvec
-      chunk_covar(sHr,
-                  sHc,
-                  ivec[i]==jvec[i])
-    })
-    gc()
-  }
-  return(tl)
-}
-
-
-
-
-
-
-#' Compute chunks of the genetic map distance matrix and return them as a vector
 #'
-#' @param distvec original cumulative distance map
-#' @param i row chunk
-#' @param j column chunk
-#' @param chunksize size of chunk (we're lucky that the covariance matrix is square)
-chunk_dist <- function(distvecr,distvecc,isDiag=F){
-  ret <- outer(distvecr,distvecc,"-")
-  if(isDiag){
-    return(c(ret[upper.tri(ret)]))
-  }else{
-    return(c(ret))
-  }
-}
-
-#' Compute cumulative map distance matrix by breaking the problem up in to several sub problems
+#' #' Compute chunks of the genetic map distance matrix and return them as a vector
+#' #'
+#' #' @param distvec orginal cumulative distance map
+#' #' @param i row chunk
+#' #' @param j column chunk
+#' #' @param chunksize size of chunk (we're lucky that the covariance matrix is square)
+#' chunk_dist <- function(distvecr,distvecc,isDiag=F){
+#'   ret <- outer(distvecr,distvecc,"-")
+#'   if(isDiag){
+#'     return(c(ret[upper.tri(ret)]))
+#'   }else{
+#'     return(c(ret))
+#'   }
+#' }
 #'
-#' @param original distance vector
-#' @param nchunks integer specifying number of chunks to break up in to
-fast_dist <- function(distvec,nchunks){
-  nSNPs <-length(distvec)
-  chunksize <-ceiling(nSNPs/nchunks)
-  tl <- list()
-  ivec <- rep(1:nchunks,nchunks:1)
-  jvec <- unlist(sapply(1:4,function(x,y){x:y},y=nchunks))
-  for(i in 1:length(ivec)){
+#' fast_nS <-function(H,cummap,m,Ne,cutoff,nchunks){
+#'   plan(multiprocess)
 
-    tl[[i]] <-future({
-      ivec
-      jvec
-      chunk_dist(distvecr,
-                 distvecc,
-                 ivec[i]==jvec[i])
-    })
-    gc()
-  }
-  return(tl)
-}
+#'   stopifnot(length(ivec)==length(jvec),sum(table(ivec))==sum(table(jvec)))
+#'   nmsum <- sum(1/1:(2*m-1))
+#'   theta <- (1/nmsum)/(2*m+1/nmsum)
 
 
-fast_nS <-function(H,cummap,m,Ne,cutoff,nchunks){
-  plan(tweak(multiprocess,gc=T,workers=2))
-  nSNPs <-ncol(H)
-  H <- scale(H,center=T,scale=F)
-  chunksize <-ceiling(nSNPs/nchunks)
-  tl <- list()
-  ivec <- rep(1:nchunks,nchunks:1)
-  jvec <- unlist(sapply(1:4,function(x,y){x:y},y=nchunks))
-  nmsum <- sum(1/1:(2*m-1))
-  theta <- (1/nmsum)/(2*m+1/nmsum)
-  for(i in 1:length(ivec)){
-    sHr <- H[,subrows(ivec[i],chunksize,nSNPs),drop=F]
-    sHc <- H[,subcols(jvec[i],chunksize,nSNPs),drop=F]
-    distvecr <-cummap[subrows(ivec[i],chunksize,nSNPs)]
-    distvecc <- cummap[subcols(jvec[i],chunksize,nSNPs)]
-    tl[[i]] <-future({
-      ivec
-      jvec
-      Svec <- chunk_covar(sHr,
-                  sHc,
-                  ivec[i]==jvec[i])
-      distvec <-chunk_dist(distvecr,distvecc,isDiag = ivec[i]==jvec[i])
-      shrinkage <- 4*Ne*(-distvec)/100
-      shrinkage <- exp(-shrinkage/(2*m))
-      shrinkage[shrinkage<cutoff] <- 0
-      nS <- shrinkage*Svec
-      rows <- subrows(ivec[i],chunksize = chunksize,ncols = nSNPs)
-      cols <- subcols(jvec[i],chunksize = chunksize,ncols = nSNPs)
-      tmat <- matrix(0,length(rows),length(cols))
-      if(ivec[i]==jvec[i]){
-        rows <- rows[row(tmat)[upper.tri(tmat)]]
-        cols <- cols[col(tmat)[upper.tri(tmat)]]
-      }else{
-        rows <- rows[row(tmat)]
-        cols <- cols[col(tmat)]
-      }
-      rows <- rows[nS!=0]
-      cols <- cols[nS!=0]
-      nS <- nS[nS!=0]
-      cbind(rows,cols,nS)
-    })
-    gc()
-  }
-  return(nS)
-}
-
-fast_LD <- function(H,cummap,m,Ne,cutoff,nchunks){
-  nSNPs <- length(cummap)
-  chunksize <-ceiling(nSNPs/nchunks)
-  nSl <-fast_nS(H,cummap,m,Ne,cutoff,nchunks)
-  ivec <- rep(1:nchunks,nchunks:1)
-  jvec <- unlist(sapply(1:4,function(x,y){x:y},y=nchunks))
-  posmatl <- list()
-  for(i in 1:length(ivec)){
-    rows <- subrows(ivec[i],chunksize = chunksize,ncols = nSNPs)
-    cols <- subcols(jvec[i],chunksize = chunksize,ncols = nSNPs)
-    tmat <- matrix(0,length(rows),length(cols))
-    if(ivec[i]==jvec[i]){
-      rows <- rows[row(tmat)[upper.tri(tmat)]]
-      cols <- cols[col(tmat)[upper.tri(tmat)]]
-    }else{
-      rows <- rows[row(tmat)]
-      cols <- cols[col(tmat)]
-    }
-    posmatl[[i]] <- cbind(rows=rows,cols=cols)
-  }
-  nS <- unlist(nSl)
-  tpos <- do.call("rbind",posmatl)
-  rS <- Matrix(0,nrow = nSNPs,ncol = nSNPs,sparse = T)
-  rS[tpos[nS!=0,c(1,2)]] <-nS[nS!=0]
-  rS[tpos[nS!=0,c(2,1)]] <-nS[nS!=0]
-  diag(rS) <- colVars(H)
-  nmsum <- sum(1/1:(2*m-1))
-  theta <- (1/nmsum)/(2*m+1/nmsum)
-  sighat <- (1-theta)^2*rS+0.5*theta*(1-0.5*theta)*Diagonal(nSNPs)
-  cmat <- cov2cor(sighat)
-  return(cmat)
-}
-
-
-
-
-
-
-
-
-
-
-
-
+#'     sHr <- H[,subrows(ivec[i],chunksize,nSNPs),drop=F]
+#'     sHc <- H[,,drop=F]
+#'     distvecr <-cummap[subrows(ivec[i],chunksize,nSNPs)]
+#'     distvecc <- cummap[subcols(jvec[i],chunksize,nSNPs)]
+#'     tl[[i]] <-future({
+#'       ivec
+#'       jvec
+#'       Svec <- chunk_covar(sHr,
+#'                   sHc,
+#'                   ivec[i]==jvec[i])
+#'       distvec <-chunk_dist(distvecr,distvecc,isDiag = ivec[i]==jvec[i])
+#'       shrinkage <- 4*Ne*(-distvec)/100
+#'       shrinkage <- exp(-shrinkage/(2*m))
+#'       shrinkage[shrinkage<cutoff] <- 0
+#'       nS <- shrinkage*Svec
+#'       rows <- subrows(ivec[i],chunksize = chunksize,ncols = nSNPs)
+#'       cols <- subcols(jvec[i],chunksize = chunksize,ncols = nSNPs)
+#'       tmat <- matrix(0,length(rows),length(cols))
+#'       if(ivec[i]==jvec[i]){
+#'         rows <- rows[row(tmat)[upper.tri(tmat)]]
+#'         cols <- cols[col(tmat)[upper.tri(tmat)]]
+#'       }else{
+#'         rows <- rows[row(tmat)]
+#'         cols <- cols[col(tmat)]
+#'       }
+#'       rows <- rows[nS!=0]
+#'       cols <- cols[nS!=0]
+#'       nS <- nS[nS!=0]
+#'       cbind(rows,cols,nS)
+#'     })
+#'     gc()
+#'   }
+#'   return(tl)
+#' }
+#'
+# fast_LD <- function(H,cummap,m,Ne,cutoff,nchunks){
+ #  require(Matrix)
+#'   require(matrixStats)
+#'   nSNPs <- length(cummap)
+#'   chunksize <-ceiling(nSNPs/nchunks)
+#'   nSl <-fast_nS(H,cummap,m,Ne,cutoff,nchunks)
+#'   rS <- Matrix(0,nrow = nSNPs,ncol = nSNPs,sparse = T)
+#' for(i in 1:length(nSl)){
+#'   cat(paste0(i,"\n"))
+#'   tm <- values(nSl[[i]])
+#'   rS[tm[tm[,"nS"]!=0,c("rows","cols")]] <-tm[tm[,"nS"]!=0,"nS"]
+#'   rS[tm[tm[,"nS"]!=0,c("cols","rows")]] <-tm[tm[,"nS"]!=0,"nS"]
+#' }
+#'   diag(rS) <- colVars(H)
+#'   nmsum <- sum(1/1:(2*m-1))
+#'   theta <- (1/nmsum)/(2*m+1/nmsum)
+#'   sighat <- (1-theta)^2*rS+0.5*theta*(1-0.5*theta)*Diagonal(nSNPs)
+#'   cmat <- cov2cor(sighat)
+#'   return(cmat)
+#' }
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
 #' Helper function for generating LD matrix
 #'
 #' @param Svec vector containing lower diagonal of reference panel covariance matrix
@@ -345,41 +280,40 @@ lddiag <- function(Svec,distvec,m,Ne,cutoff,nSNPs,Sdiag){
   rS <- rS+t(rS)
   diag(rS)<- Sdiag
   sighat <- (1-theta)^2*rS+0.5*theta*(1-0.5*theta)*diag(nSNPs)
-  cmat <- cov2cor(sighat)
-  return(cmat)
+  return(sighat)
 }
-
-
-#' Helper function for generating LD matrix
-#' Much slower than lddiag, but is as close as possible to the original MATLAB implementation
-#' @param Svec vector containing lower diagonal of reference panel covariance matrix
-slow.LD <- function(Hpanel,cummap,m,ne,cutoff){
-  nmsum <- sum((1/1:(2*m-1)))
-  theta <- (1/nmsum)/(2*m+1/nmsum)
-  S <- covar(H)
-  S[lower.tri(S)] <- 0
-  nSNPs <- nrow(S)
-  for(i in 1:nSNPs){
-    j <- i+1
-    while(j<=nSNPs){
-      rho <- 4*Ne*(cummap[j]-cummap[i])/100
-      shrinkage <- exp(-rho/(2*m))
-      if(shrinkage<cutoff){
-        shrinkage <- 0
-      }
-      S[i,j] <- shrinkage*S[i,j]
-      j <- j+1
-    }
-  }
-  td <- diag(S)
-  S <- S+t(S)
-  diag(S) <- td
-  SigHat <-(1-theta)^2*S+0.5%*%theta%*%(1-0.5%*%theta)%*%diag(nSNPs)
-  cmat <- cov2cor(SigHat)
-  return(cmat)
-}
-
-
+#'
+#'
+#' #' Helper function for generating LD matrix
+#' #' Much slower than lddiag, but is as close as possible to the original MATLAB implementation
+#' #' @param Svec vector containing lower diagonal of reference panel covariance matrix
+#' slow.LD <- function(Hpanel,cummap,m,ne,cutoff){
+#'   nmsum <- sum((1/1:(2*m-1)))
+#'   theta <- (1/nmsum)/(2*m+1/nmsum)
+#'   S <- covar(H)
+#'   S[lower.tri(S)] <- 0
+#'   nSNPs <- nrow(S)
+#'   for(i in 1:nSNPs){
+#'     j <- i+1
+#'     while(j<=nSNPs){
+#'       rho <- 4*Ne*(cummap[j]-cummap[i])/100
+#'       shrinkage <- exp(-rho/(2*m))
+#'       if(shrinkage<cutoff){
+#'         shrinkage <- 0
+#'       }
+#'       S[i,j] <- shrinkage*S[i,j]
+#'       j <- j+1
+#'     }
+#'   }
+#'   td <- diag(S)
+#'   S <- S+t(S)
+#'   diag(S) <- td
+#'   SigHat <-(1-theta)^2*S+0.5%*%theta%*%(1-0.5%*%theta)%*%diag(nSNPs)
+#'   cmat <- cov2cor(SigHat)
+#'   return(cmat)
+#' }
+#'
+#'
 #' Generates LD matrix from reference panel data
 #'
 #' @param ref_list a list with an element H, which is the matrix of genotypes, and a vector
@@ -388,6 +322,7 @@ slow.LD <- function(Hpanel,cummap,m,ne,cutoff){
 #' @param Ne numeric effective population size estimate for population
 #' @param cutoff numeric cutoff for shrinkage
 gen_LD <- function(ref_list,m,Ne,cutoff){
+  require(coop)
   H <- ref_list[["H"]]
   cummap <- ref_list[["cummap"]]
   distmat <- outer(cummap,cummap,'-')
@@ -397,38 +332,9 @@ gen_LD <- function(ref_list,m,Ne,cutoff){
   Sdiag <- diag(S)
   nSNPs <- nrow(S)
   ldmat <-lddiag(Svec,distvec,m,Ne,cutoff,nSNPs,Sdiag)
-
 }
-#
-#
-legendfile <- "~/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno.impute.legend"
-mapfile <- "~/Desktop/LDmapgen/1000-genomes-genetic-maps/interpolated_OMNI/chr19.OMNI.interpolated_genetic_map.gz"
-h5file <- "~/Desktop/eQTL/Snake/IBD_WholeBlood_eQTL.h5"
-hapfile <- "~/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno.impute.hap"
-gmf <- "/media/nwknoblauch/Data/GTEx/gencode.v19.genes.patched_contigs.gtf.gz"
-nchunks <- 10
-m=85
-Ne=11490.672741
-cutoff=1e-3
-gene <- "ABCA7"
-
-# # saveRDS(rsl,"~/Desktop/LDmapgen/rsl.RDS")
-# # saveRDS(hl,"~/Desktop/LDmapgen/temphl.RDS")
-# # hl <- readRDS("~/Desktop/LDmapgen/temphl.RDS")
-# # rsl <- readRDS("~/Desktop/LDmapgen/rsl.RDS")
-# # #
-
-# # #
-# # #  compute_LD <-function(legendfile,mapfile,h5file,hapfile,m=85,Ne=11490.672741,cutoff=1e-3,nchunks=10)
-# # #    require(future)
- rsl <-subset_h5_ref_gene(legendfile,mapfile,h5file,gmf,gene=gene)
- hl <-subset_ref_panel(rsids=rsl,legendfile=legendfile,
-                         hapfile=hapfile,
-                         mapfile=mapfile)
 # #
- H <- hl[["H"]]
- cummap <- hl[["cummap"]]
- ldm <- fast_LD(H,cummap,m,Ne,cutoff,nchunks)
+# # #
 
 
 
