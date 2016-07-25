@@ -2,6 +2,7 @@
 
 // we only include RcppArmadillo.h which pulls Rcpp.h in for us
 #include "RcppArmadillo.h"
+#include "H5Cpp.h"
 #include<algorithm>
 #include<vector>
 
@@ -17,6 +18,7 @@
 // available from R
 //
 
+using namespace H5;
 
 //[[Rcpp::export]]
 arma::mat pcov(const arma::mat &tH,const arma::uvec &c1, const arma::uvec &c2, const bool isDiag){
@@ -43,6 +45,49 @@ arma::mat pdist(const arma::vec &distvec,const arma::uvec &c1, const arma::uvec 
   }
   return(retmat);
 }
+
+//[[Rcpp::export]]
+arma::Mat<short> read_hap_txt(const char* inhapfile){
+  arma::Mat<short> hapdat;
+  hapdat.load(inhapfile,arma::raw_ascii);
+  arma::inplace_trans(hapdat);
+  return(hapdat);
+}
+
+
+// In this example each column is a SNP, and each row is a sample. Chunking will be across the whole individual
+//[[Rcpp::export]]
+bool write_hap_h5(const arma::Mat<short> &hapdat, const char* outfile,const arma::uword chunksize=10000){
+  H5File file(outfile,H5F_ACC_TRUNC);
+  hsize_t dimsf[] = {hapdat.n_rows,hapdat.n_cols};
+  DataSpace dataspace(2,dimsf);
+  IntType datatype(PredType::NATIVE_INT);
+  DSetCreatPropList cparms;
+  hsize_t chunk_dims[]={hapdat.n_rows,1};
+  cparms.setChunk(2,chunk_dims);
+  DataSet dataset = file.createDataSet("Haplotype",datatype,dataspace,cparms);
+  DataSpace fspace = dataset.getSpace();
+  DataSpace mspace(2,chunk_dims);
+  hsize_t offset[]={0,0};
+  hsize_t block_count[]={hapdat.n_rows,1};
+  for(arma::uword i=0; i<hapdat.n_cols; i++){
+    fspace.selectHyperslab(H5S_SELECT_SET,block_count,offset);
+    dataset.write(hapdat.colptr(i),PredType::NATIVE_INT,mspace,fspace);
+    offset[1]++;
+  }
+  file.close();
+  return(true);
+}
+
+
+//[[Rcpp::export]]
+arma::mat read_hap_h5(const char* inhapfile){
+  arma::mat hapdat;
+  hapdat.load(inhapfile,arma::hdf5_binary);
+  return(hapdat);
+}
+
+
 
 
 //[[Rcpp::export]]

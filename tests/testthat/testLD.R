@@ -61,7 +61,7 @@ test_that("subcols and subrows create subsets the way we want them to",{
   #
   # # system.time(vecLD <- gen_LD(chr19,m = m,Ne=Ne,cutoff=cutoff))
   #
-  # system.time(nLD <- sparse_LD(tmap,tH,Ne,m,cutoff))
+  #
   # sum(abs(nLD[upper.tri(nLD,T)]-corLD[upper.tri(corLD,diag = T)]))
 
 

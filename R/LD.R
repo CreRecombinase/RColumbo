@@ -22,14 +22,21 @@ subset_ref_panel <- function(rsids=character(0),
                              positions=integer(0),
                              legendfile,
                              hapfile,
-                             mapfile){
+                             mapfile,
+                             outhapfile=NULL){
   require(dplyr)
   stopifnot(file.exists(hapfile),file.exists(legendfile),file.exists(mapfile),
+            !is.null(outhapfile),
             (length(rsids)>0|length(positions)>0))
 
   mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
   legdf <- read.table(legendfile,header=T,stringsAsFactors = F)
-  hapd <- data.matrix(read_delim(hapfile,col_names=F,delim=" "))
+  if(!file.exists(outhapfile)){
+    hapd <- read_hap_txt(inhapfile = hapfile)
+
+  }else{
+    thapd <- read_hap_h5(inhapfile = outhapfile,samples = 1006,nSNPs = nrow(legdf),outhapfile = outhapfile)
+  }
   if(length(rsids)>0){
     rslistvec <-rsids
     rslistvec <-intersect(rslistvec,legdf$ID)
@@ -245,18 +252,18 @@ subcols <-function(j,chunksize,ncols){
 #'   cmat <- cov2cor(sighat)
 #'   return(cmat)
 #' }
-#'
-#'
-#'
-#'
-#'
-#'
-#'
-#'
-#'
-#'
-#'
-#'
+
+
+
+
+
+
+
+
+
+
+
+
 #' Helper function for generating LD matrix
 #'
 #' @param Svec vector containing lower diagonal of reference panel covariance matrix

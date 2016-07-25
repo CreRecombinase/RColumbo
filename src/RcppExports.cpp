@@ -6,16 +6,6 @@
 
 using namespace Rcpp;
 
-// rcpparma_hello_world
-arma::mat rcpparma_hello_world();
-RcppExport SEXP RColumbo_rcpparma_hello_world() {
-BEGIN_RCPP
-    Rcpp::RObject __result;
-    Rcpp::RNGScope __rngScope;
-    __result = Rcpp::wrap(rcpparma_hello_world());
-    return __result;
-END_RCPP
-}
 // pcov
 arma::mat pcov(const arma::mat& tH, const arma::uvec& c1, const arma::uvec& c2, const bool isDiag);
 RcppExport SEXP RColumbo_pcov(SEXP tHSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP isDiagSEXP) {
@@ -40,6 +30,41 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const size_t >::type nrows(nrowsSEXP);
     Rcpp::traits::input_parameter< const size_t >::type chunksize(chunksizeSEXP);
     __result = Rcpp::wrap(gen_rows(i, nrows, chunksize));
+    return __result;
+END_RCPP
+}
+// read_hap_txt
+arma::Mat<short> read_hap_txt(const char* inhapfile);
+RcppExport SEXP RColumbo_read_hap_txt(SEXP inhapfileSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< const char* >::type inhapfile(inhapfileSEXP);
+    __result = Rcpp::wrap(read_hap_txt(inhapfile));
+    return __result;
+END_RCPP
+}
+// write_hap_h5
+bool write_hap_h5(const arma::Mat<short>& hapdat, const char* outfile, const arma::uword chunksize);
+RcppExport SEXP RColumbo_write_hap_h5(SEXP hapdatSEXP, SEXP outfileSEXP, SEXP chunksizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< const arma::Mat<short>& >::type hapdat(hapdatSEXP);
+    Rcpp::traits::input_parameter< const char* >::type outfile(outfileSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type chunksize(chunksizeSEXP);
+    __result = Rcpp::wrap(write_hap_h5(hapdat, outfile, chunksize));
+    return __result;
+END_RCPP
+}
+// read_hap_h5
+arma::mat read_hap_h5(const char* inhapfile);
+RcppExport SEXP RColumbo_read_hap_h5(SEXP inhapfileSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< const char* >::type inhapfile(inhapfileSEXP);
+    __result = Rcpp::wrap(read_hap_h5(inhapfile));
     return __result;
 END_RCPP
 }
