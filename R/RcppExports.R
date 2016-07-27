@@ -13,15 +13,15 @@ read_hap_txt <- function(inhapfile) {
     .Call('RColumbo_read_hap_txt', PACKAGE = 'RColumbo', inhapfile)
 }
 
-write_hap_h5 <- function(hapdat, outfile, chunksize = 10000L) {
-    .Call('RColumbo_write_hap_h5', PACKAGE = 'RColumbo', hapdat, outfile, chunksize)
-}
-
 read_hap_h5 <- function(inhapfile) {
     .Call('RColumbo_read_hap_h5', PACKAGE = 'RColumbo', inhapfile)
 }
 
-sparse_LD <- function(cummap, Hpanel, Ne, m, cutoff) {
-    .Call('RColumbo_sparse_LD', PACKAGE = 'RColumbo', cummap, Hpanel, Ne, m, cutoff)
+p_sparse_LD <- function(cummap, Hpanel, Ne, m, cutoff, chunksize, i, j) {
+    .Call('RColumbo_p_sparse_LD', PACKAGE = 'RColumbo', cummap, Hpanel, Ne, m, cutoff, chunksize, i, j)
+}
+
+sparse_LD <- function(cummap, Hpanel, Ne, m, cutoff, report_every) {
+    .Call('RColumbo_sparse_LD', PACKAGE = 'RColumbo', cummap, Hpanel, Ne, m, cutoff, report_every)
 }
 

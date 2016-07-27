@@ -18,12 +18,7 @@
 #' #' @param legendfile file containing legend for haplotype data
 #' #' @param hapfile file containing actual haplotype data
 #' #' @param mapfile file containing physical map info
-subset_ref_panel <- function(rsids=character(0),
-                             positions=integer(0),
-                             legendfile,
-                             hapfile,
-                             mapfile,
-                             outhapfile=NULL){
+subset_ref_panel <- function(rsids=character(0),positions=integer(0),legendfile,hapfile,mapfile,outhapfile=NULL){
   require(dplyr)
   stopifnot(file.exists(hapfile),file.exists(legendfile),file.exists(mapfile),
             !is.null(outhapfile),
@@ -31,21 +26,19 @@ subset_ref_panel <- function(rsids=character(0),
 
   mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
   legdf <- read.table(legendfile,header=T,stringsAsFactors = F)
+  legdf <- legdf[!duplicated(legdf$ID),]
   if(!file.exists(outhapfile)){
-    hapd <- read_hap_txt(inhapfile = hapfile)
-
-  }else{
-    thapd <- read_hap_h5(inhapfile = outhapfile,samples = 1006,nSNPs = nrow(legdf),outhapfile = outhapfile)
+    write_file_h5(hapfile,legendfile,outhapfile,chunksize=1000)
   }
   if(length(rsids)>0){
     rslistvec <-rsids
     rslistvec <-intersect(rslistvec,legdf$ID)
     rslistvec <- intersect(rslistvec,mapdf$rsid)
     stopifnot(length(rslistvec)>0)
-    rownames(hapd) <-legdf$ID
-    hapd <- hapd[rownames(hapd) %in% rslistvec,]
+    hapd <- read_hap_h5(hap_h5file = outhapfile,rslist = rslistvec)
     legdf <- filter(legdf,ID %in% rslistvec)
     mapdf <- filter(mapdf,rsid %in% rslistvec)
+    rownames(hapd) <-legdf$ID
   }else{
     poslistvec <- positions
     poslistvec <- intersect(poslistvec,legdf$pos)
@@ -67,15 +60,15 @@ subset_ref_panel <- function(rsids=character(0),
   retlist <-list(H=rhapd,cummap=mapdf$cummap)
   return(retlist)
 }
-#'
+  #'
 #' #' Compute the intersection of genetic map,hdf5 file, and haplotype data for a particular chromosome
 #' #' @param legendfile IMPUTE format legend file
 #' #' @param hapfile IMPUTE format genotype file
 #' #' @param mapfile file containing physical map info
 #' #' @param h5file HDF5 formatted data with merged eQTL and GWAS data
-subset_h5_ref <- function(legendfile,mapfile,h5file){
+subset_h5_ref <- function(legendfile,mapfile,eqtlfile){
   require(readr)
-  snpvec <- h5vec(h5file,"SNP","rsid")
+  snpvec <- h5vec(eqtlfile,"SNP","rsid")
   snpdf <- data_frame(rsid=paste0("rs",snpvec))
   legenddf <- read_delim(legendfile,delim = " ",col_names = T)
   #  hapmat <- data.matrix(read_delim(hapfile,delim = " ",col_names = F))
@@ -289,6 +282,8 @@ lddiag <- function(Svec,distvec,m,Ne,cutoff,nSNPs,Sdiag){
   sighat <- (1-theta)^2*rS+0.5*theta*(1-0.5*theta)*diag(nSNPs)
   return(sighat)
 }
+
+
 #'
 #'
 #' #' Helper function for generating LD matrix
@@ -340,8 +335,32 @@ gen_LD <- function(ref_list,m,Ne,cutoff){
   nSNPs <- nrow(S)
   ldmat <-lddiag(Svec,distvec,m,Ne,cutoff,nSNPs,Sdiag)
 }
-# #
-# # #
+#' Generates LD matrix from reference panel data
+#'
+#' @param H, the matrix of genotypes,
+#' @param cummap which is a vector with the cumulative map distance
+#' @param m integer sample size of genetic map (not of reference panel)
+#' @param Ne numeric effective population size estimate for population
+#' @param cutoff numeric cutoff for shrinkage
+#' @param chunksize size of chunks to use
+arm_gen_LD <- function(H,cummap,m,Ne,cutoff,chunksize){
+  require(future)
+  plan(multiprocess)
+  nSNPs <- ncol(H)
+  nchunks <-ceiling(nSNPs/chunksize)
+  resl <- list()
+  for(i in 0:(nchunks-1)){
+    for(j in i:(nchunks-1)){
+      cat(paste0(i,"_",j,"\n"))
+      resl[[paste0(i,"_",j)]] <-future({
+        p_sparse_LD(cummap, H,Ne,m,cutoff,chunksize,i,j)
+      })
+    }
+  }
+  tm <- value(resl[[1]])
+  fmat <-Reduce("+",lapply(resl,values))
+  return(fmat)
+}
 
 
 

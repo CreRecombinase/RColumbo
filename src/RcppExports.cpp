@@ -44,19 +44,6 @@ BEGIN_RCPP
     return __result;
 END_RCPP
 }
-// write_hap_h5
-bool write_hap_h5(const arma::Mat<short>& hapdat, const char* outfile, const arma::uword chunksize);
-RcppExport SEXP RColumbo_write_hap_h5(SEXP hapdatSEXP, SEXP outfileSEXP, SEXP chunksizeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject __result;
-    Rcpp::RNGScope __rngScope;
-    Rcpp::traits::input_parameter< const arma::Mat<short>& >::type hapdat(hapdatSEXP);
-    Rcpp::traits::input_parameter< const char* >::type outfile(outfileSEXP);
-    Rcpp::traits::input_parameter< const arma::uword >::type chunksize(chunksizeSEXP);
-    __result = Rcpp::wrap(write_hap_h5(hapdat, outfile, chunksize));
-    return __result;
-END_RCPP
-}
 // read_hap_h5
 arma::mat read_hap_h5(const char* inhapfile);
 RcppExport SEXP RColumbo_read_hap_h5(SEXP inhapfileSEXP) {
@@ -68,9 +55,27 @@ BEGIN_RCPP
     return __result;
 END_RCPP
 }
+// p_sparse_LD
+arma::sp_mat p_sparse_LD(const arma::rowvec& cummap, const arma::mat& Hpanel, const double Ne, const int m, const double cutoff, const arma::uword chunksize, arma::uword i, arma::uword j);
+RcppExport SEXP RColumbo_p_sparse_LD(SEXP cummapSEXP, SEXP HpanelSEXP, SEXP NeSEXP, SEXP mSEXP, SEXP cutoffSEXP, SEXP chunksizeSEXP, SEXP iSEXP, SEXP jSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< const arma::rowvec& >::type cummap(cummapSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Hpanel(HpanelSEXP);
+    Rcpp::traits::input_parameter< const double >::type Ne(NeSEXP);
+    Rcpp::traits::input_parameter< const int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type chunksize(chunksizeSEXP);
+    Rcpp::traits::input_parameter< arma::uword >::type i(iSEXP);
+    Rcpp::traits::input_parameter< arma::uword >::type j(jSEXP);
+    __result = Rcpp::wrap(p_sparse_LD(cummap, Hpanel, Ne, m, cutoff, chunksize, i, j));
+    return __result;
+END_RCPP
+}
 // sparse_LD
-arma::sp_mat sparse_LD(const arma::vec& cummap, const arma::mat& Hpanel, const double Ne, const int m, const double cutoff);
-RcppExport SEXP RColumbo_sparse_LD(SEXP cummapSEXP, SEXP HpanelSEXP, SEXP NeSEXP, SEXP mSEXP, SEXP cutoffSEXP) {
+arma::sp_mat sparse_LD(const arma::vec& cummap, const arma::mat& Hpanel, const double Ne, const int m, const double cutoff, const arma::uword report_every);
+RcppExport SEXP RColumbo_sparse_LD(SEXP cummapSEXP, SEXP HpanelSEXP, SEXP NeSEXP, SEXP mSEXP, SEXP cutoffSEXP, SEXP report_everySEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
@@ -79,7 +84,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double >::type Ne(NeSEXP);
     Rcpp::traits::input_parameter< const int >::type m(mSEXP);
     Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);
-    __result = Rcpp::wrap(sparse_LD(cummap, Hpanel, Ne, m, cutoff));
+    Rcpp::traits::input_parameter< const arma::uword >::type report_every(report_everySEXP);
+    __result = Rcpp::wrap(sparse_LD(cummap, Hpanel, Ne, m, cutoff, report_every));
     return __result;
 END_RCPP
 }

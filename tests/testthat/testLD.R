@@ -42,24 +42,35 @@ test_that("subcols and subrows create subsets the way we want them to",{
 #
 #
 # })
-# test_that("LD generation works in parallel as well as in serial",{
-  # frsidf <- "~/Desktop/LDmapgen/fsnplist.txt"
-  # legendfile <- "~/Desktop/LDmapgen/tempdata/bmi2015_chr19_rss_1kg_geno_impute.impute.legend"
-  # hapfile <- "~/Desktop/LDmapgen/tempdata/bmi2015_chr19_rss_1kg_geno_impute.impute.hap"
-  # mapfile <- "~/Desktop/LDmapgen/1000-genomes-genetic-maps/interpolated_OMNI/chr19.OMNI.interpolated_genetic_map.gz"
-  # frsid <- scan(frsidf,what=character())
-  # chr19 <- subset_ref_panel(rsids = frsid,legendfile = legendfile,
-  #                           hapfile=hapfile,
-  #                           mapfile = mapfile)
-  #  tH <- chr19[["H"]]
-  #  tmap <- chr19[["cummap"]]
-  # m <- 85
-  # Ne <- 11490.672741
-  #
-  # # theta <
-  # # cutoff <- 1e-3
-  #
-  # # system.time(vecLD <- gen_LD(chr19,m = m,Ne=Ne,cutoff=cutoff))
+# # test_that("LD generation works in parallel as well as in serial",{
+  frsidf <- "~/Desktop/LDmapgen/fsnplist.txt"
+  legendfile <- "~/Desktop/LDmapgen/tempdata/bmi2015_chr19_rss_1kg_geno_impute.impute.legend"
+  hapfile <- "~/Desktop/LDmapgen/tempdata/bmi2015_chr19_rss_1kg_geno_impute.impute.hap"
+  mapfile <- "~/Desktop/LDmapgen/1000-genomes-genetic-maps/interpolated_OMNI/chr19.OMNI.interpolated_genetic_map.gz"
+  haph5 <- "~/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno_hap.h5"
+  frsid <- scan(frsidf,what=character())
+   chr19 <- subset_ref_panel(rsids = frsid,legendfile = legendfile,
+                             hapfile=hapfile,
+                             mapfile = mapfile,outhapfile = haph5)
+     tH <- chr19[["H"]]
+     tmap <- chr19[["cummap"]]
+    m <- 85
+#
+    cutoff <- 1e-3
+    Ne <- 11490.672741
+#   #
+#   # # theta <
+#
+#   #
+system.time(vecLD <- gen_LD(chr19,m = m,Ne=Ne,cutoff=cutoff))
+ncor <- cov2cor(vecLD)
+cLD <- as.matrix(nLD)
+cLD <- cLD+t(cLD)
+diag(cLD) <- 1
+summary(c(cLD))
+system.time(nLD <- p_sparse_LD(tmap, tH,  Ne,  m, cutoff,100))
+system.time(nLD <- arm_gen_LD(tH,tmap,m,Ne,cutoff,5000))
+
   #
   #
   # sum(abs(nLD[upper.tri(nLD,T)]-corLD[upper.tri(corLD,diag = T)]))

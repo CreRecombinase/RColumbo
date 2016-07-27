@@ -21,6 +21,95 @@ h5vec <-function(h5file,groupname,dataname){
 }
 
 
+#' Write haplotype data to HDF5 data
+#' @param haplotype matrix (one SNP per column, one individual per row)
+#' @param legdat legend dataframe
+#' @param hap_h5file output HDF5 filename
+#' @param chunksize chunk size for compression
+write_hap_h5 <- function(haplotype,legdat,hap_h5file,chunksize=1000){
+  if(nrow(haplotype)==nrow(legdat)){
+    haplotype <- t(haplotype)
+  }
+  chunkvec <-c(nrow(haplotype),chunksize)
+  h5createFile(hap_h5file)
+  maxchar <- max(nchar(legdat$ID))
+  h5createGroup(file = hap_h5file,group = "Genotype")
+  h5createGroup(file = hap_h5file,group = "Legend")
+  h5createDataset(hap_h5file,"/Genotype/Haplotype",
+                  dims = c(nrow(haplotype),ncol(haplotype)),
+                  storage.mode = "integer",
+                  chunk=chunkvec,level=2)
+  h5createDataset(hap_h5file,"/Legend/rsid",
+                  dims=c(nrow(legdat)),
+                  storage.mode="character",
+                  size=max(nchar(legdat$ID)),
+                  chunk=chunksize,level=2)
+  h5createDataset(hap_h5file,"/Legend/pos",
+                  dims=c(nrow(legdat)),
+                  storage.mode="integer",
+                  size=maxchar,
+                  chunk=chunksize,level=2)
+  h5createDataset(hap_h5file,"/Legend/allele0",
+                  dims=c(nrow(legdat)),
+                  storage.mode="character",
+                  size=max(nchar(legdat$allele0)),
+                  chunk=chunksize,level=2)
+  h5createDataset(hap_h5file,"/Legend/allele1",
+                  dims=c(nrow(legdat)),
+                  storage.mode="character",
+                  size=max(nchar(legdat$allele1)),
+                  chunk=chunksize,level=2)
+
+  h5write(legdat$ID,file=hap_h5file,name="/Legend/rsid")
+  h5write(legdat$pos,file=hap_h5file,name="/Legend/pos")
+  h5write(legdat$allele0,file=hap_h5file,name="/Legend/allele0")
+  h5write(legdat$allele1,file=hap_h5file,name="/Legend/allele1")
+  h5write(haplotype,file=hap_h5file,name="/Genotype/Haplotype")
+}
+
+write_file_h5 <- function(hapfile,legfile,hap_h5file,chunksize=1000){
+  require(rhdf5)
+  hapdata <- data.matrix(read_delim(hapfile,col_names=F,delim=" "))
+  legdata <- read_delim(legendfile,col_names=T,delim=" ")
+  hapdata <- hapdata[!duplicated(legdata$ID),]
+  legdata <- legdata[!duplicated(legdata$ID),]
+  write_hap_h5(haplotype = hapdata,hap_h5file = hap_h5file,legdat = legdata,chunksize = chunksize)
+}
+
+
+read_h5_df <- function(h5file,group){
+  td <-h5read(h5file,group)
+  retdf <- bind_cols(mapply(function(x,y){
+    ret <- data_frame(c(x))
+    colnames(ret)=y
+    return(ret)
+  },td,names(td),USE.NAMES=F))
+  return(retdf)
+}
+
+
+#' Write haplotype data to HDF5 data
+#' @param haplotype matrix (one SNP per column, one individual per row)
+#' @param h5file file output file
+#' @param chunksize
+read_hap_h5 <- function(hap_h5file,rslist=NULL,poslist=NULL){
+  stopifnot(length(rslist>0)|length(poslist>0))
+  legdata <-read_h5_df(hap_h5file,"Legend")
+  if(length(rslist)>0){
+    subset_ind <- which(legdata$rsid %in% rslist)
+    legdata <- filter(legdata,rsid %in% rslist)
+  }
+  hapdim <-h5ls(hap_h5file) %>% filter(name=="Haplotype")
+  nind <- as.numeric(gsub("^([0-9]+) x [0-9]+$","\\1",hapdim$dim))
+  shapdat <- h5read(hap_h5file,name="/Genotype/Haplotype")
+  shapdat <- t(shapdat[,subset_ind])
+  return(shapdat)
+}
+
+
+
+
+
 #'Returns list of dataframes,one for each dimension of the data
 #' @param h5file location of h5file
 h5dfl <- function(h5file){
