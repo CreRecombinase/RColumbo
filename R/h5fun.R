@@ -21,60 +21,80 @@ h5vec <-function(h5file,groupname,dataname){
 }
 
 
+matLines <- function(gzc,nr,nc){
+  tL <-readLines(gzc,n = nr)
+  tLL <- matrix(as.integer(unlist(strsplit(tL,split = " ",fixed = T,useBytes = T))),
+                nrow = nr,ncol = nc,byrow = T)
+  return(tLL)
+}
 #' Write haplotype data to HDF5 data
 #' @param haplotype matrix (one SNP per column, one individual per row)
 #' @param legdat legend dataframe
 #' @param hap_h5file output HDF5 filename
 #' @param chunksize chunk size for compression
-write_hap_h5 <- function(haplotype,legdat,hap_h5file,chunksize=1000){
-  if(nrow(haplotype)==nrow(legdat)){
-    haplotype <- t(haplotype)
-  }
-  chunkvec <-c(nrow(haplotype),chunksize)
+write_hap_h5 <- function(hapfile,legendfile,hap_h5file,chunksize=100000){
+  require(BBmisc)
+  legdat <- read.table(legendfile,header=T,sep=" ",stringsAsFactors=F)
+  nind <- length(scan(hapfile,what=integer(),sep=" ",nlines=1))
+  nSNP <- nrow(legdat)
+  chunkvec <-c(chunksize)
+  nchunks <-ceiling(nSNP/chunksize)
+  chunkind <- chunk(1:nSNP,chunk.size = chunksize)
   h5createFile(hap_h5file)
-  maxchar <- max(nchar(legdat$ID))
+  maxchar <- max(nchar(legdat$id))
   h5createGroup(file = hap_h5file,group = "Genotype")
   h5createGroup(file = hap_h5file,group = "Legend")
   h5createDataset(hap_h5file,"/Genotype/Haplotype",
-                  dims = c(nrow(haplotype),ncol(haplotype)),
+                  dims = c(nSNP,nind),
                   storage.mode = "integer",
-                  chunk=chunkvec,level=2)
+                  chunk=c(chunksize,nind),level=2)
   h5createDataset(hap_h5file,"/Legend/rsid",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
-                  size=max(nchar(legdat$ID)),
+                  size=maxchar,
                   chunk=chunksize,level=2)
   h5createDataset(hap_h5file,"/Legend/pos",
                   dims=c(nrow(legdat)),
                   storage.mode="integer",
-                  size=maxchar,
                   chunk=chunksize,level=2)
   h5createDataset(hap_h5file,"/Legend/allele0",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
-                  size=max(nchar(legdat$allele0)),
+                  size=max(nchar(legdat$a0)),
                   chunk=chunksize,level=2)
   h5createDataset(hap_h5file,"/Legend/allele1",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
-                  size=max(nchar(legdat$allele1)),
+                  size=max(nchar(legdat$a1)),
                   chunk=chunksize,level=2)
-
-  h5write(legdat$ID,file=hap_h5file,name="/Legend/rsid")
-  h5write(legdat$pos,file=hap_h5file,name="/Legend/pos")
-  h5write(legdat$allele0,file=hap_h5file,name="/Legend/allele0")
-  h5write(legdat$allele1,file=hap_h5file,name="/Legend/allele1")
-  h5write(haplotype,file=hap_h5file,name="/Genotype/Haplotype")
+  h5write(legdat$id,file=hap_h5file,name="/Legend/rsid")
+  h5write(legdat$position,file=hap_h5file,name="/Legend/pos")
+  h5write(legdat$a0,file=hap_h5file,name="/Legend/allele0")
+  h5write(legdat$a1,file=hap_h5file,name="/Legend/allele1")
+  gzc <- gzfile(hapfile)
+  for(i in 1:length(chunkind)){
+    cat(paste0(i," out of ",length(chunkind),"\n"))
+    nr <- length(chunkind[[i]])
+    tmat <- matLines(gzc,nr,nind)
+    h5write(tmat,file=hap_h5file,name="/Genotype/Haplotype",index=list(chunkind[[i]],NULL))
+  }
+  H5close()
 }
 
-write_file_h5 <- function(hapfile,legfile,hap_h5file,chunksize=1000){
+
+
+write_file_h5 <- function(hapfile,legfile,hap_h5file,chunksize=100000){
   require(rhdf5)
-  hapdata <- data.matrix(read_delim(hapfile,col_names=F,delim=" "))
-  legdata <- read_delim(legendfile,col_names=T,delim=" ")
-  hapdata <- hapdata[!duplicated(legdata$ID),]
-  legdata <- legdata[!duplicated(legdata$ID),]
+
+
+
+
+  hapr <- readLines(con = gzf,n = nrow(legdata))
+  hapr <- hapr[!duplicated(legdata$id)]
+  legdata <- legdata[!duplicated(legdata$id),]
   write_hap_h5(haplotype = hapdata,hap_h5file = hap_h5file,legdat = legdata,chunksize = chunksize)
 }
+
 
 
 read_h5_df <- function(h5file,group){
