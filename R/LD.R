@@ -18,27 +18,25 @@
 #' #' @param legendfile file containing legend for haplotype data
 #' #' @param hapfile file containing actual haplotype data
 #' #' @param mapfile file containing physical map info
-subset_ref_panel <- function(rsids=character(0),positions=integer(0),legendfile,hapfile,mapfile,outhapfile=NULL){
+subset_ref_panel <- function(rsids=character(0),positions=integer(0),mapfile,haph5,chunksize=100000){
   require(dplyr)
-  stopifnot(file.exists(hapfile),file.exists(legendfile),file.exists(mapfile),
-            !is.null(outhapfile),
+  require(rhdf5)
+  require(BBmisc)
+  stopifnot(file.exists(haph5),file.exists(mapfile),
             (length(rsids)>0|length(positions)>0))
 
   mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
-  legdf <- read.table(legendfile,header=T,stringsAsFactors = F)
-  legdf <- legdf[!duplicated(legdf$ID),]
-  if(!file.exists(outhapfile)){
-    write_file_h5(hapfile,legendfile,outhapfile,chunksize=1000)
-  }
+  legdf <- read_h5_df(haph5,"Legend")
+  nSNPs <- nrow(legdf)
   if(length(rsids)>0){
     rslistvec <-rsids
-    rslistvec <-intersect(rslistvec,legdf$ID)
+    rslistvec <-intersect(rslistvec,legdf$rsid)
     rslistvec <- intersect(rslistvec,mapdf$rsid)
     stopifnot(length(rslistvec)>0)
-    hapd <- read_hap_h5(hap_h5file = outhapfile,rslist = rslistvec)
-    legdf <- filter(legdf,ID %in% rslistvec)
+    hapd <- read_hap_h5(hap_h5file = outhapfile,rslist = rslistvec,chunksize=chunksize)
+    legdf <- filter(legdf,rsid %in% rslistvec)
     mapdf <- filter(mapdf,rsid %in% rslistvec)
-    rownames(hapd) <-legdf$ID
+    rownames(hapd) <-legdf$rsid
   }else{
     poslistvec <- positions
     poslistvec <- intersect(poslistvec,legdf$pos)
@@ -70,10 +68,10 @@ subset_h5_ref <- function(legendfile,mapfile,eqtlfile){
   require(readr)
   snpvec <- h5vec(eqtlfile,"SNP","rsid")
   snpdf <- data_frame(rsid=paste0("rs",snpvec))
-  legenddf <- read_delim(legendfile,delim = " ",col_names = T)
+  legenddf <- read.table(legendfile,sep=" ",col.names = T)
   #  hapmat <- data.matrix(read_delim(hapfile,delim = " ",col_names = F))
   mapdat <- read_delim(mapfile,delim=" ",col_names=c("rsid","pos","dist"))
-  sub_snp <-  semi_join(snpdf,legenddf,by=c("rsid"="ID")) %>%semi_join(mapdat,by=c("rsid"="rsid"))
+  sub_snp <-  semi_join(snpdf,legenddf,by=c("rsid"="id")) %>%semi_join(mapdat,by=c("rsid"="rsid"))
   rsl <- unique(sub_snp$rsid)
   return(rsl)
 }

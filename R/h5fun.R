@@ -34,6 +34,7 @@ matLines <- function(gzc,nr,nc){
 #' @param chunksize chunk size for compression
 write_hap_h5 <- function(hapfile,legendfile,hap_h5file,chunksize=100000){
   require(BBmisc)
+  require(rhdf5)
   legdat <- read.table(legendfile,header=T,sep=" ",stringsAsFactors=F)
   nind <- length(scan(hapfile,what=integer(),sep=" ",nlines=1))
   nSNP <- nrow(legdat)
@@ -87,12 +88,9 @@ write_hap_h5 <- function(hapfile,legendfile,hap_h5file,chunksize=100000){
 
 
 
+
 write_file_h5 <- function(hapfile,legfile,hap_h5file,chunksize=100000){
   require(rhdf5)
-
-
-
-
   hapr <- readLines(con = gzf,n = nrow(legdata))
   hapr <- hapr[!duplicated(legdata$id)]
   legdata <- legdata[!duplicated(legdata$id),]
@@ -102,6 +100,7 @@ write_file_h5 <- function(hapfile,legfile,hap_h5file,chunksize=100000){
 
 
 read_h5_df <- function(h5file,group){
+  require(dplyr)
   td <-h5read(h5file,group)
   retdf <- bind_cols(mapply(function(x,y){
     ret <- data_frame(c(x))
@@ -116,18 +115,33 @@ read_h5_df <- function(h5file,group){
 #' @param haplotype matrix (one SNP per column, one individual per row)
 #' @param h5file file output file
 #' @param chunksize
-read_hap_h5 <- function(hap_h5file,rslist=NULL,poslist=NULL){
-  stopifnot(length(rslist>0)|length(poslist>0))
+read_hap_h5 <- function(hap_h5file,rslist=NULL,poslist=NULL,chunksize=100000){
+  require(BBmisc)
+  stopifnot((length(rslist)>0|length(poslist)>0),chunksize>0)
   legdata <-read_h5_df(hap_h5file,"Legend")
+  nSNPs <- nrow(legdata)
+
+  chunkind <-chunk(1:nSNPs,chunk.size = chunksize)
   if(length(rslist)>0){
     subset_ind <- which(legdata$rsid %in% rslist)
-    legdata <- filter(legdata,rsid %in% rslist)
   }
   hapdim <-h5ls(hap_h5file) %>% filter(name=="Haplotype")
   nind <- as.numeric(gsub("^([0-9]+) x [0-9]+$","\\1",hapdim$dim))
-  shapdat <- h5read(hap_h5file,name="/Genotype/Haplotype")
-  shapdat <- t(shapdat[,subset_ind])
-  return(shapdat)
+  matl <- list()
+  mc <- 0
+  for(i in 1:length(chunkind)){
+    tleg <- legdata[chunkind[[i]],]
+    tmat <- h5read(hap_h5file,name="/Genotype/Haplotype",index=list(chunkind[[i]],NULL))
+    tmat <- t(tmat[tleg$rsid %in% rslist,,drop=F])
+    if(ncol(tmat)>0){
+      tleg <- tleg[tleg$rsid %in% rslist,]
+      colnames(tmat) <- tleg$rsid
+      mc <- mc+1
+      matl[[mc]] <- tmat
+    }
+  }
+  retmat <- do.call("cbind",matl)
+  return(retmat)
 }
 
 
