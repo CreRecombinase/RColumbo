@@ -2,7 +2,6 @@
 
 // we only include RcppArmadillo.h which pulls Rcpp.h in for us
 #include "RcppArmadillo.h"
-#include "LD.hpp"
 #include "H5Cpp.h"
 #include <algorithm>
 #include <vector>
