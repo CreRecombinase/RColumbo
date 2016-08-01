@@ -58,10 +58,11 @@ subset_h5_ref <- function(legendfile,mapfile,eqtlfile){
   require(readr)
   snpvec <- h5vec(eqtlfile,"SNP","rsid")
   snpdf <- data_frame(rsid=paste0("rs",snpvec))
-  legenddf <- read.table(legendfile,sep=" ",col.names = T)
+  lsnpvec <- h5vec(haph5,"Legend","rsid")
+  legenddf <- data_frame(rsid=lsnpvec)
   #  hapmat <- data.matrix(read_delim(hapfile,delim = " ",col_names = F))
   mapdat <- read_delim(mapfile,delim=" ",col_names=c("rsid","pos","dist"))
-  sub_snp <-  semi_join(snpdf,legenddf,by=c("rsid"="id")) %>%semi_join(mapdat,by=c("rsid"="rsid"))
+  sub_snp <-  semi_join(snpdf,legenddf) %>%semi_join(mapdat)
   rsl <- unique(sub_snp$rsid)
   return(rsl)
 }
