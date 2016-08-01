@@ -67,10 +67,10 @@ write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   for(i in 1:length(chunkind)){
     cat(paste0(i,"\n"))
     tldat <- slice(legdat,chunkind[[i]])
-    h5write(legdat$id,file=hap_h5file,name="/Legend/rsid",index=list(chunkind[[i]]-1))
-    h5write(legdat$position,file=hap_h5file,name="/Legend/pos",index=list(chunkind[[i]]-1))
-    h5write(legdat$a0,file=hap_h5file,name="/Legend/allele0",index=list(chunkind[[i]]-1))
-    h5write(legdat$a1,file=hap_h5file,name="/Legend/allele1",index=list(chunkind[[i]]-1))
+    h5write(legdat$id,file=hap_h5file,name="/Legend/rsid",index=list(chunkind[[i]]))
+    h5write(legdat$position,file=hap_h5file,name="/Legend/pos",index=list(chunkind[[i]]))
+    h5write(legdat$a0,file=hap_h5file,name="/Legend/allele0",index=list(chunkind[[i]]))
+    h5write(legdat$a1,file=hap_h5file,name="/Legend/allele1",index=list(chunkind[[i]]))
   }
     H5close()
 }
