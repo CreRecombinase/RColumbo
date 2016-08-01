@@ -35,10 +35,15 @@ matLines <- function(gzc,nr,nc){
 #' @param chunksize chunk size for compression
 write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   require(rhdf5)
+  library(BBmisc)
   legdat <- read.table(legendfile,header=T,sep=" ",stringsAsFactors=F)
   nind <- length(scan(hapfile,what=integer(),sep=" ",nlines=1))
   nSNP <- nrow(legdat)
+  chunkind <- chunk(1:nSNP,chunk.size = chunksize)
   maxchar <- max(nchar(legdat$id))
+  if(!file.exists(hap_h5file)){
+    h5createFile(hap_h5file)
+  }
   h5createGroup(file = hap_h5file,group = "Legend")
   h5createDataset(hap_h5file,"/Legend/rsid",
                   dims=c(nrow(legdat)),
@@ -59,10 +64,14 @@ write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
                   storage.mode="character",
                   size=max(nchar(legdat$a1)),
                   chunk=chunksize,level=2)
-    h5write(legdat$id,file=hap_h5file,name="/Legend/rsid")
-    h5write(legdat$position,file=hap_h5file,name="/Legend/pos")
-    h5write(legdat$a0,file=hap_h5file,name="/Legend/allele0")
-    h5write(legdat$a1,file=hap_h5file,name="/Legend/allele1")
+  for(i in 1:length(chunkind)){
+    cat(paste0(i,"\n"))
+    tldat <- slice(legdat,chunkind[[i]])
+    h5write(legdat$id,file=hap_h5file,name="/Legend/rsid",index=list(chunkind[[i]]-1))
+    h5write(legdat$position,file=hap_h5file,name="/Legend/pos",index=list(chunkind[[i]]-1))
+    h5write(legdat$a0,file=hap_h5file,name="/Legend/allele0",index=list(chunkind[[i]]-1))
+    h5write(legdat$a1,file=hap_h5file,name="/Legend/allele1",index=list(chunkind[[i]]-1))
+  }
     H5close()
 }
 
