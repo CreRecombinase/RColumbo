@@ -6,6 +6,45 @@
 
 using namespace Rcpp;
 
+// write_haplotype_h5
+void write_haplotype_h5(const std::string hap_gzfile, const std::string hap_h5file, const size_t nrows, const size_t ncols, const size_t chunksize);
+RcppExport SEXP RColumbo_write_haplotype_h5(SEXP hap_gzfileSEXP, SEXP hap_h5fileSEXP, SEXP nrowsSEXP, SEXP ncolsSEXP, SEXP chunksizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< const std::string >::type hap_gzfile(hap_gzfileSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
+    Rcpp::traits::input_parameter< const size_t >::type nrows(nrowsSEXP);
+    Rcpp::traits::input_parameter< const size_t >::type ncols(ncolsSEXP);
+    Rcpp::traits::input_parameter< const size_t >::type chunksize(chunksizeSEXP);
+    write_haplotype_h5(hap_gzfile, hap_h5file, nrows, ncols, chunksize);
+    return R_NilValue;
+END_RCPP
+}
+// read_haplotype_ind_h5
+arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file, Rcpp::IntegerVector indexes);
+RcppExport SEXP RColumbo_read_haplotype_ind_h5(SEXP hap_h5fileSEXP, SEXP indexesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type indexes(indexesSEXP);
+    __result = Rcpp::wrap(read_haplotype_ind_h5(hap_h5file, indexes));
+    return __result;
+END_RCPP
+}
+// read_haplotype_h5
+arma::Mat<int> read_haplotype_h5(const std::string hap_h5file, const size_t readSNPs, const size_t skipSNPs);
+RcppExport SEXP RColumbo_read_haplotype_h5(SEXP hap_h5fileSEXP, SEXP readSNPsSEXP, SEXP skipSNPsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
+    Rcpp::traits::input_parameter< const size_t >::type readSNPs(readSNPsSEXP);
+    Rcpp::traits::input_parameter< const size_t >::type skipSNPs(skipSNPsSEXP);
+    __result = Rcpp::wrap(read_haplotype_h5(hap_h5file, readSNPs, skipSNPs));
+    return __result;
+END_RCPP
+}
 // pcov
 arma::mat pcov(const arma::mat& tH, const arma::uvec& c1, const arma::uvec& c2, const bool isDiag);
 RcppExport SEXP RColumbo_pcov(SEXP tHSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP isDiagSEXP) {
