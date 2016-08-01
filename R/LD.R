@@ -54,7 +54,7 @@ subset_ref_panel <- function(rsids=character(0),mapfile,haph5){
 #' #' @param hapfile IMPUTE format genotype file
 #' #' @param mapfile file containing physical map info
 #' #' @param h5file HDF5 formatted data with merged eQTL and GWAS data
-subset_h5_ref <- function(legendfile,mapfile,eqtlfile){
+subset_h5_ref <- function(haph5,mapfile,eqtlfile){
   require(readr)
   snpvec <- h5vec(eqtlfile,"SNP","rsid")
   snpdf <- data_frame(rsid=paste0("rs",snpvec))
