@@ -61,7 +61,7 @@ subset_h5_ref <- function(haph5,mapfile,eqtlfile){
   lsnpvec <- h5vec(haph5,"Legend","rsid")
   legenddf <- data_frame(rsid=lsnpvec)
   #  hapmat <- data.matrix(read_delim(hapfile,delim = " ",col_names = F))
-  mapdat <- read_delim(mapfile,delim=" ",col_names=c("rsid","pos","dist"))
+  mapdat <- read.table(mapfile,sep=" ",header=F) %>% rename(rsid=V1,pos=V2,map=V3)
   sub_snp <-  semi_join(snpdf,legenddf) %>%semi_join(mapdat)
   rsl <- unique(sub_snp$rsid)
   return(rsl)
@@ -83,7 +83,7 @@ subset_h5_ref_gene <- function(legendfile,mapfile,h5file,gfile,gene){
 
   legenddf <- read_delim(legendfile,delim = " ",col_names = T)
   #  hapmat <- data.matrix(read_delim(hapfile,delim = " ",col_names = F))
-  mapdat <- read_delim(mapfile,delim=" ",col_names=c("rsid","pos","dist"))
+  mapdat <- read.table(mapfile,sep=" ",col.names=c("rsid","pos","dist"))
   sub_snp <- semi_join(snpdf,eqtldf) %>%mutate(rsid=paste0("rs",rsid)) %>%
     semi_join(legenddf,by=c("rsid"="ID")) %>%semi_join(mapdat,by=c("rsid"="rsid"))
   rsl <- unique(sub_snp$rsid)
