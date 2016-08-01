@@ -4,18 +4,12 @@
 #include "RcppArmadillo.h"
 #include "H5Cpp.h"
 #include <algorithm>
+#include <iterator>
 #include <vector>
 #include <iostream>
 #include <fstream>
 #include <tuple>
-#include <boost/iostreams/device/mapped_file.hpp>
-#include <boost/iostreams/filtering_stream.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/spirit/include/qi.hpp>
-#include <boost/spirit/include/qi_match.hpp>
-#include <boost/spirit/include/qi_uint.hpp>
 
-// [[Rcpp::depends(BH)]]
 
 #define ARMA_USE_CXX11
 // via the depends attribute we tell Rcpp to create hooks for
@@ -42,6 +36,8 @@ arma::mat pcov(const arma::mat &tH,const arma::uvec &c1, const arma::uvec &c2, c
     return(covmat);
   }
 }
+
+
 //[[Rcpp::export]]
 arma::uvec gen_rows(const int i, const size_t nrows, const size_t chunksize){
   return(arma::regspace<arma::uvec>((i-1)*chunksize+1,std::min(nrows,(i)*(chunksize)))-1);
@@ -67,203 +63,6 @@ arma::Mat<short> read_hap_txt(const char* inhapfile){
 }
 
 
-
-//
-// std::vector<std::string> read_rsid_h5(const char* hap_h5file){
-//   try{
-//     H5File file(hap_h5file,H5F_ACC_RDONLY);
-//     Group rsg = file.openGroup("Legend");
-//     DataSet rs_dataset = rsg.openDataSet("rsid");
-//     DataSpace rs_space = rs_dataset.getSpace();
-//     int rank = rs_space.getSimpleExtentNdims();
-//     hsize_t dims_out[1];
-//     int ndims = rs_space.getSimpleExtentDims(dims_out,NULL);
-//     size_t length =dims_out[0];
-//     std::cout<<"Length of :"<<length<<std::endl;
-//     std::vector<char*> tmpvect(length,NULL);
-//     std::vector<std::string> strs(length);
-//     StrType stringType(rs_dataset);
-//     rs_dataset.read(tmpvect.data(),stringType);
-//     std::cout<<"Finished reading!"<<std::endl;
-//     for(size_t x=0; x<tmpvect.size(); ++x)
-//     {
-//       strs[x] = tmpvect[x];
-//     }
-//     return(strs);
-//   }
-//     catch( FileIException error )
-//     {
-//       std::cerr<<"Can't read "<<"rsid"<<", FileIException"<<std::endl;
-//       error.printError();
-//       Rcpp::stop("Oh no!");
-//     }
-//     // catch failure caused by the DataSet operations
-//     catch( DataSetIException error )
-//     {
-//       std::cerr<<"Can't read "<<"rsid"<<", DataSetIException"<<std::endl;
-//       error.printError();
-//       Rcpp::stop("Oh no!");
-//     }
-//     // catch failure caused by the DataSpace operations
-//     catch( DataSpaceIException error )
-//     {
-//       std::cerr<<"Can't read "<<"rsid"<<", DataSpaceIException"<<std::endl;
-//       error.printError();
-//       Rcpp::stop("Oh no!");
-//     }
-//     // catch failure caused by the DataSpace operations
-//     catch( DataTypeIException error )
-//     {
-//       std::cerr<<"Can't read "<<"rsid"<<", DataTypeIException"<<std::endl;
-//       error.printError();
-//       Rcpp::stop("Oh no!");
-//     }
-// }
-//
-// typedef struct wHap{
-//   short* haplotype;
-//   unsigned int pos;
-//   char* ref;
-//   char* alt;
-//   char* rsid;
-// } wHap;
-//
-//
-// typedef struct rHap{
-//   unsigned int pos;
-//   std::string ref;
-//   std::string alt;
-//   std::string rsid;
-// } rHap;
-//
-// wHap gen_whap(const rHap &trhap, const std::vector<short> thapd){
-//   wHap twhap;
-//   twhap.ref=new char[trhap.ref.length()];
-//   strcpy(twhap.ref,trhap.ref.c_str());
-//   twhap.alt=new char[trhap.alt.length()];
-//   strcpy(twhap.alt,trhap.alt.c_str());
-//   twhap.rsid=new char[trhap.rsid.length()];
-//   strcpy(twhap.rsid,trhap.rsid.c_str());
-//   twhap.haplotype= new short[thapd.size()];
-//   std::copy(thapd.begin(),thapd.end(),twhap.haplotype);
-//   return(twhap);
-// }
-//
-// std::istream& operator>>(std::istream& is, rHap& el){
-//   using namespace boost::spirit::qi;
-//   return is >>match("rs">uint_>' '>uint_>' '>+char_("ACTGN")>' '>+char_("ACTGN")>>eol,el.rsid,el.pos,el.ref,el.alt);
-// }
-//
-// std::istream& operator>>(std::istream& is, std::vector<short>& el){
-//   using namespace boost::spirit::qi;
-//   return is >>match(char_ % ' '>>eol,el);
-// }
-//
-//
-// void read_haplotype_h5(const std::string hap_gzfile,const std::string hap_legfile, const std::string hap_h5file, const size_t nrow,const size_t ncol,const size_t ){
-//   boost::iostreams::mapped_file_source mapfile(hap_legfile);
-//   boost::iostreams::stream<boost::iostreams::mapped_file_source> textstream(mapfile);
-//   boost::iostreams::filtering_istream fs;
-//   fs.push(boost::iostreams::gzip_decompressor{});
-//   fs.push(textstream);
-//   std::string hl;
-//   std::cout<<"Reading header line"<<std::endl;
-//   getline(fs,hl);
-//
-//   std::vector<std::vector<short>> haplotypes(nrow);
-//   size_t i =0;
-//   std::istream_iterator<std::vector<short>> hit;
-//
-//   for(std::istream_iterator<rHap> it(fs >> std::noskipws), last; it!=last; ++it){
-//
-//   }
-//   boost::iostreams::mapped_file_source hapgz(hap_gzfile);
-//   boost::iostreams::stream<boost::iostreams::mapped_file_source> hapstream(hapgz);
-//   boost::iostreams::filtering_istream hap_fs;
-//   hap_fs.push(boost::iostreams::gzip_decompressor{});
-//   hap_fs.push(hapstream);
-//   for(std::istream_iterator<legend_tup> it(fs >> std::noskipws), last; it!=last; ++it){
-//     legvec[i]=*it;
-//     i++;
-//   }
-// }
-
-
-// Rcpp::IntegerMatrix read_haplotype_h5(const std::string hap_h5file,const Rcpp::IntegerVector &indexes){
-//
-//     H5File file(hap_h5file.c_str(),H5F_ACC_RDONLY);
-//     Group matg = file.openGroup("Genotype");
-//     DataSet dataset = matg.openDataSet("Haplotype");
-//     DataSpace space = dataset.getSpace();
-//     std::vector<size_t> posvec(indexes.length()*2);
-//
-//     int rank = space.getSimpleExtentNdims();
-//     hsize_t dims_out[2];
-//     int ndims = space.getSimpleExtentDims(dims_out,NULL);
-//     size_t rows =dims_out[0];
-//     size_t cols =dims_out[1];
-//     arma::Mat<int> fmat(cols,indexes.length());
-//     int* column = new int[cols];
-//     hsize_t offset[2] = {0,0};
-//     hsize_t count[2]={1,cols};
-//
-//     for(size_t i=0; i<fmat.n_rows; i++){
-//       offset[1]=indexes[i]-1;
-//
-//
-//     }
-//     std::cout<<"Size of matrix is "<<rows<<"x"<<cols<<std::endl;
-//     Rcpp::IntegerVector ret(2);
-//     ret[0]=rows;
-//     ret[1]=cols;
-//     return(ret);
-// }
-//
-//
-//   PredType pt=PredType::NATIVE_ULONG;
-//   if(type_class==H5T_INTEGER){
-//     IntType intype = dataset.getIntType();
-//     size = intype.getSize();
-//     pt=PredType::NATIVE_UINT;
-//
-//   }else{
-//     FloatType dtype = dataset.getFloatType();
-//     size = dtype.getSize();
-//     pt=PredType::NATIVE_DOUBLE;
-//   }
-//   // std::cout << "Data size is " << size << std::endl;
-//
-//   DataSpace dataspace= dataset.getSpace();
-//   int rank = dataspace.getSimpleExtentNdims();
-//   hsize_t dims_out[2]={0,0};
-//   int ndims = dataspace.getSimpleExtentDims( dims_out, NULL);
-//   DataSpace memspace(rank,dims_out);
-//   //      std::cerr<<"Dims of  "<<dsn<<" are "<<dims_out[0]<<"x"<<dims_out[1]<<std::endl;
-//   tvec.resize(dims_out[0]);
-//   dataset.read(&tvec[0],pt,memspace,dataspace);
-
-// In this example each column is a SNP, and each row is a sample. Chunking will be across the whole individual
-// bool write_hap_h5(const arma::Mat<short> &hapdat, const char* outfile,const arma::uword chunksize=10000){
-//   H5File file(outfile,H5F_ACC_TRUNC);
-//   hsize_t dimsf[] = {hapdat.n_rows,hapdat.n_cols};
-//   DataSpace dataspace(2,dimsf);
-//   IntType datatype(PredType::NATIVE_INT);
-//   DSetCreatPropList cparms;
-//   hsize_t chunk_dims[]={hapdat.n_rows,1};
-//   cparms.setChunk(2,chunk_dims);
-//   DataSet dataset = file.createDataSet("Haplotype",datatype,dataspace,cparms);
-//   DataSpace fspace = dataset.getSpace();
-//   DataSpace mspace(2,chunk_dims);
-//   hsize_t offset[]={0,0};
-//   hsize_t block_count[]={hapdat.n_rows,1};
-//   for(arma::uword i=0; i<hapdat.n_cols; i++){
-//     fspace.selectHyperslab(H5S_SELECT_SET,block_count,offset);
-//     dataset.write(hapdat.colptr(i),PredType::NATIVE_INT,mspace,fspace);
-//     offset[1]++;
-//   }
-//   file.close();
-//   return(true);
-//}
 
 
 //[[Rcpp::export]]

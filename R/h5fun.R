@@ -21,6 +21,7 @@ h5vec <-function(h5file,groupname,dataname){
 }
 
 
+
 matLines <- function(gzc,nr,nc){
   tL <-readLines(gzc,n = nr)
   tLL <- matrix(as.integer(unlist(strsplit(tL,split = " ",fixed = T,useBytes = T))),
@@ -32,23 +33,13 @@ matLines <- function(gzc,nr,nc){
 #' @param legdat legend dataframe
 #' @param hap_h5file output HDF5 filename
 #' @param chunksize chunk size for compression
-write_hap_h5 <- function(hapfile,legendfile,hap_h5file,chunksize=100000){
-  require(BBmisc)
+write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   require(rhdf5)
   legdat <- read.table(legendfile,header=T,sep=" ",stringsAsFactors=F)
   nind <- length(scan(hapfile,what=integer(),sep=" ",nlines=1))
   nSNP <- nrow(legdat)
-  chunkvec <-c(chunksize)
-  nchunks <-ceiling(nSNP/chunksize)
-  chunkind <- chunk(1:nSNP,chunk.size = chunksize)
-  h5createFile(hap_h5file)
   maxchar <- max(nchar(legdat$id))
-  h5createGroup(file = hap_h5file,group = "Genotype")
   h5createGroup(file = hap_h5file,group = "Legend")
-  h5createDataset(hap_h5file,"/Genotype/Haplotype",
-                  dims = c(nSNP,nind),
-                  storage.mode = "integer",
-                  chunk=c(chunksize,nind),level=2)
   h5createDataset(hap_h5file,"/Legend/rsid",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
@@ -68,23 +59,14 @@ write_hap_h5 <- function(hapfile,legendfile,hap_h5file,chunksize=100000){
                   storage.mode="character",
                   size=max(nchar(legdat$a1)),
                   chunk=chunksize,level=2)
-
-  gzc <- gzfile(hapfile)
-  for(i in 1:length(chunkind)){
-    cat(paste0(i," out of ",length(chunkind),"\n"))
-    tlegdat <-legdat[chunkind[[i]],]
-    nr <- length(chunkind[[i]])
-    tmat <- matLines(gzc,nr,nind)
-    tmat <- tmat[!duplicated(tlegdat$id),]
-    h5write(tmat,file=hap_h5file,name="/Genotype/Haplotype",index=list(chunkind[[i]],NULL))
-    tlegdat <- tlegdat[!duplicated(tlegdat),]
-    h5write(tlegdat$id,file=hap_h5file,name="/Legend/rsid",index=list(chunkind[[i]]))
-    h5write(tlegdat$position,file=hap_h5file,name="/Legend/pos",index=list(chunkind[[i]]))
-    h5write(tlegdat$a0,file=hap_h5file,name="/Legend/allele0",index=list(chunkind[[i]]))
-    h5write(tlegdat$a1,file=hap_h5file,name="/Legend/allele1",index=list(chunkind[[i]]))
-  }
-  H5close()
+    h5write(legdat$id,file=hap_h5file,name="/Legend/rsid")
+    h5write(legdat$position,file=hap_h5file,name="/Legend/pos")
+    h5write(legdat$a0,file=hap_h5file,name="/Legend/allele0")
+    h5write(legdat$a1,file=hap_h5file,name="/Legend/allele1")
+    H5close()
 }
+
+
 
 
 

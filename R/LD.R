@@ -18,37 +18,26 @@
 #' #' @param legendfile file containing legend for haplotype data
 #' #' @param hapfile file containing actual haplotype data
 #' #' @param mapfile file containing physical map info
-subset_ref_panel <- function(rsids=character(0),positions=integer(0),mapfile,haph5,chunksize=100000){
+subset_ref_panel <- function(rsids=character(0),mapfile,haph5){
   require(dplyr)
   require(rhdf5)
-  require(BBmisc)
   stopifnot(file.exists(haph5),file.exists(mapfile),
-            (length(rsids)>0|length(positions)>0))
-
+            length(rsids)>0)
   mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
   legdf <- read_h5_df(haph5,"Legend")
   nSNPs <- nrow(legdf)
-  if(length(rsids)>0){
-    rslistvec <-rsids
-    rslistvec <-intersect(rslistvec,legdf$rsid)
-    rslistvec <- intersect(rslistvec,mapdf$rsid)
-    stopifnot(length(rslistvec)>0)
-    hapd <- read_hap_h5(hap_h5file = outhapfile,rslist = rslistvec,chunksize=chunksize)
-    legdf <- filter(legdf,rsid %in% rslistvec)
-    mapdf <- filter(mapdf,rsid %in% rslistvec)
-    rownames(hapd) <-legdf$rsid
-  }else{
-    poslistvec <- positions
-    poslistvec <- intersect(poslistvec,legdf$pos)
-    poslistvec <- intersect(poslistvec,mapdf$pos)
-    stopifnot(length(poslistvec)>0)
-    rownames(hapd) <- as.character(legdf$pos)
-    hapd <- hapd[rownames(hapd) %in% poslistvec,]
-    legdf <- filter(legdf,pos %in% poslistvec)
-    mapdf <- filter(mapdf,pos %in% poslistvec)
-  }
-  nhapd <- cbind(as.integer(legdf$allele0<legdf$allele1),hapd)
-  rhapd <- apply(nhapd,1,function(x){
+  rslistvec <-rsids
+  rslistvec <-intersect(rslistvec,legdf$rsid)
+  rslistvec <- intersect(rslistvec,mapdf$rsid)
+  stopifnot(length(rslistvec)>0)
+  readind = which((legdf$rsid %in%rslistvec)&!duplicated(legdf$rsid))
+
+  hapd <- read_haplotype_ind_h5(hap_h5file = haph5,indexes = readind)
+  legdf <- slice(legdf,readind)
+  mapdf <- filter(mapdf,rsid %in% rslistvec)
+  colnames(hapd) <-legdf$rsid
+  nhapd <- rbind(as.integer(legdf$allele0<legdf$allele1),hapd)
+  rhapd <- apply(nhapd,2,function(x){
     if(x[1]==1){
       return(x[-1])
     }else{
@@ -58,7 +47,8 @@ subset_ref_panel <- function(rsids=character(0),positions=integer(0),mapfile,hap
   retlist <-list(H=rhapd,cummap=mapdf$cummap)
   return(retlist)
 }
-  #'
+
+#'
 #' #' Compute the intersection of genetic map,hdf5 file, and haplotype data for a particular chromosome
 #' #' @param legendfile IMPUTE format legend file
 #' #' @param hapfile IMPUTE format genotype file
