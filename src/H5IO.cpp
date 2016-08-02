@@ -1,12 +1,12 @@
 #include "RcppArmadillo.h"
 #include <H5Cpp.h>
 #include <algorithm>
+
 #include <vector>
 #include <iostream>
 #include <fstream>
 #include <numeric>
 #include <zlib.h>
-
 
 
 // This is a simple example of exporting a C++ function to R. You can
@@ -24,9 +24,7 @@ using namespace H5;
 void write_haplotype_h5(const std::string hap_gzfile,const std::string hap_h5file,const size_t nrows,const size_t ncols,const size_t chunksize){
 
   gzFile gz_in=gzopen(hap_gzfile.c_str(),"rb");
-  size_t rc=0;
   int* haplotypes = new int[chunksize*ncols];
-  H5File* file;
   try{
     H5File* file = new H5File( hap_h5file.c_str(), H5F_ACC_TRUNC);
     hsize_t dim[1]; //dimensions of overall dataspace (nrows)
@@ -160,12 +158,15 @@ void write_haplotype_h5(const std::string hap_gzfile,const std::string hap_h5fil
   std::cout<<"Data written (done)"<<std::endl;
 }
 
+
+
+
+
 //[[Rcpp::export]]
-arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file,Rcpp::IntegerVector indexes){
+arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file,arma::uvec indexes){
 
   H5File* file;
   DataSet* dataset;
-  hid_t dtype;
   try{
     file= new H5File( hap_h5file.c_str(), H5F_ACC_RDONLY);
   }
@@ -194,7 +195,6 @@ arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file,Rcpp::IntegerV
 
 
   std::cout<<"Getting Array dimensions"<<std::endl;
-  size_t ncol=adim[0];
   std::cout<<"Getting Dataspace"<<std::endl;
   DataSpace fspace =dataset->getSpace();
 
@@ -202,13 +202,13 @@ arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file,Rcpp::IntegerV
   hsize_t datadim[1];
   fspace.getSimpleExtentDims(datadim,NULL);
   std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
-  hsize_t readSNPs=indexes.length();
+  hsize_t readSNPs=indexes.n_elem;
   if(readSNPs>datadim[0]){
     Rcpp::stop("indexes longer than extent of data");
   }
   hsize_t *hind = new hsize_t[readSNPs];
   for(size_t i=0; i<readSNPs;i++){
-    hind[i]=indexes[i]-1;
+    hind[i]=indexes(i)-1;
     if(hind[i]>=datadim[0]){
       Rcpp::stop("Attempting to read outside extent of data");
     }
@@ -233,12 +233,157 @@ arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file,Rcpp::IntegerV
 }
 
 
+
+
+void ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb, arma::mat &distmat,bool isDiag){
+  std::cout<<"Doing p_dist"<<std::endl;
+  if((cummapa.n_elem!=distmat.n_rows)||(cummapb.n_elem!=distmat.n_cols)){
+    distmat.set_size(cummapa.n_elem,cummapb.n_elem);
+  }
+  if(isDiag){
+    for(arma::uword i=0; i<distmat.n_rows; i++){
+      distmat.row(i).tail(distmat.n_cols-i-1)=cummapb.tail(cummapb.n_elem-i-1)-cummapa(i);
+    }
+  }
+  else{
+    for(arma::uword i=0; i<distmat.n_rows; i++){
+      distmat.row(i)=cummapb-cummapa(i);
+    }
+  }
+
+}
+
+
+void ip_cov(const arma::mat &Hpanela, const arma::mat &Hpanelb, arma::mat &covmat, bool isDiag){
+    std::cout<<"Doing p_cov"<<std::endl;
+  if((Hpanela.n_cols!=covmat.n_rows)||(Hpanelb.n_cols!=covmat.n_cols)){
+    covmat.set_size(Hpanela.n_cols,Hpanelb.n_cols);
+  }
+  if(isDiag){
+    covmat=trimatu(cov(Hpanela,Hpanelb));
+  }
+  else{
+    covmat=cov(Hpanela,Hpanelb);
+  }
+
+}
+
+
+
+//[[Rcpp::export]]
+arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::uvec doFlip, arma::rowvec map,const int m, const double Ne, const double cutoff,const arma::uword i, const arma::uword j, const arma::uword chunksize){
+
+  double nmsum =arma::sum(1/arma::regspace<arma::vec>(1,(2*m-1)));
+  double theta =(1/nmsum)/(2*m+1/nmsum);
+  arma::uword nSNPs=map.n_elem;
+  arma::uword nchunks=ceil((double)nSNPs/(double)chunksize);
+
+
+  arma::uword istart=i*chunksize;
+  arma::uword jstart=j*chunksize;
+  arma::uword istop=std::min((i+1)*chunksize-1,map.n_elem-1);
+  arma::uword jstop=std::min((j+1)*chunksize-1,map.n_elem-1);
+
+  arma::uvec indexa= index(arma::span(istart,istop));
+  arma::uvec indexb= index(arma::span(jstart,jstop));
+
+  arma::rowvec mapa= map(arma::span(istart,istop));
+  arma::rowvec mapb= map(arma::span(jstart,jstop));
+
+  arma::uvec doFlipa =doFlip(arma::span(istart,istop));
+  arma::uvec doFlipb =doFlip(arma::span(jstart,jstop));
+
+
+  arma::mat hmata =arma::conv_to<arma::mat>::from(read_haplotype_ind_h5(hap_h5file,indexa));
+  arma::mat hmatb =arma::conv_to<arma::mat>::from(read_haplotype_ind_h5(hap_h5file,indexb));
+
+//  std::cout<<"hmata is of dimensions:"<<hmata.n_rows<<"x"<<hmata.n_cols<<std::endl;
+//  std::cout<<"hmatb is of dimensions:"<<hmatb.n_rows<<"x"<<hmatb.n_cols<<std::endl;
+
+  if(hmata.n_cols!=indexa.n_elem){
+    Rcpp::stop("Subsetting failed (indexa.length != mata.n_cols)");
+  }
+  if(hmatb.n_cols!=indexb.n_elem){
+    Rcpp::stop("Subsetting failed (indexb.length != matb.n_cols)");
+  }
+  if(hmata.n_cols!=doFlipa.n_elem){
+    Rcpp::stop("Subsetting failed (doFlip.length != mata.n_cols)");
+  }
+  if(hmatb.n_cols!=doFlipb.n_elem){
+    Rcpp::stop("Subsetting failed (doFlipb.length != matb.n_cols)");
+  }
+  if(hmata.n_cols!=mapa.n_elem){
+    Rcpp::stop("Subsetting failed (mapa.length != mata.n_cols)");
+  }
+  if(hmatb.n_cols!=mapb.n_elem){
+    Rcpp::stop("Subsetting failed (mapb.length != matb.n_cols)");
+  }
+  for(size_t i=0; i<hmata.n_cols; i++){
+    if(doFlipa(i)==1){
+      hmata.col(i) =arma::abs(1-hmata.col(i));
+    }
+  }
+  for(size_t i=0; i<hmatb.n_cols; i++){
+    if(doFlipb(i)==1){
+      hmatb.col(i) =arma::abs(1-hmatb.col(i));
+    }
+  }
+//  std::cout<<"hmata is (still)of dimensions:"<<hmata.n_rows<<"x"<<hmata.n_cols<<std::endl;
+//  std::cout<<"hmatb is (still)of dimensions:"<<hmatb.n_rows<<"x"<<hmatb.n_cols<<std::endl;
+
+//  std::cout<<"mapa is of length:"<<mapa.n_elem<<std::endl;
+//  std::cout<<"mapb is of length:"<<mapb.n_elem<<std::endl;
+  arma::mat distmat(chunksize,chunksize);
+  arma::mat S(chunksize,chunksize);
+  arma::umat indmat;
+  arma::vec valvec;
+  arma::uvec nonz;
+  arma::vec variances(nSNPs);
+  std::cout<<"Starting Computation("<<nchunks<<" chunks in total, and "<<nSNPs<<" SNPs in total)"<<std::endl;
+  std::cout<<"i From:"<<istart<<" to "<<istop<<std::endl;
+  std::cout<<"j From:"<<jstart<<" to "<<jstop<<std::endl;
+
+  ip_dist(mapa,mapb,distmat,i==j);
+  ip_cov(hmata,hmatb,S,i==j);
+//  std::cout<<"Making shrinkage"<<std::endl;
+  distmat=4*Ne*distmat/100;
+  distmat=exp(-distmat/(2*m));
+  distmat.elem(find(distmat<cutoff)).zeros();
+  distmat=distmat%S;
+  if(i==j){
+    //        std::cout<<"Computing Diagonals"<<std::endl;
+    //        arma::vec mvarvec=
+    //        std::cout<<"size of mvarvec:"<<size(mvarvec)<<" size of distmat.diag():"<<size(distmat.diag())<<std::endl;
+    distmat.diag() = arma::var(arma::conv_to<arma::mat>::from(hmata));
+    distmat=(1-theta)*(1-theta)*distmat+0.5*theta*(1-0.5*theta)*eye(size(distmat));
+  }
+  else{
+    distmat=(1-theta)*(1-theta)*distmat;
+  }
+  nonz=arma::find(distmat!=0);
+  indmat=arma::ind2sub(size(distmat),nonz);
+  valvec=distmat.elem(nonz);
+//  std::cout<<"size of nonz:"<<size(nonz)<<std::endl;
+  if(nonz.n_elem>0){
+    arma::umat tmat=arma::ind2sub(size(distmat),nonz);
+//    std::cout<<"size of tmat:"<<size(tmat)<<std::endl;
+    indmat.row(0)=indmat.row(0)+istart;
+    indmat.row(1)=indmat.row(1)+jstart;
+    arma::sp_mat retS(indmat,valvec,nSNPs,nSNPs);
+    return(retS);
+  }
+  arma::sp_mat retS(nSNPs,nSNPs);
+  return(retS);
+}
+
+
+
+
 // [[Rcpp::export]]
 arma::Mat<int> read_haplotype_h5(const std::string hap_h5file,const size_t readSNPs,const size_t skipSNPs=0){
 
   H5File* file;
   DataSet* dataset;
-  hid_t dtype;
   try{
     file= new H5File( hap_h5file.c_str(), H5F_ACC_RDONLY);
   }
@@ -256,7 +401,7 @@ arma::Mat<int> read_haplotype_h5(const std::string hap_h5file,const size_t readS
 
   }
 
-  std::cout<<"opened dataset"<<std::endl;
+//  std::cout<<"opened dataset"<<std::endl;
   hsize_t adim[1];
   DataType dt = dataset->getDataType();
   DataType dtss = dt.getSuper();
@@ -268,16 +413,15 @@ arma::Mat<int> read_haplotype_h5(const std::string hap_h5file,const size_t readS
   ArrayType mem_arraytype(PredType::NATIVE_INT32,1,adim);
 
 
-  std::cout<<"Getting Array dimensions"<<std::endl;
-  size_t ncol=adim[0];
-  std::cout<<"Getting Dataspace"<<std::endl;
+//  std::cout<<"Getting Array dimensions"<<std::endl;
+//  std::cout<<"Getting Dataspace"<<std::endl;
   DataSpace fspace =dataset->getSpace();
 
-  std::cout<<"Getting Data dimensions"<<std::endl;
+//  std::cout<<"Getting Data dimensions"<<std::endl;
   hsize_t datadim[1];
   fspace.getSimpleExtentDims(datadim,NULL);
   hsize_t rdim[1];
-  std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
+//  std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
   if(skipSNPs+readSNPs<=datadim[0]){
     rdim[0]=readSNPs;
   }else{
@@ -295,9 +439,9 @@ arma::Mat<int> read_haplotype_h5(const std::string hap_h5file,const size_t readS
   offset[0]=skipSNPs;
   DataSpace memspace(1,rdim);
   fspace.selectHyperslab(H5S_SELECT_SET,rdim,offset);
-  std::cout<<"Allocating temp vector of size:"<<rdim[0]<<"x"<<adim[0]<<std::endl;
+//  std::cout<<"Allocating temp vector of size:"<<rdim[0]<<"x"<<adim[0]<<std::endl;
   int *tdat= new int[rdim[0]*adim[0]];
-  std::cout<<"Reading data"<<std::endl;
+//  std::cout<<"Reading data"<<std::endl;
   dataset->read(tdat,mem_arraytype,memspace,fspace);
   arma::Mat<int> retmat(tdat,adim[0],rdim[0]);
   delete [] tdat;

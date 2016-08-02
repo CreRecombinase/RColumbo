@@ -21,14 +21,34 @@ BEGIN_RCPP
 END_RCPP
 }
 // read_haplotype_ind_h5
-arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file, Rcpp::IntegerVector indexes);
+arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file, arma::uvec indexes);
 RcppExport SEXP RColumbo_read_haplotype_ind_h5(SEXP hap_h5fileSEXP, SEXP indexesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
     Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
-    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type indexes(indexesSEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type indexes(indexesSEXP);
     __result = Rcpp::wrap(read_haplotype_ind_h5(hap_h5file, indexes));
+    return __result;
+END_RCPP
+}
+// flip_hap_LD
+arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index, arma::uvec doFlip, arma::rowvec map, const int m, const double Ne, const double cutoff, const arma::uword i, const arma::uword j, const arma::uword chunksize);
+RcppExport SEXP RColumbo_flip_hap_LD(SEXP hap_h5fileSEXP, SEXP indexSEXP, SEXP doFlipSEXP, SEXP mapSEXP, SEXP mSEXP, SEXP NeSEXP, SEXP cutoffSEXP, SEXP iSEXP, SEXP jSEXP, SEXP chunksizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type index(indexSEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type doFlip(doFlipSEXP);
+    Rcpp::traits::input_parameter< arma::rowvec >::type map(mapSEXP);
+    Rcpp::traits::input_parameter< const int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< const double >::type Ne(NeSEXP);
+    Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type j(jSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type chunksize(chunksizeSEXP);
+    __result = Rcpp::wrap(flip_hap_LD(hap_h5file, index, doFlip, map, m, Ne, cutoff, i, j, chunksize));
     return __result;
 END_RCPP
 }
@@ -42,20 +62,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const size_t >::type readSNPs(readSNPsSEXP);
     Rcpp::traits::input_parameter< const size_t >::type skipSNPs(skipSNPsSEXP);
     __result = Rcpp::wrap(read_haplotype_h5(hap_h5file, readSNPs, skipSNPs));
-    return __result;
-END_RCPP
-}
-// pcov
-arma::mat pcov(const arma::mat& tH, const arma::uvec& c1, const arma::uvec& c2, const bool isDiag);
-RcppExport SEXP RColumbo_pcov(SEXP tHSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP isDiagSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject __result;
-    Rcpp::RNGScope __rngScope;
-    Rcpp::traits::input_parameter< const arma::mat& >::type tH(tHSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type c1(c1SEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type c2(c2SEXP);
-    Rcpp::traits::input_parameter< const bool >::type isDiag(isDiagSEXP);
-    __result = Rcpp::wrap(pcov(tH, c1, c2, isDiag));
     return __result;
 END_RCPP
 }
@@ -95,13 +101,13 @@ BEGIN_RCPP
 END_RCPP
 }
 // p_sparse_LD
-arma::sp_mat p_sparse_LD(const arma::rowvec& cummap, const arma::mat& Hpanel, const double Ne, const int m, const double cutoff, const arma::uword chunksize, arma::uword i, arma::uword j);
+arma::sp_mat p_sparse_LD(const arma::rowvec cummap, const arma::mat Hpanel, const double Ne, const int m, const double cutoff, const arma::uword chunksize, arma::uword i, arma::uword j);
 RcppExport SEXP RColumbo_p_sparse_LD(SEXP cummapSEXP, SEXP HpanelSEXP, SEXP NeSEXP, SEXP mSEXP, SEXP cutoffSEXP, SEXP chunksizeSEXP, SEXP iSEXP, SEXP jSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
-    Rcpp::traits::input_parameter< const arma::rowvec& >::type cummap(cummapSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Hpanel(HpanelSEXP);
+    Rcpp::traits::input_parameter< const arma::rowvec >::type cummap(cummapSEXP);
+    Rcpp::traits::input_parameter< const arma::mat >::type Hpanel(HpanelSEXP);
     Rcpp::traits::input_parameter< const double >::type Ne(NeSEXP);
     Rcpp::traits::input_parameter< const int >::type m(mSEXP);
     Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);
@@ -113,13 +119,13 @@ BEGIN_RCPP
 END_RCPP
 }
 // sparse_LD
-arma::sp_mat sparse_LD(const arma::vec& cummap, const arma::mat& Hpanel, const double Ne, const int m, const double cutoff, const arma::uword report_every);
+arma::sp_mat sparse_LD(const arma::vec cummap, const arma::mat Hpanel, const double Ne, const int m, const double cutoff, const arma::uword report_every);
 RcppExport SEXP RColumbo_sparse_LD(SEXP cummapSEXP, SEXP HpanelSEXP, SEXP NeSEXP, SEXP mSEXP, SEXP cutoffSEXP, SEXP report_everySEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
-    Rcpp::traits::input_parameter< const arma::vec& >::type cummap(cummapSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Hpanel(HpanelSEXP);
+    Rcpp::traits::input_parameter< const arma::vec >::type cummap(cummapSEXP);
+    Rcpp::traits::input_parameter< const arma::mat >::type Hpanel(HpanelSEXP);
     Rcpp::traits::input_parameter< const double >::type Ne(NeSEXP);
     Rcpp::traits::input_parameter< const int >::type m(mSEXP);
     Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);

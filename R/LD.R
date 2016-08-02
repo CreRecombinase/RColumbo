@@ -75,7 +75,7 @@ subset_h5_ref <- function(haph5,mapfile,eqtlfile){
 #' #' @param gfile gencode file
 #' #' @param gene character specifying which gene we want the SNPs for
 subset_h5_ref_gene <- function(legendfile,mapfile,h5file,gfile,gene){
-  require(readr)
+
 
   # eqtlc <-group_by(eqtldf,Gene)%>% summarise(neqtl=n(),prode=sum(log(pvale),na.rm = T),prodg=sum(log(pvalg),na.rm=T))
   # eqtlc <- mutate(eqtlc,hash=as.integer(neqtl>=100))%>%arrange(desc(hash),prode)
@@ -347,6 +347,53 @@ arm_gen_LD <- function(H,cummap,m,Ne,cutoff,chunksize){
     }
   }
   tm <- value(resl[[1]])
+  fmat <-Reduce("+",lapply(resl,values))
+  return(fmat)
+}
+
+
+#' Generates LD matrix from reference panel data
+#'
+#' @param H, the matrix of genotypes,
+#' @param cummap which is a vector with the cumulative map distance
+#' @param m integer sample size of genetic map (not of reference panel)
+#' @param Ne numeric effective population size estimate for population
+#' @param cutoff numeric cutoff for shrinkage
+#' @param chunksize size of chunks to use
+p_arm_gen_LD <- function(rsids,haph5,mapfile,m,Ne,cutoff,chunksize,parallel=F,workers=2){
+  require(future)
+  require(Matrix)
+  require(dplyr)
+  stopifnot(file.exists(haph5),file.exists(mapfile),
+            length(rsids)>0)
+  mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
+  legdf <- read_h5_df(haph5,"Legend")
+
+  rslistvec <-rsids
+  rslistvec <-intersect(rslistvec,legdf$rsid)
+  rslistvec <- intersect(rslistvec,mapdf$rsid)
+  stopifnot(length(rslistvec)>0)
+  readind = which((legdf$rsid %in%rslistvec)&!duplicated(legdf$rsid))
+  legdf <- slice(legdf,readind)
+  mapdf <- filter(mapdf,rsid %in% rslistvec)
+  cummap <- mapdf$cummap
+  nSNPs <- length(cummap)
+  doFlip <- as.integer(legdf$allele0<legdf$allele1)
+  if(parallel){
+    plan(tweak(multiprocess,workers=workers))
+  }else{
+    plan(eager)
+  }
+  nchunks <-ceiling(nSNPs/chunksize)
+  resl <- list()
+  for(i in 0:(nchunks-1)){
+    for(j in i:(nchunks-1)){
+      cat(paste0(i,"_",j,"\n"))
+      resl[[paste0(i,"_",j)]] <-future({
+        flip_hap_LD(haph5,readind,doFlip,cummap,m,Ne,cutoff,i,j,chunksize)
+      })
+    }
+  }
   fmat <-Reduce("+",lapply(resl,values))
   return(fmat)
 }

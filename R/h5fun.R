@@ -75,6 +75,39 @@ write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
     H5close()
 }
 
+write_map_h5 <- function(mapfile,hap_h5file,chunksize=125000){
+  require(rhdf5)
+  library(BBmisc)
+  mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
+  nSNP <- nrow(mapdf)
+  chunkind <- chunk(1:nSNP,chunk.size = chunksize)
+  maxchar <- max(nchar(mapdf$rsid))
+  if(!file.exists(hap_h5file)){
+    h5createFile(hap_h5file)
+  }
+  h5createGroup(file = hap_h5file,group = "Map")
+  h5createDataset(hap_h5file,"/Map/rsid",
+                  dims=c(nrow(mapdf)),
+                  storage.mode="character",
+                  size=maxchar,
+                  chunk=chunksize,level=2)
+  h5createDataset(hap_h5file,"/Map/pos",
+                  dims=c(nrow(mapdf)),
+                  storage.mode="integer",
+                  chunk=chunksize,level=2)
+  h5createDataset(hap_h5file,"/Map/cummap",
+                  dims=c(nrow(mapdf)),
+                  storage.mode="double",
+                  chunk=chunksize,level=2)
+  for(i in 1:length(chunkind)){
+    cat(paste0(i,"\n"))
+    tmap <- slice(mapdf,chunkind[[i]])
+    h5write(tmap$rsid,file=hap_h5file,name="/Map/rsid",index=list(chunkind[[i]]))
+    h5write(tmap$pos,file=hap_h5file,name="/Map/pos",index=list(chunkind[[i]]))
+    h5write(tmap$cummap,file=hap_h5file,name="/Map/cummap",index=list(chunkind[[i]]))
+  }
+}
+
 
 
 
@@ -91,6 +124,7 @@ write_file_h5 <- function(hapfile,legfile,hap_h5file,chunksize=100000){
 
 
 read_h5_df <- function(h5file,group){
+  require(rhdf5)
   require(dplyr)
   td <-h5read(h5file,group)
   retdf <- bind_cols(mapply(function(x,y){

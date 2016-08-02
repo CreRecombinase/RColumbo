@@ -9,12 +9,12 @@ read_haplotype_ind_h5 <- function(hap_h5file, indexes) {
     .Call('RColumbo_read_haplotype_ind_h5', PACKAGE = 'RColumbo', hap_h5file, indexes)
 }
 
-read_haplotype_h5 <- function(hap_h5file, readSNPs, skipSNPs = 0L) {
-    .Call('RColumbo_read_haplotype_h5', PACKAGE = 'RColumbo', hap_h5file, readSNPs, skipSNPs)
+flip_hap_LD <- function(hap_h5file, index, doFlip, map, m, Ne, cutoff, i, j, chunksize) {
+    .Call('RColumbo_flip_hap_LD', PACKAGE = 'RColumbo', hap_h5file, index, doFlip, map, m, Ne, cutoff, i, j, chunksize)
 }
 
-pcov <- function(tH, c1, c2, isDiag) {
-    .Call('RColumbo_pcov', PACKAGE = 'RColumbo', tH, c1, c2, isDiag)
+read_haplotype_h5 <- function(hap_h5file, readSNPs, skipSNPs = 0L) {
+    .Call('RColumbo_read_haplotype_h5', PACKAGE = 'RColumbo', hap_h5file, readSNPs, skipSNPs)
 }
 
 gen_rows <- function(i, nrows, chunksize) {
