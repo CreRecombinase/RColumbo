@@ -352,24 +352,25 @@ arm_gen_LD <- function(H,cummap,m,Ne,cutoff,chunksize){
 }
 
 
+
+
 #' Generates LD matrix from reference panel data
 #'
-#' @param H, the matrix of genotypes,
+#' @param rsids vec
 #' @param cummap which is a vector with the cumulative map distance
 #' @param m integer sample size of genetic map (not of reference panel)
 #' @param Ne numeric effective population size estimate for population
 #' @param cutoff numeric cutoff for shrinkage
 #' @param chunksize size of chunks to use
-p_arm_gen_LD <- function(rsids,haph5,mapfile,m,Ne,cutoff,chunksize,parallel=F,workers=2){
-  require(future)
+torque_arm_gen_LD <- function(eqtlfile,haph5,mapfile,m,Ne,cutoff,chunksize,i,j,result_dir,chrom){
   require(Matrix)
   require(dplyr)
-  stopifnot(file.exists(haph5),file.exists(mapfile),
-            length(rsids)>0)
+
   mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
   legdf <- read_h5_df(haph5,"Legend")
-
-  rslistvec <-rsids
+  rslistvec <- subset_h5_ref(haph5 = haph5,mapfile = mapfile,eqtlfile = eqtlfile)
+  stopifnot(file.exists(haph5),file.exists(mapfile),
+            length(rslistvec)>0)
   rslistvec <-intersect(rslistvec,legdf$rsid)
   rslistvec <- intersect(rslistvec,mapdf$rsid)
   stopifnot(length(rslistvec)>0)
@@ -379,26 +380,12 @@ p_arm_gen_LD <- function(rsids,haph5,mapfile,m,Ne,cutoff,chunksize,parallel=F,wo
   cummap <- mapdf$cummap
   nSNPs <- length(cummap)
   doFlip <- as.integer(legdf$allele0<legdf$allele1)
-  if(parallel){
-    plan(tweak(multiprocess,workers=workers))
-  }else{
-    plan(eager)
-  }
   nchunks <-ceiling(nSNPs/chunksize)
   resl <- list()
-  for(i in 0:(nchunks-1)){
-    for(j in i:(nchunks-1)){
-      cat(paste0(i,"_",j,"\n"))
-      resl[[paste0(i,"_",j)]] <-future({
-        flip_hap_LD(haph5,readind,doFlip,cummap,m,Ne,cutoff,i,j,chunksize)
-      })
-    }
-  }
-  fmat <-Reduce("+",lapply(resl,values))
-  return(fmat)
+  fmat <- flip_hap_LD(haph5,readind,doFlip,cummap,m,Ne,cutoff,i,j,chunksize)
+  saveRDS(fmat,file.path(result_dir,paste0("chr",chrom),paste0("chr",chrom,"_",i,"_",j,".RDS")))
+  return(dim(fmat))
 }
-
-
 
 
 

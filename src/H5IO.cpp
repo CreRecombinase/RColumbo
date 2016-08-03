@@ -345,13 +345,13 @@ arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::uv
 
   ip_dist(mapa,mapb,distmat,i==j);
   ip_cov(hmata,hmatb,S,i==j);
-//  std::cout<<"Making shrinkage"<<std::endl;
+  std::cout<<"Performing shrinkage"<<std::endl;
   distmat=4*Ne*distmat/100;
   distmat=exp(-distmat/(2*m));
   distmat.elem(find(distmat<cutoff)).zeros();
   distmat=distmat%S;
   if(i==j){
-    //        std::cout<<"Computing Diagonals"<<std::endl;
+    std::cout<<"Computing Diagonals"<<std::endl;
     //        arma::vec mvarvec=
     //        std::cout<<"size of mvarvec:"<<size(mvarvec)<<" size of distmat.diag():"<<size(distmat.diag())<<std::endl;
     distmat.diag() = arma::var(arma::conv_to<arma::mat>::from(hmata));
@@ -360,8 +360,11 @@ arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::uv
   else{
     distmat=(1-theta)*(1-theta)*distmat;
   }
+  std::cout<<"Finding nonzero elements"<<std::endl;
   nonz=arma::find(distmat!=0);
+  std::cout<<"Creating index matrix"<<std::endl;
   indmat=arma::ind2sub(size(distmat),nonz);
+  std::cout<<"Copying values to valvec"<<std::endl;
   valvec=distmat.elem(nonz);
 //  std::cout<<"size of nonz:"<<size(nonz)<<std::endl;
   if(nonz.n_elem>0){
@@ -369,6 +372,7 @@ arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::uv
 //    std::cout<<"size of tmat:"<<size(tmat)<<std::endl;
     indmat.row(0)=indmat.row(0)+istart;
     indmat.row(1)=indmat.row(1)+jstart;
+    std::cout<<"Allocating sparse matrix"<<std::endl;
     arma::sp_mat retS(indmat,valvec,nSNPs,nSNPs);
     return(retS);
   }
