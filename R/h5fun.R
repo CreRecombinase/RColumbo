@@ -20,6 +20,19 @@ h5vec <-function(h5file,groupname,dataname){
   return(retvec)
 }
 
+#' Turns matrix of diagonals in to sparse banded matrix
+#'
+#' @param bmat matrix of diagonals
+#' @param bwd band width
+from_band <- function(bmat){
+  tmat <- bandSparse(n = ncol(bmat),m = ncol(bmat),k=-c(0:(nrow(bmat)-1)),diagonals = t(bmat),symmetric = T)
+  return(tmat)
+}
+
+readMATLAB <- function(matfile,group="BR"){
+  matres <- from_band(h5read(matfile,name=group))
+}
+
 
 
 matLines <- function(gzc,nr,nc){
@@ -36,11 +49,12 @@ matLines <- function(gzc,nr,nc){
 write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   require(rhdf5)
   library(BBmisc)
+  library(dplyr)
   legdat <- read.table(legendfile,header=T,sep=" ",stringsAsFactors=F)
   nind <- length(scan(hapfile,what=integer(),sep=" ",nlines=1))
   nSNP <- nrow(legdat)
   chunkind <- chunk(1:nSNP,chunk.size = chunksize)
-  maxchar <- max(nchar(legdat$id))
+  maxchar <- max(nchar(legdat$id))+1
   if(!file.exists(hap_h5file)){
     h5createFile(hap_h5file)
   }
@@ -48,7 +62,7 @@ write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   h5createDataset(hap_h5file,"/Legend/rsid",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
-                  size=maxchar,
+                  size=maxchar+1,
                   chunk=chunksize,level=2)
   h5createDataset(hap_h5file,"/Legend/pos",
                   dims=c(nrow(legdat)),
@@ -57,12 +71,12 @@ write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   h5createDataset(hap_h5file,"/Legend/allele0",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
-                  size=max(nchar(legdat$a0)),
+                  size=max(nchar(legdat$a0))+1,
                   chunk=chunksize,level=2)
   h5createDataset(hap_h5file,"/Legend/allele1",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
-                  size=max(nchar(legdat$a1)),
+                  size=max(nchar(legdat$a1))+1,
                   chunk=chunksize,level=2)
   for(i in 1:length(chunkind)){
     cat(paste0(i,"\n"))
@@ -217,6 +231,82 @@ gencode_eqtl <- function(eqtldf,gmf){
   return(eqtldf)
 }
 
+sparse_cov2cor <-function(rdsfile,chunksize,variances,nSNPs){
+  cat(rdsfile)
+  i <- as.integer(gsub(paste0(".+chr.+_([0-9]+)_[0-9]+_",chunksize,".RDS"),"\\1",rdsfile))
+  j <- as.integer(gsub(paste0(".+chr.+_([0-9]+)_([0-9]+)_",chunksize,".RDS"),"\\2",rdsfile))
+  istart=(i*chunksize)+1;
+  istop=(min((i+1)*chunksize-1,nSNPs-1))+1
+  jstart=(i*chunksize)+1;
+  jstop=(min((i+1)*chunksize-1,nSNPs-1))+1
+
+  ivar <- 1/sqrt(variances[istart:istop])
+  jvar <- 1/sqrt(variances[jstart:jstop])
+  tdat <- readRDS(rdsfile)
+  stdat <-as.matrix(tdat[istart:istop,jstart:jstop])
+  if(i==j){
+    tv <- diag(stdat)
+    stdat <- stdat+t(stdat)
+    diag(stdat) <-tv
+    Is <-sqrt(1/diag(stdat))
+    r <- stdat
+    r[]
+    r <- sweep(sweep(stdat,1,ivar,"*"),2,jvar,"*")
+  }
+  r <- sweep(sweep(stdat,1,ivar,"*"),2,jvar,"*")
+  tdat[istart:istop,jstart:jstop] <-r
+  return(tdat)
+}
+
+# mydat <- matrix(runif(30),6,5)
+# V <- cov(mydat)
+# Is <- sqrt(1/diag(V)) # diag( 1/sigma_i )
+# r <- V # keep dimnames
+# r[] <- Is * V * rep(Is, each = p)
+# ##	== D %*% V %*% D  where D = diag(Is)
+# r[cbind(1:p,1:p)] <- 1 # exact in diagonal
+# r
+# tcov2cor <- function(V)
+# {
+#   ## Purpose: Covariance matrix |--> Correlation matrix -- efficiently
+#   ## ----------------------------------------------------------------------
+#   ## Arguments: V: a covariance matrix (i.e. symmetric and positive definite)
+#   ## ----------------------------------------------------------------------
+#   ## Author: Martin Maechler, Date: 12 Jun 2003, 11:50
+#   p <- (d <- dim(V))[1]
+#   if(!is.numeric(V) || length(d) != 2 || p != d[2])
+#     stop("`V' is not a square numeric matrix")
+#   Is <- sqrt(1/diag(V)) # diag( 1/sigma_i )
+#   if(any(!is.finite(Is)))
+#     warning("diagonal has non-finite entries")
+#   r <- V # keep dimnames
+#   r[] <- Is * V * rep(Is, each = p)
+#   ##	== D %*% V %*% D  where D = diag(Is)
+#   r[cbind(1:p,1:p)] <- 1 # exact in diagonal
+#   r
+# }
+#
+# reconst_R <- function(directory,chunksize,chrom){
+#   rdsfiles <-dir(directory,pattern = paste0("chr",chrom,".*_",chunksize,".RDS"),full.names = T)
+#   maxchunk <-max(c(as.numeric(gsub(paste0(".+chr",chrom,"_([0-9]+)_([0-9]+)_",chunksize,".RDS"),"\\1",rdsfiles))),
+#                  as.numeric(gsub(paste0(".+chr",chrom,"_([0-9]+)_([0-9]+)_",chunksize,".RDS"),"\\2",rdsfiles)))
+#   diagfiles <- character(maxchunk+1)
+#   for(i in 0:maxchunk){
+#     diagfiles[i+1] <- rdsfiles[grepl(paste0("chr",chrom,"_",i,"_",i,"_",chunksize,".RDS"),rdsfiles)]
+#   }
+#   variances<- unlist(lapply(diagfiles,function(x){
+#     tdiag <-diag(readRDS(x))
+#     return(tdiag[tdiag!=0])
+#   }))
+#   nSNPs <- nrow(readRDS(rdsfiles[1]))
+#   nvars <- list()
+#   for(k in 1:length(rdsfiles)){
+#     nvars[[as.character(k)]] <- sparse_cov2cor(rdsfiles[k],variances = variances,chunksize = chunksize,nSNPs = nSNPs)
+#   }
+#   nvars <- lapply(rdsfiles,sparse_cov2cor,variances=variances,chunksize=chunksize,nSNPs=nSNPs)
+#   newR <- Reduce("+",nvars)
+# }
+
 
 
 .ls.objects <- function (pos = 1, pattern, order.by,
@@ -247,6 +337,8 @@ gencode_eqtl <- function(eqtldf,gmf){
 lsos <- function(..., n=10) {
   .ls.objects(..., order.by="Size", decreasing=TRUE, head=TRUE, n=n)
 }
+
+
 
 
 #

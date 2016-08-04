@@ -9,6 +9,20 @@
 #   Check Package:             'Ctrl + Shift + E'
 #   Test Package:              'Ctrl + Shift + T'
 
+
+
+flipmat <- function(hapd,doFlip){
+  nhapd <- rbind(doFlip,hapd)
+  rhapd <- apply(nhapd,2,function(x){
+    if(x[1]==1){
+      return(x[-1])
+    }else{
+      return(abs(1-x[-1]))
+    }
+  })
+  return(rhapd)
+}
+
 #'
 #' #' Subsets reference (haplotype) panel data by either rsid or position
 #' #'
@@ -21,31 +35,36 @@
 subset_ref_panel <- function(rsids=character(0),mapfile,haph5){
   require(dplyr)
   require(rhdf5)
-  stopifnot(file.exists(haph5),file.exists(mapfile),
-            length(rsids)>0)
+  stopifnot(file.exists(haph5),file.exists(mapfile))
   mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
   legdf <- read_h5_df(haph5,"Legend")
   nSNPs <- nrow(legdf)
-  rslistvec <-rsids
+  if(length(rsids)==0){
+  rslistvec <- legdf$rsid
+  }else{
+    rslistvec <-rsids
+  }
   rslistvec <-intersect(rslistvec,legdf$rsid)
   rslistvec <- intersect(rslistvec,mapdf$rsid)
   stopifnot(length(rslistvec)>0)
   readind = which((legdf$rsid %in%rslistvec)&!duplicated(legdf$rsid))
-
   hapd <- read_haplotype_ind_h5(hap_h5file = haph5,indexes = readind)
   legdf <- slice(legdf,readind)
   mapdf <- filter(mapdf,rsid %in% rslistvec)
   colnames(hapd) <-legdf$rsid
-  nhapd <- rbind(as.integer(legdf$allele0<legdf$allele1),hapd)
-  rhapd <- apply(nhapd,2,function(x){
-    if(x[1]==1){
-      return(x[-1])
-    }else{
-      return(abs(1-x[-1]))
-    }
-  })
+  rhapd <- flipmat(hapd,as.integer(legdf$allele0<legdf$allele1))
   retlist <-list(H=rhapd,cummap=mapdf$cummap)
   return(retlist)
+}
+
+
+
+subset_rpanels <- function(h5file,mapfile){
+  require(rhdf5)
+  require(dplyr)
+  mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
+  legrsid <- h5vec(h5file,"Legend","rsid")
+  return(intersect(mapdf$rsid,legrsid))
 }
 
 #'
@@ -60,7 +79,7 @@ subset_h5_ref <- function(haph5,mapfile,eqtlfile){
   snpdf <- data_frame(rsid=paste0("rs",snpvec))
   lsnpvec <- h5vec(haph5,"Legend","rsid")
   legenddf <- data_frame(rsid=lsnpvec)
-  #  hapmat <- data.matrix(read_delim(hapfile,delim = " ",col_names = F))
+    hapmat <- data.matrix(read.table(hapfile,sep = " ",header=F))
   mapdat <- read.table(mapfile,sep=" ",header=F) %>% rename(rsid=V1,pos=V2,map=V3)
   sub_snp <-  semi_join(snpdf,legenddf) %>%semi_join(mapdat)
   rsl <- unique(sub_snp$rsid)
@@ -105,14 +124,7 @@ subset_h5_ref_gene <- function(legendfile,mapfile,h5file,gfile,gene){
 #'   eqtldf <- gencode_eqtl(eqtldf,gfile)
 #'
 #'
-#' #' Turns matrix of diagonals in to sparse banded matrix
-#' #'
-#' #' @param bmat matrix of diagonals
-#' #' @param bwd band width
-#' from_band <- function(bmat,bwd){
-#'   tmat <- bandSparse(n = ncol(bmat),m = ncol(bmat),k=-c(0:bwd),diagonals = t(bmat),symmetric = T)
-#'   return(tmat)
-#' }
+
 #'
 #'
 #'
@@ -273,6 +285,8 @@ lddiag <- function(Svec,distvec,m,Ne,cutoff,nSNPs,Sdiag){
 }
 
 
+
+
 #'
 #'
 #' #' Helper function for generating LD matrix
@@ -362,18 +376,21 @@ arm_gen_LD <- function(H,cummap,m,Ne,cutoff,chunksize){
 #' @param Ne numeric effective population size estimate for population
 #' @param cutoff numeric cutoff for shrinkage
 #' @param chunksize size of chunks to use
-torque_arm_gen_LD <- function(eqtlfile,haph5,mapfile,m,Ne,cutoff,chunksize,i,j,result_dir,chrom){
+torque_arm_gen_LD <- function(rslistvec=character(0),eqtlfile=tempfile(),haph5,mapfile,m=85,Ne=11490.672741,cutoff=1e-3,chunksize,i,j,result_dir,chrom){
   require(Matrix)
   require(dplyr)
-
+  stopifnot(file.exists(mapfile),
+            file.exists(haph5),
+            (file.exists(eqtlfile)||length(rslistvec)>0))
   mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
   legdf <- read_h5_df(haph5,"Legend")
-  rslistvec <- subset_h5_ref(haph5 = haph5,mapfile = mapfile,eqtlfile = eqtlfile)
-  stopifnot(file.exists(haph5),file.exists(mapfile),
-            length(rslistvec)>0)
-  rslistvec <-intersect(rslistvec,legdf$rsid)
-  rslistvec <- intersect(rslistvec,mapdf$rsid)
-  stopifnot(length(rslistvec)>0)
+  if(length(rslistvec)==0){
+    rslistvec <- subset_h5_ref(haph5 = haph5,mapfile = mapfile,eqtlfile = eqtlfile)
+    stopifnot(length(rslistvec)>0)
+    rslistvec <-intersect(rslistvec,legdf$rsid)
+    rslistvec <- intersect(rslistvec,mapdf$rsid)
+    stopifnot(length(rslistvec)>0)
+  }
   readind = which((legdf$rsid %in%rslistvec)&!duplicated(legdf$rsid))
   legdf <- slice(legdf,readind)
   mapdf <- filter(mapdf,rsid %in% rslistvec)
@@ -381,10 +398,10 @@ torque_arm_gen_LD <- function(eqtlfile,haph5,mapfile,m,Ne,cutoff,chunksize,i,j,r
   nSNPs <- length(cummap)
   doFlip <- as.integer(legdf$allele0<legdf$allele1)
   nchunks <-ceiling(nSNPs/chunksize)
-  resl <- list()
   fmat <- flip_hap_LD(haph5,readind,doFlip,cummap,m,Ne,cutoff,i,j,chunksize)
-  saveRDS(fmat,file.path(result_dir,paste0("chr",chrom),paste0("chr",chrom,"_",i,"_",j,".RDS")))
-  return(dim(fmat))
+  outfile <-file.path(result_dir,paste0("chr",chrom),paste0("chr",chrom,"_",i,"_",j,"_",chunksize,".RDS"))
+  saveRDS(fmat,outfile)
+  return(outfile)
 }
 
 

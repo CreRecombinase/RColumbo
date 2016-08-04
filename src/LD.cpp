@@ -103,7 +103,6 @@ void p_cov(const arma::mat &Hpanela, const arma::mat &Hpanelb, arma::mat &covmat
   else{
     covmat=cov(Hpanela,Hpanelb);
   }
-
 }
 
 

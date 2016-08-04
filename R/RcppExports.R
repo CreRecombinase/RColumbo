@@ -9,6 +9,10 @@ read_haplotype_ind_h5 <- function(hap_h5file, indexes) {
     .Call('RColumbo_read_haplotype_ind_h5', PACKAGE = 'RColumbo', hap_h5file, indexes)
 }
 
+flip_hap <- function(hap_h5file, index, doFlip, chunk, chunksize, nSNPs) {
+    .Call('RColumbo_flip_hap', PACKAGE = 'RColumbo', hap_h5file, index, doFlip, chunk, chunksize, nSNPs)
+}
+
 flip_hap_LD <- function(hap_h5file, index, doFlip, map, m, Ne, cutoff, i, j, chunksize) {
     .Call('RColumbo_flip_hap_LD', PACKAGE = 'RColumbo', hap_h5file, index, doFlip, map, m, Ne, cutoff, i, j, chunksize)
 }
