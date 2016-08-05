@@ -154,33 +154,14 @@ read_h5_df <- function(h5file,group){
 #' @param haplotype matrix (one SNP per column, one individual per row)
 #' @param h5file file output file
 #' @param chunksize
-read_hap_h5 <- function(hap_h5file,rslist=NULL,poslist=NULL,chunksize=100000){
-  require(BBmisc)
-  stopifnot((length(rslist)>0|length(poslist)>0),chunksize>0)
-  legdata <-read_h5_df(hap_h5file,"Legend")
-  nSNPs <- nrow(legdata)
-
-  chunkind <-chunk(1:nSNPs,chunk.size = chunksize)
-  if(length(rslist)>0){
-    subset_ind <- which(legdata$rsid %in% rslist)
-  }
-  hapdim <-h5ls(hap_h5file) %>% filter(name=="Haplotype")
-  nind <- as.numeric(gsub("^([0-9]+) x [0-9]+$","\\1",hapdim$dim))
-  matl <- list()
-  mc <- 0
-  for(i in 1:length(chunkind)){
-    tleg <- legdata[chunkind[[i]],]
-    tmat <- h5read(hap_h5file,name="/Genotype/Haplotype",index=list(chunkind[[i]],NULL))
-    tmat <- t(tmat[tleg$rsid %in% rslist,,drop=F])
-    if(ncol(tmat)>0){
-      tleg <- tleg[tleg$rsid %in% rslist,]
-      colnames(tmat) <- tleg$rsid
-      mc <- mc+1
-      matl[[mc]] <- tmat
-    }
-  }
-  retmat <- do.call("cbind",matl)
-  return(retmat)
+read_hap_h5 <- function(haph5,rslistvec=character(0),poslist=integer(0)){
+  stopifnot(length(rslistvec)>0||length(poslist)>0)
+  legdf <- read_h5_df(haph5,"Legend")
+  nSNPs <- nrow(legdf)
+  readind <- which((legdf$rsid %in% rslistvec)&!duplicated(legdf$rsid))
+  legdf <- slice(legdf,readind)
+  doFlip <- as.integer(legdf$allele0<legdf$allele1)
+  return(flip_hap(haph5,readind,doFlip,0,length(readind),nSNPs))
 }
 
 

@@ -397,6 +397,8 @@ torque_arm_gen_LD <- function(rslistvec=character(0),eqtlfile=tempfile(),haph5,m
   nSNPs <- length(cummap)
   doFlip <- as.integer(legdf$allele0<legdf$allele1)
   nchunks <-ceiling(nSNPs/chunksize)
+  rm(legdf,mapdf,rslistvec)
+  gc()
   fmat <- flip_hap_LD(haph5,readind,doFlip,cummap,m,Ne,cutoff,i,j,chunksize)
   outfile <-file.path(result_dir,paste0("chr",chrom),paste0("chr",chrom,"_",i,"_",j,"_",chunksize,".RDS"))
   saveRDS(fmat,outfile)

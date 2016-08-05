@@ -389,6 +389,7 @@ arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::uv
     distmat.each_row() %=varb;
   }
   arma::uvec infvec =arma::find(abs(distmat)>1);
+
   if(infvec.n_elem>0){
     std::cout<<"incorrect correlation values found in chunk i:"<<i<<" j:"<<j<<std::endl;
     std::cout<<"Value is: "<<distmat(infvec)<<std::endl;
@@ -399,6 +400,18 @@ arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::uv
     std::cout<<"overall col is: jstart+badel(1,0)="<<jstart<<"+"<<badel(1,0)<<"="<<overc<<std::endl;
     Rcpp::stop("correlation values greater than 1 found in correlation matrix!");
   }
+  arma::uvec navec = arma::find_nonfinite(distmat);
+  if(navec.n_elem>0){
+    std::cout<<"incorrect correlation values found in chunk i:"<<i<<" j:"<<j<<std::endl;
+    std::cout<<"Value is: "<<distmat(navec)<<std::endl;
+    arma::umat badel=arma::ind2sub(size(distmat),navec);
+    size_t overr=istart+badel(0,0);
+    size_t overc=jstart+badel(1,0);
+    std::cout<<"overall row is: istart+badel(0,0)="<<istart<<"+"<<badel(0,0)<<"="<<overr<<std::endl;
+    std::cout<<"overall col is: jstart+badel(1,0)="<<jstart<<"+"<<badel(1,0)<<"="<<overc<<std::endl;
+    Rcpp::stop("Correlation values that are non-finite found!");
+  }
+
   std::cout<<"Finding nonzero elements"<<std::endl;
   std::cout<<"Creating index matrix"<<std::endl;
   arma::umat indmat=arma::ind2sub(size(distmat),arma::find(distmat!=0));
