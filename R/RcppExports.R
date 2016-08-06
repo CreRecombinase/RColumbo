@@ -26,11 +26,11 @@ flip_hap <- function(hap_h5file, index, chunk, chunksize, nSNPs) {
 }
 
 cov_2_cor <- function(covmat, rowvara, colvarb, isDiag) {
-    .Call('RColumbo_cov_2_cor', PACKAGE = 'RColumbo', covmat, rowvara, colvarb, isDiag)
+    invisible(.Call('RColumbo_cov_2_cor', PACKAGE = 'RColumbo', covmat, rowvara, colvarb, isDiag))
 }
 
 compute_shrinkage <- function(distmat, S, hmata, hmatb, theta, m, Ne, cutoff, isDiag) {
-    .Call('RColumbo_compute_shrinkage', PACKAGE = 'RColumbo', distmat, S, hmata, hmatb, theta, m, Ne, cutoff, isDiag)
+    invisible(.Call('RColumbo_compute_shrinkage', PACKAGE = 'RColumbo', distmat, S, hmata, hmatb, theta, m, Ne, cutoff, isDiag))
 }
 
 calcLD <- function(hmata, hmatb, mapa, mapb, m, Ne, cutoff, aind, bind) {

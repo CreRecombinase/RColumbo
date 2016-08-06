@@ -366,7 +366,7 @@ arma::mat flip_hap(const std::string hap_h5file,arma::uvec index, const::arma::u
 }
 
 //[[Rcpp::export]]
-arma::mat cov_2_cor(arma::mat &covmat, arma::mat &rowvara, arma::mat &colvarb, const bool isDiag){
+void cov_2_cor(arma::mat &covmat, arma::mat &rowvara, arma::mat &colvarb, const bool isDiag){
 
   rowvara = 1/sqrt(rowvara);
   colvarb=1/sqrt(colvarb);
@@ -377,17 +377,16 @@ arma::mat cov_2_cor(arma::mat &covmat, arma::mat &rowvara, arma::mat &colvarb, c
     arma::inplace_trans(colvarb);
   }
   covmat.each_col() %=rowvara; //rowvara should have as many rows as covmat
-  covmat.each_row() %=colvarb;
+  covmat.each_row() %=colvarb; //rowva
   if(isDiag){
     covmat.diag().ones();
   }
-  return(covmat);
 }
 
 
 
 //[[Rcpp::export]]
-arma::mat compute_shrinkage(arma::mat &distmat,arma::mat &S, const arma::mat &hmata ,const arma::mat &hmatb, const double theta, const double m, const double Ne,const double cutoff, const bool isDiag){
+void compute_shrinkage(arma::mat &distmat,arma::mat &S, const arma::mat &hmata ,const arma::mat &hmatb, const double theta, const double m, const double Ne,const double cutoff, const bool isDiag){
   distmat=4*Ne*distmat/100;
   distmat=exp(-distmat/(2*m));
 
@@ -402,10 +401,9 @@ arma::mat compute_shrinkage(arma::mat &distmat,arma::mat &S, const arma::mat &hm
   else{
     distmat*=(1-theta)*(1-theta);
   }
-  return(distmat);
 }
 //[[Rcpp::export]]
-arma::mat calcLD(arma::mat hmata, arma::mat hmatb, arma::rowvec mapa, arma::rowvec mapb,const double m, const double Ne,const double cutoff, const arma::uword aind, const arma::uword bind){
+arma::mat calcLD(arma::mat &hmata, arma::mat &hmatb, arma::rowvec &mapa, arma::rowvec &mapb,const double m, const double Ne,const double cutoff, const arma::uword aind, const arma::uword bind){
 
   std::cout<<"mata:"<<mapa.n_elem<<std::endl;
   std::cout<<"matb:"<<mapb.n_elem<<std::endl;
@@ -417,10 +415,10 @@ arma::mat calcLD(arma::mat hmata, arma::mat hmatb, arma::rowvec mapa, arma::rowv
   std::cout<<"Sum of covmat is "<<accu(S)<<std::endl;
 
   std::cout<<"Performing shrinkage"<<std::endl;
-  arma::mat shmat = compute_shrinkage(distmat,S, hmata , hmatb, theta, m, Ne,cutoff, aind==bind);
+  compute_shrinkage(distmat,S, hmata , hmatb, theta, m, Ne,cutoff, aind==bind);
   std::cout<<"Sum of cormat is "<<accu(distmat)<<std::endl;
-  arma::mat rowveca = arma::var(hmata);
-  arma::mat colvecb= arma::var(hmatb);
+  arma::mat rowveca = arma::var(hmata)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
+  arma::mat colvecb= arma::var(hmatb)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
   cov_2_cor(distmat,rowveca,colvecb,aind==bind);
   return(distmat);
 }

@@ -87,24 +87,22 @@ BEGIN_RCPP
 END_RCPP
 }
 // cov_2_cor
-arma::mat cov_2_cor(arma::mat& covmat, arma::mat& rowvara, arma::mat& colvarb, const bool isDiag);
+void cov_2_cor(arma::mat& covmat, arma::mat& rowvara, arma::mat& colvarb, const bool isDiag);
 RcppExport SEXP RColumbo_cov_2_cor(SEXP covmatSEXP, SEXP rowvaraSEXP, SEXP colvarbSEXP, SEXP isDiagSEXP) {
 BEGIN_RCPP
-    Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
     Rcpp::traits::input_parameter< arma::mat& >::type covmat(covmatSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type rowvara(rowvaraSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type colvarb(colvarbSEXP);
     Rcpp::traits::input_parameter< const bool >::type isDiag(isDiagSEXP);
-    __result = Rcpp::wrap(cov_2_cor(covmat, rowvara, colvarb, isDiag));
-    return __result;
+    cov_2_cor(covmat, rowvara, colvarb, isDiag);
+    return R_NilValue;
 END_RCPP
 }
 // compute_shrinkage
-arma::mat compute_shrinkage(arma::mat& distmat, arma::mat& S, const arma::mat& hmata, const arma::mat& hmatb, const double theta, const double m, const double Ne, const double cutoff, const bool isDiag);
+void compute_shrinkage(arma::mat& distmat, arma::mat& S, const arma::mat& hmata, const arma::mat& hmatb, const double theta, const double m, const double Ne, const double cutoff, const bool isDiag);
 RcppExport SEXP RColumbo_compute_shrinkage(SEXP distmatSEXP, SEXP SSEXP, SEXP hmataSEXP, SEXP hmatbSEXP, SEXP thetaSEXP, SEXP mSEXP, SEXP NeSEXP, SEXP cutoffSEXP, SEXP isDiagSEXP) {
 BEGIN_RCPP
-    Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
     Rcpp::traits::input_parameter< arma::mat& >::type distmat(distmatSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type S(SSEXP);
@@ -115,20 +113,20 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double >::type Ne(NeSEXP);
     Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);
     Rcpp::traits::input_parameter< const bool >::type isDiag(isDiagSEXP);
-    __result = Rcpp::wrap(compute_shrinkage(distmat, S, hmata, hmatb, theta, m, Ne, cutoff, isDiag));
-    return __result;
+    compute_shrinkage(distmat, S, hmata, hmatb, theta, m, Ne, cutoff, isDiag);
+    return R_NilValue;
 END_RCPP
 }
 // calcLD
-arma::mat calcLD(arma::mat hmata, arma::mat hmatb, arma::rowvec mapa, arma::rowvec mapb, const double m, const double Ne, const double cutoff, const arma::uword aind, const arma::uword bind);
+arma::mat calcLD(arma::mat& hmata, arma::mat& hmatb, arma::rowvec& mapa, arma::rowvec& mapb, const double m, const double Ne, const double cutoff, const arma::uword aind, const arma::uword bind);
 RcppExport SEXP RColumbo_calcLD(SEXP hmataSEXP, SEXP hmatbSEXP, SEXP mapaSEXP, SEXP mapbSEXP, SEXP mSEXP, SEXP NeSEXP, SEXP cutoffSEXP, SEXP aindSEXP, SEXP bindSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
-    Rcpp::traits::input_parameter< arma::mat >::type hmata(hmataSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type hmatb(hmatbSEXP);
-    Rcpp::traits::input_parameter< arma::rowvec >::type mapa(mapaSEXP);
-    Rcpp::traits::input_parameter< arma::rowvec >::type mapb(mapbSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type hmata(hmataSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type hmatb(hmatbSEXP);
+    Rcpp::traits::input_parameter< arma::rowvec& >::type mapa(mapaSEXP);
+    Rcpp::traits::input_parameter< arma::rowvec& >::type mapb(mapbSEXP);
     Rcpp::traits::input_parameter< const double >::type m(mSEXP);
     Rcpp::traits::input_parameter< const double >::type Ne(NeSEXP);
     Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);
