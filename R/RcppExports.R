@@ -2,19 +2,47 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 write_haplotype_h5 <- function(hap_gzfile, hap_h5file, nrows, ncols, chunksize) {
-    invisible(.Call('RColumbo_write_haplotype_h5', PACKAGE = 'RColumbo', hap_gzfile, hap_h5file, nrows, ncols, chunksize))
+    .Call('RColumbo_write_haplotype_h5', PACKAGE = 'RColumbo', hap_gzfile, hap_h5file, nrows, ncols, chunksize)
+}
+
+read_flip <- function(hap_h5file, indexes) {
+    .Call('RColumbo_read_flip', PACKAGE = 'RColumbo', hap_h5file, indexes)
 }
 
 read_haplotype_ind_h5 <- function(hap_h5file, indexes) {
     .Call('RColumbo_read_haplotype_ind_h5', PACKAGE = 'RColumbo', hap_h5file, indexes)
 }
 
-flip_hap <- function(hap_h5file, index, doFlip, chunk, chunksize, nSNPs) {
-    .Call('RColumbo_flip_hap', PACKAGE = 'RColumbo', hap_h5file, index, doFlip, chunk, chunksize, nSNPs)
+ip_dist <- function(cummapa, cummapb, isDiag) {
+    .Call('RColumbo_ip_dist', PACKAGE = 'RColumbo', cummapa, cummapb, isDiag)
 }
 
-flip_hap_LD <- function(hap_h5file, index, doFlip, map, m, Ne, cutoff, i, j, chunksize) {
-    .Call('RColumbo_flip_hap_LD', PACKAGE = 'RColumbo', hap_h5file, index, doFlip, map, m, Ne, cutoff, i, j, chunksize)
+ip_cov <- function(Hpanela, Hpanelb, isDiag) {
+    .Call('RColumbo_ip_cov', PACKAGE = 'RColumbo', Hpanela, Hpanelb, isDiag)
+}
+
+flip_hap <- function(hap_h5file, index, chunk, chunksize, nSNPs) {
+    .Call('RColumbo_flip_hap', PACKAGE = 'RColumbo', hap_h5file, index, chunk, chunksize, nSNPs)
+}
+
+cov_2_cor <- function(covmat, rowvara, colvarb, isDiag) {
+    .Call('RColumbo_cov_2_cor', PACKAGE = 'RColumbo', covmat, rowvara, colvarb, isDiag)
+}
+
+compute_shrinkage <- function(distmat, S, hmata, hmatb, theta, m, Ne, cutoff, isDiag) {
+    .Call('RColumbo_compute_shrinkage', PACKAGE = 'RColumbo', distmat, S, hmata, hmatb, theta, m, Ne, cutoff, isDiag)
+}
+
+calcLD <- function(hmata, hmatb, mapa, mapb, m, Ne, cutoff, aind, bind) {
+    .Call('RColumbo_calcLD', PACKAGE = 'RColumbo', hmata, hmatb, mapa, mapb, m, Ne, cutoff, aind, bind)
+}
+
+gen_sparsemat <- function(ldmat, istart, jstart, nSNPs) {
+    .Call('RColumbo_gen_sparsemat', PACKAGE = 'RColumbo', ldmat, istart, jstart, nSNPs)
+}
+
+flip_hap_LD <- function(hap_h5file, index, map, m, Ne, cutoff, i, j, chunksize) {
+    .Call('RColumbo_flip_hap_LD', PACKAGE = 'RColumbo', hap_h5file, index, map, m, Ne, cutoff, i, j, chunksize)
 }
 
 read_haplotype_h5 <- function(hap_h5file, readSNPs, skipSNPs = 0L) {

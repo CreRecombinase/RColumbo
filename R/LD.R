@@ -14,7 +14,7 @@
 flipmat <- function(hapd,doFlip){
   nhapd <- rbind(doFlip,hapd)
   rhapd <- apply(nhapd,2,function(x){
-    if(x[1]==1){
+    if(x[1]==0){
       return(x[-1])
     }else{
       return(abs(1-x[-1]))
@@ -325,7 +325,8 @@ lddiag <- function(Svec,distvec,m,Ne,cutoff,nSNPs,Sdiag){
 #' @param m integer sample size of genetic map (not of reference panel)
 #' @param Ne numeric effective population size estimate for population
 #' @param cutoff numeric cutoff for shrinkage
-gen_LD <- function(ref_list,m,Ne,cutoff){
+gen_LD <- function(ref_list,m=85,Ne=11490.672741,cutoff=1e-3){
+
   require(coop)
   H <- ref_list[["H"]]
   cummap <- ref_list[["cummap"]]
@@ -395,15 +396,69 @@ torque_arm_gen_LD <- function(rslistvec=character(0),eqtlfile=tempfile(),haph5,m
   mapdf <- filter(mapdf,rsid %in% rslistvec)
   cummap <- mapdf$cummap
   nSNPs <- length(cummap)
-  doFlip <- as.integer(legdf$allele0<legdf$allele1)
   nchunks <-ceiling(nSNPs/chunksize)
-  rm(legdf,mapdf,rslistvec)
-  gc()
-  fmat <- flip_hap_LD(haph5,readind,doFlip,cummap,m,Ne,cutoff,i,j,chunksize)
+  rm(mapdf,legdf,rslistvec)
+  fmat <- flip_hap_LD(haph5,readind,cummap,m,Ne,cutoff,i,j,chunksize)
+
   outfile <-file.path(result_dir,paste0("chr",chrom),paste0("chr",chrom,"_",i,"_",j,"_",chunksize,".RDS"))
   saveRDS(fmat,outfile)
   return(outfile)
 }
+
+
+fhLD <- function(haph5,readind,doFlip,cummap,m,Ne,cutoff,i,j,chunksize){
+
+  nmsum <- sum((1/1:(2*m-1)))
+  theta <- (1/nmsum)/(2*m+1/nmsum)
+  readind = which((totlegdf$rsid %in%rslistvec)&!duplicated(totlegdf$rsid))
+  nSNPs <- length(cummap)
+  nchunks <-ceiling(nSNPs/chunksize)
+  mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
+  legdf <- read_h5_df(haph5,"Legend")
+  readind = which((legdf$rsid %in%rslistvec)&!duplicated(legdf$rsid))
+  legdf <- slice(legdf,readind)
+
+  doFlip <- as.integer(legdf$allele0<legdf$allele1)
+  istart=i*chunksize+1
+  jstart=j*chunksize+1
+  istop=min((i+1)*chunksize,nSNPs)
+  jstop=min((j+1)*chunksize,nSNPs)
+
+  mapa= cummap[istart:istop]
+  mapb= cummap[jstart:jstop]
+
+  hmata <- flip_hap(haph5,readind,doFlip,i,chunksize,nSNPs)
+  hmatb <- flip_hap(haph5,readind,doFlip,j,chunksize,nSNPs)
+
+  distmat <-outer(mapb,mapa,"-")
+  if(i==j){
+    distmat[upper.tri(distmat)]<- 0
+    distmat <- distmat+t(distmat)
+    distmat[lower.tri(distmat)] <- 0
+  }
+
+  S <- cov(hmata,hmatb)
+  if(i==j){
+    S[lower.tri(S)]<-0
+  }
+  distmat=4*Ne*distmat/100
+  distmat=exp(-distmat/(2*m))
+  distmat[distmat<cutoff] <- 0
+  distmat=distmat*S
+  if(i==j){
+    diag(distmat) <- apply(hmata,2,var)
+    distmat=(1-theta)*(1-theta)*distmat+0.5*theta*(1-0.5*theta)*diag(nrow(distmat))
+    vars=diag(distmat)
+    vars =1/sqrt(vars);
+    distmat <- sweep(distmat,1,vars,"*")
+    distmat <- sweep(distmat,2,vars,"*")
+    diag(distmat) <- 1
+  }
+  return(distmat)
+}
+
+
+
 
 
 

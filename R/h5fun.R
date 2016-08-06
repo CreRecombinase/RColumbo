@@ -51,6 +51,7 @@ write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   library(BBmisc)
   library(dplyr)
   legdat <- read.table(legendfile,header=T,sep=" ",stringsAsFactors=F)
+  legdat$doFlip <- as.integer(legdat$a0<legdat$a1)
   nind <- length(scan(hapfile,what=integer(),sep=" ",nlines=1))
   nSNP <- nrow(legdat)
   chunkind <- chunk(1:nSNP,chunk.size = chunksize)
@@ -58,7 +59,12 @@ write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   if(!file.exists(hap_h5file)){
     h5createFile(hap_h5file)
   }
+
   h5createGroup(file = hap_h5file,group = "Legend")
+  h5createDataset(hap_h5file,"/Legend/doFlip",
+                  dims=c(nrow(legdat)),
+                  storage.mode="integer",
+                  chunk=chunksize,level=2)
   h5createDataset(hap_h5file,"/Legend/rsid",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
@@ -81,6 +87,7 @@ write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   for(i in 1:length(chunkind)){
     cat(paste0(i,"\n"))
     tldat <- slice(legdat,chunkind[[i]])
+    h5write(tldat$doFlip,file=hap_h5file,name="/Legend/doFlip",index=list(chunkind[[i]]))
     h5write(tldat$id,file=hap_h5file,name="/Legend/rsid",index=list(chunkind[[i]]))
     h5write(tldat$position,file=hap_h5file,name="/Legend/pos",index=list(chunkind[[i]]))
     h5write(tldat$a0,file=hap_h5file,name="/Legend/allele0",index=list(chunkind[[i]]))
