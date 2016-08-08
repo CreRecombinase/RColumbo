@@ -382,6 +382,18 @@ torque_arm_gen_LD <- function(rslistvec=character(0),eqtlfile=tempfile(),haph5,m
   stopifnot(file.exists(mapfile),
             file.exists(haph5),
             (file.exists(eqtlfile)||length(rslistvec)>0))
+  doSkip<- FALSE
+  if(j>0){
+    tj <- j-1
+    prev_outfile <-file.path(result_dir,paste0("chr",chrom),paste0("chr",chrom,"_",i,"_",tj,"_",chunksize,".RDS"))
+    if(file.exists(prev_outfile)){
+      nmat <- readRDS(prev_outfile)
+      if(sum(nmat)==0){
+        doSkip <- TRUE
+      }
+    }
+  }
+
   mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
   legdf <- read_h5_df(haph5,"Legend")
   if(length(rslistvec)==0){
@@ -398,8 +410,11 @@ torque_arm_gen_LD <- function(rslistvec=character(0),eqtlfile=tempfile(),haph5,m
   nSNPs <- length(cummap)
   nchunks <-ceiling(nSNPs/chunksize)
   rm(mapdf,legdf,rslistvec)
-  fmat <- flip_hap_LD(haph5,readind,cummap,m,Ne,cutoff,i,j,chunksize)
-
+  if(!doSkip){
+    fmat <- flip_hap_LD(haph5,readind,cummap,m,Ne,cutoff,i,j,chunksize)
+  }else{
+    fmat <- sparseMatrix(i = 1,j=1,x = 0,dims=c(nSNPs,nSNPs))
+  }
   outfile <-file.path(result_dir,paste0("chr",chrom),paste0("chr",chrom,"_",i,"_",j,"_",chunksize,".RDS"))
   saveRDS(fmat,outfile)
   return(outfile)
