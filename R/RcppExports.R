@@ -13,10 +13,6 @@ read_haplotype_ind_h5 <- function(hap_h5file, indexes) {
     .Call('RColumbo_read_haplotype_ind_h5', PACKAGE = 'RColumbo', hap_h5file, indexes)
 }
 
-ip_dist <- function(cummapa, cummapb, isDiag) {
-    .Call('RColumbo_ip_dist', PACKAGE = 'RColumbo', cummapa, cummapb, isDiag)
-}
-
 ip_cov <- function(Hpanela, Hpanelb, isDiag) {
     .Call('RColumbo_ip_cov', PACKAGE = 'RColumbo', Hpanela, Hpanelb, isDiag)
 }
@@ -33,8 +29,8 @@ compute_shrinkage <- function(distmat, S, hmata, hmatb, theta, m, Ne, cutoff, is
     invisible(.Call('RColumbo_compute_shrinkage', PACKAGE = 'RColumbo', distmat, S, hmata, hmatb, theta, m, Ne, cutoff, isDiag))
 }
 
-calcLD <- function(hmata, hmatb, mapa, mapb, m, Ne, cutoff, aind, bind) {
-    .Call('RColumbo_calcLD', PACKAGE = 'RColumbo', hmata, hmatb, mapa, mapb, m, Ne, cutoff, aind, bind)
+calcLD <- function(hmata, hmatb, mapa, mapb, distmat, m, Ne, cutoff, aind, bind) {
+    invisible(.Call('RColumbo_calcLD', PACKAGE = 'RColumbo', hmata, hmatb, mapa, mapb, distmat, m, Ne, cutoff, aind, bind))
 }
 
 gen_sparsemat <- function(ldmat, istart, jstart, nSNPs) {

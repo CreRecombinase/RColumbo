@@ -45,19 +45,6 @@ BEGIN_RCPP
     return __result;
 END_RCPP
 }
-// ip_dist
-arma::mat ip_dist(const arma::rowvec& cummapa, const arma::rowvec& cummapb, bool isDiag);
-RcppExport SEXP RColumbo_ip_dist(SEXP cummapaSEXP, SEXP cummapbSEXP, SEXP isDiagSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject __result;
-    Rcpp::RNGScope __rngScope;
-    Rcpp::traits::input_parameter< const arma::rowvec& >::type cummapa(cummapaSEXP);
-    Rcpp::traits::input_parameter< const arma::rowvec& >::type cummapb(cummapbSEXP);
-    Rcpp::traits::input_parameter< bool >::type isDiag(isDiagSEXP);
-    __result = Rcpp::wrap(ip_dist(cummapa, cummapb, isDiag));
-    return __result;
-END_RCPP
-}
 // ip_cov
 arma::mat ip_cov(const arma::mat& Hpanela, const arma::mat& Hpanelb, bool isDiag);
 RcppExport SEXP RColumbo_ip_cov(SEXP HpanelaSEXP, SEXP HpanelbSEXP, SEXP isDiagSEXP) {
@@ -118,22 +105,22 @@ BEGIN_RCPP
 END_RCPP
 }
 // calcLD
-arma::mat calcLD(arma::mat& hmata, arma::mat& hmatb, arma::rowvec& mapa, arma::rowvec& mapb, const double m, const double Ne, const double cutoff, const arma::uword aind, const arma::uword bind);
-RcppExport SEXP RColumbo_calcLD(SEXP hmataSEXP, SEXP hmatbSEXP, SEXP mapaSEXP, SEXP mapbSEXP, SEXP mSEXP, SEXP NeSEXP, SEXP cutoffSEXP, SEXP aindSEXP, SEXP bindSEXP) {
+void calcLD(arma::mat& hmata, arma::mat& hmatb, arma::rowvec& mapa, arma::rowvec& mapb, arma::mat& distmat, const double m, const double Ne, const double cutoff, const arma::uword aind, const arma::uword bind);
+RcppExport SEXP RColumbo_calcLD(SEXP hmataSEXP, SEXP hmatbSEXP, SEXP mapaSEXP, SEXP mapbSEXP, SEXP distmatSEXP, SEXP mSEXP, SEXP NeSEXP, SEXP cutoffSEXP, SEXP aindSEXP, SEXP bindSEXP) {
 BEGIN_RCPP
-    Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
     Rcpp::traits::input_parameter< arma::mat& >::type hmata(hmataSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type hmatb(hmatbSEXP);
     Rcpp::traits::input_parameter< arma::rowvec& >::type mapa(mapaSEXP);
     Rcpp::traits::input_parameter< arma::rowvec& >::type mapb(mapbSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type distmat(distmatSEXP);
     Rcpp::traits::input_parameter< const double >::type m(mSEXP);
     Rcpp::traits::input_parameter< const double >::type Ne(NeSEXP);
     Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);
     Rcpp::traits::input_parameter< const arma::uword >::type aind(aindSEXP);
     Rcpp::traits::input_parameter< const arma::uword >::type bind(bindSEXP);
-    __result = Rcpp::wrap(calcLD(hmata, hmatb, mapa, mapb, m, Ne, cutoff, aind, bind));
-    return __result;
+    calcLD(hmata, hmatb, mapa, mapb, distmat, m, Ne, cutoff, aind, bind);
+    return R_NilValue;
 END_RCPP
 }
 // gen_sparsemat

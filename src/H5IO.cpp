@@ -311,10 +311,10 @@ arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file,arma::uvec ind
 
 
 
-//[[Rcpp::export]]
-arma::mat ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb,bool isDiag){
-//  std::cout<<"Doing p_dist"<<std::endl;
-  arma::mat distmat(cummapa.n_elem,cummapb.n_elem,arma::fill::zeros);
+
+void ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb,arma::mat &distmat,bool isDiag){
+  std::cout<<"Doing p_dist"<<std::endl;
+  distmat.set_size(cummapa.n_elem,cummapb.n_elem);
   if(isDiag){
     for(arma::uword ind=0; ind<distmat.n_rows; ind++){
       distmat.row(ind).tail(distmat.n_cols-ind-1)=cummapb.tail(cummapb.n_elem-ind-1)-cummapa(ind);
@@ -325,12 +325,11 @@ arma::mat ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb,bool i
       distmat.row(ind)=cummapb-cummapa(ind);
     }
   }
-  return(distmat);
 }
 
 //[[Rcpp::export]]
 arma::mat ip_cov(const arma::mat &Hpanela, const arma::mat &Hpanelb, bool isDiag){
- // std::cout<<"Doing p_cov"<<std::endl;
+  std::cout<<"Doing p_cov"<<std::endl;
   if(isDiag){
     arma::mat covmat=trimatu(cov(Hpanela,Hpanelb));
     return(covmat);
@@ -403,15 +402,16 @@ void compute_shrinkage(arma::mat &distmat,arma::mat &S, const arma::mat &hmata ,
   }
 }
 //[[Rcpp::export]]
-arma::mat calcLD(arma::mat &hmata, arma::mat &hmatb, arma::rowvec &mapa, arma::rowvec &mapb,const double m, const double Ne,const double cutoff, const arma::uword aind, const arma::uword bind){
+void calcLD(arma::mat &hmata, arma::mat &hmatb, arma::rowvec &mapa, arma::rowvec &mapb,arma::mat &distmat, const double m, const double Ne,const double cutoff, const arma::uword aind, const arma::uword bind){
 
   std::cout<<"mata:"<<mapa.n_elem<<std::endl;
   std::cout<<"matb:"<<mapb.n_elem<<std::endl;
   double nmsum =arma::sum(1/arma::regspace<arma::vec>(1,(2*m-1)));
   double theta =(1/nmsum)/(2*m+1/nmsum);
-  arma::mat distmat = ip_dist(mapa,mapb,aind==bind);
+  ip_dist(mapa,mapb,distmat,aind==bind);
   std::cout<<"Sum of distmat is "<<accu(distmat)<<std::endl;
   arma::mat S=ip_cov(hmata,hmatb,aind==bind);
+
   std::cout<<"Sum of covmat is "<<accu(S)<<std::endl;
 
   std::cout<<"Performing shrinkage"<<std::endl;
@@ -420,7 +420,6 @@ arma::mat calcLD(arma::mat &hmata, arma::mat &hmatb, arma::rowvec &mapa, arma::r
   arma::mat rowveca = arma::var(hmata)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
   arma::mat colvecb= arma::var(hmatb)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
   cov_2_cor(distmat,rowveca,colvecb,aind==bind);
-  return(distmat);
 }
 
 
@@ -467,7 +466,8 @@ arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::ro
   }
 
   std::cout<<"Calculating LD"<<std::endl;
-  arma::mat distmat=calcLD(hmata,hmatb,mapa,mapb,m,Ne,cutoff,i,j);
+  arma::mat distmat(mapa.n_elem,mapb.n_elem,arma::fill::zeros);
+  calcLD(hmata,hmatb,mapa,mapb,distmat,m,Ne,cutoff,i,j);
   std::cout<<"Checking distmat"<<std::endl;
   arma::uvec infvec =arma::find(abs(distmat)>1);
   if(infvec.n_elem>0){
@@ -480,22 +480,8 @@ arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::ro
     std::cout<<"overall col is: jstart+badel(1,0)="<<jstart<<"+"<<badel(1,0)<<"="<<overc<<std::endl;
     Rcpp::stop("correlation values greater than 1 found in correlation matrix!");
   }
-  arma::uvec navec = arma::find_nonfinite(distmat);
-  if(navec.n_elem>0){
-    std::cout<<"incorrect correlation values found in chunk i:"<<i<<" j:"<<j<<std::endl;
-    std::cout<<"Value is: "<<distmat(navec)<<std::endl;
-    arma::umat badel=arma::ind2sub(size(distmat),navec);
-    size_t overr=istart+badel(0,0);
-    size_t overc=jstart+badel(1,0);
-    std::cout<<"overall row is: istart+badel(0,0)="<<istart<<"+"<<badel(0,0)<<"="<<overr<<std::endl;
-    std::cout<<"overall col is: jstart+badel(1,0)="<<jstart<<"+"<<badel(1,0)<<"="<<overc<<std::endl;
+  distmat.elem(arma::find_nonfinite(distmat)).zeros();
 
-    std::cout<<"hmata(sum:"<<arma::accu(hmata)<<")"<<std::endl;
-    hmata.head_rows(5).print();
-    std::cout<<"hmatb(sum:"<<arma::accu(hmatb)<<")"<<std::endl;
-    hmatb.head_rows(5).print();
-    Rcpp::stop("Correlation values that are non-finite found!");
-  }
   std::cout<<"Finding nonzero elements"<<std::endl;
   std::cout<<"Creating index matrix"<<std::endl;
   arma::sp_mat retS= gen_sparsemat( distmat, istart, jstart, nSNPs);
