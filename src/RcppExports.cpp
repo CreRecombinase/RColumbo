@@ -6,6 +6,45 @@
 
 using namespace Rcpp;
 
+// convertTSparse
+arma::mat convertTSparse(Rcpp::S4& mat);
+RcppExport SEXP RColumbo_convertTSparse(SEXP matSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< Rcpp::S4& >::type mat(matSEXP);
+    __result = Rcpp::wrap(convertTSparse(mat));
+    return __result;
+END_RCPP
+}
+// findbandwidth
+int findbandwidth(Rcpp::IntegerVector& i, Rcpp::IntegerVector& j, Rcpp::NumericVector& x, double cutoff);
+RcppExport SEXP RColumbo_findbandwidth(SEXP iSEXP, SEXP jSEXP, SEXP xSEXP, SEXP cutoffSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type j(jSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< double >::type cutoff(cutoffSEXP);
+    __result = Rcpp::wrap(findbandwidth(i, j, x, cutoff));
+    return __result;
+END_RCPP
+}
+// findcutoff
+int findcutoff(Rcpp::IntegerVector& i, Rcpp::IntegerVector& j, Rcpp::NumericVector& x, int bandwidth);
+RcppExport SEXP RColumbo_findcutoff(SEXP iSEXP, SEXP jSEXP, SEXP xSEXP, SEXP bandwidthSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type j(jSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type bandwidth(bandwidthSEXP);
+    __result = Rcpp::wrap(findcutoff(i, j, x, bandwidth));
+    return __result;
+END_RCPP
+}
 // write_haplotype_h5
 size_t write_haplotype_h5(const std::string hap_gzfile, const std::string hap_h5file, const size_t nrows, const size_t ncols, size_t chunksize);
 RcppExport SEXP RColumbo_write_haplotype_h5(SEXP hap_gzfileSEXP, SEXP hap_h5fileSEXP, SEXP nrowsSEXP, SEXP ncolsSEXP, SEXP chunksizeSEXP) {
@@ -235,6 +274,36 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);
     Rcpp::traits::input_parameter< const arma::uword >::type report_every(report_everySEXP);
     __result = Rcpp::wrap(sparse_LD(cummap, Hpanel, Ne, m, cutoff, report_every));
+    return __result;
+END_RCPP
+}
+// make_long
+arma::uvec make_long(arma::uvec& vchrom, arma::uvec& vpos, arma::uvec& posmap);
+RcppExport SEXP RColumbo_make_long(SEXP vchromSEXP, SEXP vposSEXP, SEXP posmapSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< arma::uvec& >::type vchrom(vchromSEXP);
+    Rcpp::traits::input_parameter< arma::uvec& >::type vpos(vposSEXP);
+    Rcpp::traits::input_parameter< arma::uvec& >::type posmap(posmapSEXP);
+    __result = Rcpp::wrap(make_long(vchrom, vpos, posmap));
+    return __result;
+END_RCPP
+}
+// write_genotype_h5
+arma::uvec write_genotype_h5(const char* snpdatmat, size_t Nind, size_t Nsnps, size_t chunksize, const std::string h5file, bool doFlip, const std::string dbsnpfile);
+RcppExport SEXP RColumbo_write_genotype_h5(SEXP snpdatmatSEXP, SEXP NindSEXP, SEXP NsnpsSEXP, SEXP chunksizeSEXP, SEXP h5fileSEXP, SEXP doFlipSEXP, SEXP dbsnpfileSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< const char* >::type snpdatmat(snpdatmatSEXP);
+    Rcpp::traits::input_parameter< size_t >::type Nind(NindSEXP);
+    Rcpp::traits::input_parameter< size_t >::type Nsnps(NsnpsSEXP);
+    Rcpp::traits::input_parameter< size_t >::type chunksize(chunksizeSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type h5file(h5fileSEXP);
+    Rcpp::traits::input_parameter< bool >::type doFlip(doFlipSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type dbsnpfile(dbsnpfileSEXP);
+    __result = Rcpp::wrap(write_genotype_h5(snpdatmat, Nind, Nsnps, chunksize, h5file, doFlip, dbsnpfile));
     return __result;
 END_RCPP
 }

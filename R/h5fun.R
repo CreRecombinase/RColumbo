@@ -30,6 +30,7 @@ from_band <- function(bmat){
 }
 
 readMATLAB <- function(matfile,group="BR"){
+  require(rhdf5)
   matres <- from_band(h5read(matfile,name=group))
 }
 
@@ -41,6 +42,35 @@ matLines <- function(gzc,nr,nc){
                 nrow = nr,ncol = nc,byrow = T)
   return(tLL)
 }
+
+
+
+
+
+#' Write haplotype data to HDF5 data
+#' @param haph5 h5file (with legend data already written)
+#' @param chunksize chunk size for compression
+write_doFlip <- function(haph5,chunksize=100000){
+  legdat <- read_h5_df(haph5,"Legend")
+  legdat$doFlip <- as.integer(legdat$allele0<legdat$allele1)
+  if(sum(colnames(legdf)=="doFlip")==0){
+    h5createDataset(haph5,"/Legend/doFlip",
+                    dims=c(nrow(legdat)),
+                    storage.mode="integer",
+                    chunk=chunksize,level=2)
+    chunkind <- chunk(1:nSNP,chunk.size = chunksize)
+    for(i in 1:length(chunkind)){
+      cat(paste0(i,"\n"))
+      tldat <- slice(legdat,chunkind[[i]])
+      h5write(tldat$doFlip,file=hap_h5file,name="/Legend/doFlip",index=list(chunkind[[i]]))
+    }
+  }
+}
+
+
+
+
+
 #' Write haplotype data to HDF5 data
 #' @param haplotype matrix (one SNP per column, one individual per row)
 #' @param legdat legend dataframe

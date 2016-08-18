@@ -1,7 +1,7 @@
 #include "RcppArmadillo.h"
 #include <H5Cpp.h>
 #include <algorithm>
-
+#include <cmath>
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -19,6 +19,64 @@
 //   http://gallery.rcpp.org/
 //
 using namespace H5;
+
+//[[Rcpp::export]]
+arma::mat convertTSparse(Rcpp::S4 &mat){
+
+  Rcpp::IntegerVector dims = mat.slot("Dim");
+  std::cout<<"Dim of mat is "<<dims[0]<<"x"<<dims[1]<<std::endl;
+  arma::irowvec i = Rcpp::as<arma::irowvec>(mat.slot("i"));
+  arma::irowvec j = Rcpp::as<arma::irowvec>(mat.slot("j"));
+  arma::vec x     = Rcpp::as<arma::vec>(mat.slot("x"));
+  arma::umat locations= arma::join_vert(arma::conv_to<arma::urowvec>::from(i),arma::conv_to<arma::urowvec>::from(j));
+
+
+  size_t nrow = dims[0], ncol = dims[1];
+  arma::sp_mat res(arma::conv_to<arma::umat>::from(locations),x,nrow,ncol);
+  int bandwidth = arma::max(arma::abs(i-j));
+  std::cout<<"bandwidth is "<<bandwidth<<std::endl;
+
+  arma::mat bandmat(nrow, bandwidth+1,arma::fill::zeros);
+  for(size_t ind=0; ind<=bandwidth; ind++){
+    bandmat.col(ind).head(nrow-ind)= res.diag(ind);
+  }
+  return(bandmat);
+}
+
+
+//[[Rcpp::export]]
+int findbandwidth(Rcpp::IntegerVector &i, Rcpp::IntegerVector &j, Rcpp::NumericVector &x,double cutoff){
+  int bandwidth=0;
+  for(size_t ind=0; ind<x.length(); ind++){
+    int tdiff = j[ind]-i[ind];
+    if(tdiff>bandwidth){
+      if(fabs(x[ind])>cutoff){
+        bandwidth=tdiff;
+      }
+    }
+  }
+  //std::cout<<i<<std::endl;
+  return(bandwidth);
+}
+
+//[[Rcpp::export]]
+int findcutoff(Rcpp::IntegerVector &i, Rcpp::IntegerVector &j, Rcpp::NumericVector &x,int bandwidth){
+  double cutoff =0;
+  for(size_t ind=0; ind<x.length(); ind++){
+    int tdiff = j[ind]-i[ind];
+    if(tdiff>=bandwidth){
+      if(fabs(x[ind])>=cutoff){
+        cutoff = fabs(x[ind]);
+      }
+    }
+  }
+  //std::cout<<i<<std::endl;
+  return(bandwidth);
+}
+
+
+
+
 
 // [[Rcpp::export]]
 size_t write_haplotype_h5(const std::string hap_gzfile,const std::string hap_h5file,const size_t nrows,const size_t ncols,size_t chunksize){
@@ -259,7 +317,7 @@ arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file,arma::uvec ind
     error.printError();
   }
 
-//  std::cout<<"opened dataset"<<std::endl;
+  //  std::cout<<"opened dataset"<<std::endl;
   hsize_t adim[1];
   DataType dt = dataset->getDataType();
   DataType dtss = dt.getSuper();
@@ -349,7 +407,8 @@ arma::mat flip_hap(const std::string hap_h5file,arma::uvec index, const::arma::u
     Rcpp::stop("chunk greater than nchunks! in flip_hap");
   }
   arma::uword istart=chunk*chunksize;
-  arma::uword istop=std::min((chunk+1)*chunksize-1,nSNPs-1);
+  arma::uword istop=std::min(((chunk+1)*chunksize)-1,nSNPs-1);
+  std::cout<<"From :"<<istart<<" to: "<<istop<<std::endl;
   arma::uvec indexa= index(arma::span(istart,istop));
   arma::uvec doFlipa =read_flip(hap_h5file,indexa);
   arma::mat hmata =arma::conv_to<arma::mat>::from(read_haplotype_ind_h5(hap_h5file,indexa));
