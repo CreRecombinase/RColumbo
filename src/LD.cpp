@@ -317,3 +317,15 @@ arma::sp_mat sparse_LD(const arma::vec cummap, const arma::mat Hpanel, const dou
 //   }
 // };
 
+
+
+//[[Rcpp::export]]
+arma::umat find_bwd(arma::mat &LDmat, const double LDcutoff){
+  arma::umat bandmat(LDmat.n_rows,2);
+  for(size_t snp=0;snp<LDmat.n_rows;snp++){
+    bandmat(snp,0)=arma::as_scalar(snp-arma::find(LDmat.col(snp)>LDcutoff,1,"first"));
+    bandmat(snp,1)=arma::as_scalar(arma::find(LDmat.col(snp)>LDcutoff,1,"last")-snp);
+  }
+  return(bandmat);
+}
+

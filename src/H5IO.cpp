@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <numeric>
+#include "h5func.hpp"
 #include <zlib.h>
 
 #define ARMA_USE_CXX11
@@ -75,11 +76,8 @@ int findcutoff(Rcpp::IntegerVector &i, Rcpp::IntegerVector &j, Rcpp::NumericVect
 }
 
 
-
-
-
 // [[Rcpp::export]]
-size_t write_haplotype_h5(const std::string hap_gzfile,const std::string hap_h5file,const size_t nrows,const size_t ncols,size_t chunksize){
+size_t write_haplotype_h5(const std::string hap_gzfile,const std::string hap_h5file,const size_t nrows,const size_t ncols,size_t chunksize,const unsigned int deflate_level){
 
   gzFile gz_in=gzopen(hap_gzfile.c_str(),"rb");
   size_t badrows=0;
@@ -106,7 +104,7 @@ size_t write_haplotype_h5(const std::string hap_gzfile,const std::string hap_h5f
     cdim[0]=chunksize; //Assign chunksize dimension
     DSetCreatPropList cparms; //Create chunksize file parameters
     cparms.setChunk(1,cdim); //Set chunksize
-    cparms.setDeflate(2);
+    cparms.setDeflate(deflate_level);
 
     DataSpace mspace(1,cdim); //Size of first dataset (in memory, can be bigger or smaller than size on disk, depending on how much you're writing)
 
@@ -265,6 +263,7 @@ arma::uvec read_flip(const std::string hap_h5file,arma::uvec indexes){
   // std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
   hsize_t readSNPs=indexes.n_elem;
   if(readSNPs>datadim[0]){
+    Rcpp::Rcerr<<"data is of length:"<<datadim[0]<<" and there are "<<readSNPs<<" in the indexes"<<std::endl;
     Rcpp::stop("indexes longer than extent of data");
   }
   hsize_t *hind = new hsize_t[readSNPs];
@@ -369,8 +368,79 @@ arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file,arma::uvec ind
 
 
 
+//[[Rcpp::export]]
+arma::mat read_dmat_ind_h5(const std::string hap_h5file,const std::string groupname, const std::string dataname,arma::uvec indexes){
 
-void ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb,arma::mat &distmat,bool isDiag){
+  H5File* file;
+  DataSet* dataset;
+  try{
+    file= new H5File( hap_h5file.c_str(), H5F_ACC_RDONLY);
+  }
+  catch( FileIException error )
+  {
+    error.printError();
+  }
+  Group haplogroup = file->openGroup(groupname);
+  try{
+    dataset = new DataSet(haplogroup.openDataSet(dataname));
+  }
+  catch( DataSetIException error )
+  {
+    error.printError();
+  }
+
+  //  std::cout<<"opened dataset"<<std::endl;
+  hsize_t adim[1];
+  DataType dt = dataset->getDataType();
+  DataType dtss = dt.getSuper();
+  size_t dts=dt.getSize();
+  size_t bcs =dtss.getSize();
+  hsize_t dims= (dts/bcs);
+  adim[0]=dims;
+  ArrayType mem_arraytype(PredType::NATIVE_DOUBLE,1,adim);
+
+
+  //  std::cout<<"Getting Array dimensions"<<std::endl;
+  //  std::cout<<"Getting Dataspace"<<std::endl;
+  DataSpace fspace =dataset->getSpace();
+
+  //  std::cout<<"Getting Data dimensions"<<std::endl;
+  hsize_t datadim[1];
+  fspace.getSimpleExtentDims(datadim,NULL);
+  // std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
+  hsize_t readSNPs=indexes.n_elem;
+  if(readSNPs>datadim[0]){
+    Rcpp::stop("indexes longer than extent of data");
+  }
+  hsize_t *hind = new hsize_t[readSNPs];
+  for(size_t i=0; i<readSNPs;i++){
+    hind[i]=indexes(i)-1;
+    if(hind[i]>=datadim[0]){
+      Rcpp::stop("Attempting to read outside extent of data");
+    }
+  }
+  hsize_t rdim[1];
+  rdim[0]=readSNPs;
+  DataSpace memspace(1,rdim);
+  fspace.selectElements(H5S_SELECT_SET,readSNPs,hind);
+  //  std::cout<<"Allocating temp vector of size:"<<readSNPs<<"x"<<adim[0]<<std::endl;
+  arma::mat retmat(adim[0],rdim[0]);
+  //  std::cout<<"Reading data"<<std::endl;
+  dataset->read(retmat.memptr(),mem_arraytype,memspace,fspace);
+  mem_arraytype.close();
+  memspace.close();
+  fspace.close();
+  haplogroup.close();
+  delete dataset;
+  delete file;
+  return(retmat);
+}
+
+
+
+
+
+void ip_dist(const arma::frowvec &cummapa,const arma::frowvec &cummapb,arma::fmat &distmat,bool isDiag){
   std::cout<<"Doing p_dist"<<std::endl;
   distmat.set_size(cummapa.n_elem,cummapb.n_elem);
   if(isDiag){
@@ -386,14 +456,14 @@ void ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb,arma::mat &
 }
 
 //[[Rcpp::export]]
-arma::mat ip_cov(const arma::mat &Hpanela, const arma::mat &Hpanelb, bool isDiag){
+arma::fmat ip_cov(const arma::fmat &Hpanela, const arma::fmat &Hpanelb, bool isDiag){
   std::cout<<"Doing p_cov"<<std::endl;
   if(isDiag){
-    arma::mat covmat=trimatu(cov(Hpanela,Hpanelb));
+    arma::fmat covmat=trimatu(cov(Hpanela,Hpanelb));
     return(covmat);
   }
   else{
-    arma::mat covmat=cov(Hpanela,Hpanelb);
+    arma::fmat covmat=cov(Hpanela,Hpanelb);
     return(covmat);
   }
 }
@@ -408,8 +478,9 @@ arma::mat flip_hap(const std::string hap_h5file,arma::uvec index, const::arma::u
   }
   arma::uword istart=chunk*chunksize;
   arma::uword istop=std::min(((chunk+1)*chunksize)-1,nSNPs-1);
-  std::cout<<"From :"<<istart<<" to: "<<istop<<std::endl;
+
   arma::uvec indexa= index(arma::span(istart,istop));
+  std::cout<<"From:"<<istart<<" to: "<<istop<<"("<<indexa[0]<<":"<<indexa[indexa.size()-1]<<")"<<std::endl;
   arma::uvec doFlipa =read_flip(hap_h5file,indexa);
   arma::mat hmata =arma::conv_to<arma::mat>::from(read_haplotype_ind_h5(hap_h5file,indexa));
   if(hmata.n_cols!=indexa.n_elem){
@@ -424,7 +495,7 @@ arma::mat flip_hap(const std::string hap_h5file,arma::uvec index, const::arma::u
 }
 
 //[[Rcpp::export]]
-void cov_2_cor(arma::mat &covmat, arma::mat &rowvara, arma::mat &colvarb, const bool isDiag){
+void cov_2_cor(arma::fmat &covmat, arma::fmat &rowvara, arma::fmat &colvarb, const bool isDiag){
 
   rowvara = 1/sqrt(rowvara);
   colvarb=1/sqrt(colvarb);
@@ -444,7 +515,7 @@ void cov_2_cor(arma::mat &covmat, arma::mat &rowvara, arma::mat &colvarb, const 
 
 
 //[[Rcpp::export]]
-void compute_shrinkage(arma::mat &distmat,arma::mat &S, const arma::mat &hmata ,const arma::mat &hmatb, const double theta, const double m, const double Ne,const double cutoff, const bool isDiag){
+void compute_shrinkage(arma::fmat &distmat,arma::fmat &S, const arma::fmat &hmata ,const arma::fmat &hmatb, const double theta, const double m, const double Ne,const double cutoff, const bool isDiag){
   distmat=4*Ne*distmat/100;
   distmat=exp(-distmat/(2*m));
 
@@ -454,14 +525,14 @@ void compute_shrinkage(arma::mat &distmat,arma::mat &S, const arma::mat &hmata ,
   if(isDiag){
     std::cout<<"Computing Diagonals"<<std::endl;
     distmat.diag() = arma::var(hmata);
-    distmat=(1-theta)*(1-theta)*distmat+0.5*theta*(1-0.5*theta)*eye(size(distmat));
+    distmat=(1-theta)*(1-theta)*distmat+0.5*theta*(1-0.5*theta)*arma::eye<arma::fmat>(size(distmat));
   }
   else{
     distmat*=(1-theta)*(1-theta);
   }
 }
 //[[Rcpp::export]]
-void calcLD(arma::mat &hmata, arma::mat &hmatb, arma::rowvec &mapa, arma::rowvec &mapb,arma::mat &distmat, const double m, const double Ne,const double cutoff, const arma::uword aind, const arma::uword bind){
+void calcLD(arma::fmat &hmata, arma::fmat &hmatb, arma::frowvec &mapa, arma::frowvec &mapb,arma::fmat &distmat, const double m, const double Ne,const double cutoff, const arma::uword aind, const arma::uword bind){
 
   std::cout<<"mata:"<<mapa.n_elem<<std::endl;
   std::cout<<"matb:"<<mapb.n_elem<<std::endl;
@@ -469,38 +540,39 @@ void calcLD(arma::mat &hmata, arma::mat &hmatb, arma::rowvec &mapa, arma::rowvec
   double theta =(1/nmsum)/(2*m+1/nmsum);
   ip_dist(mapa,mapb,distmat,aind==bind);
   std::cout<<"Sum of distmat is "<<accu(distmat)<<std::endl;
-  arma::mat S=ip_cov(hmata,hmatb,aind==bind);
+  arma::fmat S=ip_cov(hmata,hmatb,aind==bind);
 
   std::cout<<"Sum of covmat is "<<accu(S)<<std::endl;
 
   std::cout<<"Performing shrinkage"<<std::endl;
   compute_shrinkage(distmat,S, hmata , hmatb, theta, m, Ne,cutoff, aind==bind);
   std::cout<<"Sum of cormat is "<<accu(distmat)<<std::endl;
-  arma::mat rowveca = arma::var(hmata)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
-  arma::mat colvecb= arma::var(hmatb)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
+  arma::fmat rowveca = arma::var(hmata)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
+  arma::fmat colvecb= arma::var(hmatb)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
   cov_2_cor(distmat,rowveca,colvecb,aind==bind);
 }
 
 
 //[[Rcpp::export]]
-arma::sp_mat gen_sparsemat(arma::mat ldmat,const arma::uword istart,const arma::uword jstart,const arma::uword nSNPs){
+arma::sp_fmat gen_sparsemat(arma::fmat ldmat,const arma::uword istart,const arma::uword jstart,const arma::uword nSNPs){
   arma::umat indmat=arma::ind2sub(size(ldmat),arma::find(ldmat!=0));
   if(indmat.n_cols>0){
     //    std::cout<<"size of tmat:"<<size(tmat)<<std::endl;
     indmat.row(0)+=istart;
     indmat.row(1)+=jstart;
     std::cout<<"Allocating sparse matrix"<<std::endl;
-    arma::sp_mat retS(indmat,ldmat.elem(arma::find(ldmat!=0)),nSNPs,nSNPs);
+    arma::sp_fmat retS(indmat,ldmat.elem(arma::find(ldmat!=0)),nSNPs,nSNPs);
     return(retS);
   }
   else{
-    arma::sp_mat retS(nSNPs,nSNPs);
+    arma::sp_fmat retS(nSNPs,nSNPs);
     return(retS);
   }
 }
 
+
 //[[Rcpp::export]]
-arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::rowvec map,const double m, const double Ne, const double cutoff,const arma::uword i, const arma::uword j, const arma::uword chunksize){
+arma::fmat gen_dense_LD(const std::string hap_h5file, arma::uvec index,arma::frowvec map,const double m, const double Ne, const double cutoff,const arma::uword i, const arma::uword j, const arma::uword chunksize){
   std::cout<<"counting SNPs"<<std::endl;
   arma::uword nSNPs=map.n_elem;
   arma::uword nchunks=ceil((double)nSNPs/(double)chunksize);
@@ -510,12 +582,12 @@ arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::ro
 
   arma::uword istop=std::min((i+1)*chunksize-1,map.n_elem-1);
   arma::uword jstop=std::min((j+1)*chunksize-1,map.n_elem-1);
-  std::cout<<"subsetting map"<<std::endl;
-  arma::rowvec mapa= map(arma::span(istart,istop));
-  arma::rowvec mapb= map(arma::span(jstart,jstop));
+  std::cout<<"subsetting map(nSNPs is: "<<nSNPs<<")"<<std::endl;
+  arma::frowvec mapa= map(arma::span(istart,istop));
+  arma::frowvec mapb= map(arma::span(jstart,jstop));
   std::cout<<"subsetting haplotype data"<<std::endl;
-  arma::mat hmata =flip_hap(hap_h5file,index,i,chunksize,nSNPs);
-  arma::mat hmatb =flip_hap(hap_h5file,index,j,chunksize,nSNPs);
+  arma::fmat hmata =arma::conv_to<arma::fmat>::from(flip_hap(hap_h5file,index,i,chunksize,nSNPs));
+  arma::fmat hmatb =arma::conv_to<arma::fmat>::from(flip_hap(hap_h5file,index,j,chunksize,nSNPs));
   if(hmata.n_cols!=mapa.n_elem){
     Rcpp::stop("Subsetting failed (mapa.length != mata.n_cols)");
   }
@@ -525,10 +597,21 @@ arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::ro
   }
 
   std::cout<<"Calculating LD"<<std::endl;
-  arma::mat distmat(mapa.n_elem,mapb.n_elem,arma::fill::zeros);
+  arma::fmat distmat(mapa.n_elem,mapb.n_elem,arma::fill::zeros);
   calcLD(hmata,hmatb,mapa,mapb,distmat,m,Ne,cutoff,i,j);
+  return(distmat);
+}
+
+//[[Rcpp::export]]
+arma::sp_fmat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::frowvec map,const double m, const double Ne, const double cutoff,const arma::uword i, const arma::uword j, const arma::uword chunksize){
+  arma::uword istart=i*chunksize;
+  arma::uword jstart=j*chunksize;
+  arma::uword nSNPs=map.n_elem;
+  arma::fmat distmat=gen_dense_LD(hap_h5file,index,map,m,Ne,cutoff,i,j,chunksize);
   std::cout<<"Checking distmat"<<std::endl;
   arma::uvec infvec =arma::find(abs(distmat)>1);
+
+
   if(infvec.n_elem>0){
     std::cout<<"incorrect correlation values found in chunk i:"<<i<<" j:"<<j<<std::endl;
     std::cout<<"Value is: "<<distmat(infvec)<<std::endl;
@@ -543,7 +626,7 @@ arma::sp_mat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::ro
 
   std::cout<<"Finding nonzero elements"<<std::endl;
   std::cout<<"Creating index matrix"<<std::endl;
-  arma::sp_mat retS= gen_sparsemat( distmat, istart, jstart, nSNPs);
+  arma::sp_fmat retS= gen_sparsemat( distmat, istart, jstart, nSNPs);
   return(retS);
 }
 

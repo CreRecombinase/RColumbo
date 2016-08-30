@@ -62,21 +62,43 @@ write_doFlip <- function(haph5,chunksize=100000){
     for(i in 1:length(chunkind)){
       cat(paste0(i,"\n"))
       tldat <- slice(legdat,chunkind[[i]])
-      h5write(tldat$doFlip,file=hap_h5file,name="/Legend/doFlip",index=list(chunkind[[i]]))
+      h5write(tldat$doFlip,file=haph5,name="/Legend/doFlip",index=list(chunkind[[i]]))
     }
   }
 }
 
 
+#'Write covariate data to HDF5 data
+#'@param covarf covariate file
+#'@param h5file output H5file
+#'@param chunksize (this is not really necessary)
+write_covar_h5 <- function(covarf,h5file,chunksize=1,deflate_level=9){
+  require(rhdf5)
+  library(dplyr)
+  covardat <- read.table(covarf,header=T,stringsAsFactors = F)
+  matdat <-t(data.matrix(select(covardat,-ID)))
+  ncovar <- ncol(matdat)
+  nid <- nrow(matdat)
+  tmatdat <-matdat[,1:ceiling(ncovar/2)]
+  write_dmatrix_h5(h5file,"Covardat", "covariates",ncovar, nid, tmatdat,deflate_level = deflate_level)
+  tmatdat <-matdat[,(ceiling(ncovar/2)+1):ncol(matdat)]
+  write_dmatrix_h5(h5file,"Covardat", "covariates",ncovar, nid, tmatdat,deflate_level = deflate_level)
+  h5createGroup(file = h5file,group = "Covarinfo")
+  h5createDataset(h5file,"/Covarinfo/id",
+                  dims=c(nrow(covardat)),
+                  storage.mode="character",size=max(nchar(covardat$ID))+1,
+                  chunk=chunksize,level=deflate_level)
+  h5write(covardat$ID,file=h5file,name="/Covarinfo/id")
 
+}
 
 
 #' Write haplotype data to HDF5 data
 #' @param haplotype matrix (one SNP per column, one individual per row)
 #' @param legdat legend dataframe
-#' @param hap_h5file output HDF5 filename
+#' @param haph5 output HDF5 filename
 #' @param chunksize chunk size for compression
-write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
+write_leg_h5 <- function(legendfile,haph5,chunksize=100000){
   require(rhdf5)
   library(BBmisc)
   library(dplyr)
@@ -86,30 +108,30 @@ write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   nSNP <- nrow(legdat)
   chunkind <- chunk(1:nSNP,chunk.size = chunksize)
   maxchar <- max(nchar(legdat$id))+1
-  if(!file.exists(hap_h5file)){
-    h5createFile(hap_h5file)
+  if(!file.exists(haph5)){
+    h5createFile(haph5)
   }
 
-  h5createGroup(file = hap_h5file,group = "Legend")
-  h5createDataset(hap_h5file,"/Legend/doFlip",
+  h5createGroup(file = haph5,group = "Legend")
+  h5createDataset(haph5,"/Legend/doFlip",
                   dims=c(nrow(legdat)),
                   storage.mode="integer",
                   chunk=chunksize,level=2)
-  h5createDataset(hap_h5file,"/Legend/rsid",
+  h5createDataset(haph5,"/Legend/rsid",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
                   size=maxchar+1,
                   chunk=chunksize,level=2)
-  h5createDataset(hap_h5file,"/Legend/pos",
+  h5createDataset(haph5,"/Legend/pos",
                   dims=c(nrow(legdat)),
                   storage.mode="integer",
                   chunk=chunksize,level=2)
-  h5createDataset(hap_h5file,"/Legend/allele0",
+  h5createDataset(haph5,"/Legend/allele0",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
                   size=max(nchar(legdat$a0))+1,
                   chunk=chunksize,level=2)
-  h5createDataset(hap_h5file,"/Legend/allele1",
+  h5createDataset(haph5,"/Legend/allele1",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
                   size=max(nchar(legdat$a1))+1,
@@ -117,60 +139,47 @@ write_leg_h5 <- function(legendfile,hap_h5file,chunksize=100000){
   for(i in 1:length(chunkind)){
     cat(paste0(i,"\n"))
     tldat <- slice(legdat,chunkind[[i]])
-    h5write(tldat$doFlip,file=hap_h5file,name="/Legend/doFlip",index=list(chunkind[[i]]))
-    h5write(tldat$id,file=hap_h5file,name="/Legend/rsid",index=list(chunkind[[i]]))
-    h5write(tldat$position,file=hap_h5file,name="/Legend/pos",index=list(chunkind[[i]]))
-    h5write(tldat$a0,file=hap_h5file,name="/Legend/allele0",index=list(chunkind[[i]]))
-    h5write(tldat$a1,file=hap_h5file,name="/Legend/allele1",index=list(chunkind[[i]]))
+    h5write(tldat$doFlip,file=haph5,name="/Legend/doFlip",index=list(chunkind[[i]]))
+    h5write(tldat$id,file=haph5,name="/Legend/rsid",index=list(chunkind[[i]]))
+    h5write(tldat$position,file=haph5,name="/Legend/pos",index=list(chunkind[[i]]))
+    h5write(tldat$a0,file=haph5,name="/Legend/allele0",index=list(chunkind[[i]]))
+    h5write(tldat$a1,file=haph5,name="/Legend/allele1",index=list(chunkind[[i]]))
   }
     H5close()
 }
 
-write_map_h5 <- function(mapfile,hap_h5file,chunksize=125000){
+write_map_h5 <- function(mapfile,haph5,chunksize=125000){
   require(rhdf5)
   library(BBmisc)
+  require(dplyr)
   mapdf <-read.table(mapfile,header=F,stringsAsFactors = F) %>% select(rsid=V1,pos=V2,cummap=V3)
   nSNP <- nrow(mapdf)
   chunkind <- chunk(1:nSNP,chunk.size = chunksize)
   maxchar <- max(nchar(mapdf$rsid))
-  if(!file.exists(hap_h5file)){
-    h5createFile(hap_h5file)
+  if(!file.exists(haph5)){
+    h5createFile(haph5)
   }
-  h5createGroup(file = hap_h5file,group = "Map")
-  h5createDataset(hap_h5file,"/Map/rsid",
+  h5createGroup(file = haph5,group = "Map")
+  h5createDataset(haph5,"/Map/rsid",
                   dims=c(nrow(mapdf)),
                   storage.mode="character",
                   size=maxchar,
                   chunk=chunksize,level=2)
-  h5createDataset(hap_h5file,"/Map/pos",
+  h5createDataset(haph5,"/Map/pos",
                   dims=c(nrow(mapdf)),
                   storage.mode="integer",
                   chunk=chunksize,level=2)
-  h5createDataset(hap_h5file,"/Map/cummap",
+  h5createDataset(haph5,"/Map/cummap",
                   dims=c(nrow(mapdf)),
                   storage.mode="double",
                   chunk=chunksize,level=2)
-  for(i in 1:length(chunkind)){
-    cat(paste0(i,"\n"))
-    tmap <- slice(mapdf,chunkind[[i]])
-    h5write(tmap$rsid,file=hap_h5file,name="/Map/rsid",index=list(chunkind[[i]]))
-    h5write(tmap$pos,file=hap_h5file,name="/Map/pos",index=list(chunkind[[i]]))
-    h5write(tmap$cummap,file=hap_h5file,name="/Map/cummap",index=list(chunkind[[i]]))
-  }
+
+    h5write(mapdf$rsid,file=haph5,name="/Map/rsid")
+    h5write(mapdf$pos,file=haph5,name="/Map/pos")
+    h5write(mapdf$cummap,file=haph5,name="/Map/cummap")
 }
 
 
-
-
-
-
-write_file_h5 <- function(hapfile,legfile,hap_h5file,chunksize=100000){
-  require(rhdf5)
-  hapr <- readLines(con = gzf,n = nrow(legdata))
-  hapr <- hapr[!duplicated(legdata$id)]
-  legdata <- legdata[!duplicated(legdata$id),]
-  write_hap_h5(haplotype = hapdata,hap_h5file = hap_h5file,legdat = legdata,chunksize = chunksize)
-}
 
 
 
@@ -276,6 +285,9 @@ sparse_cov2cor <-function(rdsfile,chunksize,variances,nSNPs){
   return(tdat)
 }
 
+
+
+
 # mydat <- matrix(runif(30),6,5)
 # V <- cov(mydat)
 # Is <- sqrt(1/diag(V)) # diag( 1/sigma_i )
@@ -356,6 +368,9 @@ lsos <- function(..., n=10) {
   .ls.objects(..., order.by="Size", decreasing=TRUE, head=TRUE, n=n)
 }
 
+gigsize <- function(rows,cols,size=8){
+  (rows/1e9*cols*size)
+}
 
 
 

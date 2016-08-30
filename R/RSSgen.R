@@ -1,4 +1,5 @@
-gen_RSSmat <- function(chunkRDSf,gwash5,outh5,Nind=34652){
+
+gen_RSSmat <- function(chunkRDSf,gwash5,haph5,outh5,Nind=34652){
   require(Matrix)
   require(rhdf5)
   require(dplyr)
@@ -8,6 +9,7 @@ gen_RSSmat <- function(chunkRDSf,gwash5,outh5,Nind=34652){
   ind <- unique(c(bmat@i,bmat@j))
   bmat <- bmat[ind+1,ind+1]
   bmat <- as.matrix(bmat)
+
   legdf <- read_h5_df(haph5,"Legend")
   gwasd <- read_h5_df(gwash5,"GWAS")
   gwasd <- mutate(gwasd,rsid=paste0("rs",rsid))

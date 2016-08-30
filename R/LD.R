@@ -366,6 +366,33 @@ arm_gen_LD <- function(H,cummap,m,Ne,cutoff,chunksize){
 }
 
 
+intersect_df <- function(query_df,haph5,gwash5){
+  gwas_rsid <- c(h5read(gwash5,"/GWAS/rsid"))
+  query_df <- filter(query_df,rsid %in% gwas_rsid)
+  leg_df <- read_h5_df(haph5,"Legend") %>% mutate(haplotype_ind=1:length(rsid))
+  map_df <- read_h5_df(haph5,"Map")
+  nsnpdf <- inner_join(map_df,leg_df) %>% inner_join(select(query_df,-rsid,-doFlip)) %>% filter(!duplicated(rsid))
+  return(nsnpdf)
+}
+
+
+ #Return Dense LD matrix from character vector of rsid's
+comp_dense_LD <- function(indvec,cummap,rsid,haph5,m=85,Ne=11490.672741,cutoff=1e-3){
+  require(Matrix)
+  require(dplyr)
+  stopifnot(file.exists(haph5),length(cummap)==length(indvec),length(indvec)==length(rsid))
+  fmat <- gen_dense_LD(haph5,indvec,cummap,m,Ne,cutoff,0,0,length(rsid))
+  fmat <- fmat+t(fmat)
+  diag(fmat)<- 1
+  rownames(fmat) <-rsid
+  colnames(fmat) <- rsid
+  return(fmat)
+}
+
+
+
+
+
 
 
 #' Generates LD matrix from reference panel data
@@ -470,6 +497,112 @@ fhLD <- function(haph5,readind,doFlip,cummap,m,Ne,cutoff,i,j,chunksize){
     diag(distmat) <- 1
   }
   return(distmat)
+}
+
+
+chunk_df <- function(df,chunk.size=NULL,n.chunks=NULL){
+  require(BBmisc)
+  stopifnot(xor(!is.null(chunk.size),!is.null(n.chunks)))
+
+  ind <-1:nrow(df)
+  if(!is.null(chunk.size)){
+    if(chunk.size==nrow(df)){
+      dfl <- list()
+      dfl[[1]]<- df
+      return(dfl)
+    }
+      ichunk <- chunk(ind,chunk.size = chunk.size)
+  }else{
+    if(n.chunks==1){
+      dfl <- list()
+      dfl[[1]]<- df
+      return(dfl)
+    }
+    ichunk <- chunk(ind,n.chunks = n.chunks)
+  }
+  dfl <- list()
+  for(i in 1:length(ichunk)){
+    dfl[[i]] <- slice(df,ichunk[[i]])
+  }
+  return(dfl)
+}
+
+subset_all_hap <- function(query_df,haph5files,gwash5){
+  require(dplyr)
+  gwas_rsid <- c(h5read(gwash5,"/GWAS/rsid"))
+  query_df <- filter(query_df,rsid %in% gwas_rsid)
+  snpl <- list()
+  for(i in 1:22){
+    cat(paste0(i,"\n"))
+    thf <- read_h5_df(haph5files[i],"Legend") %>% mutate(chrom=i,hsnpid=1:length(rsid))
+    tmf <- read_h5_df(haph5files[i],"Map") %>% mutate(chrom=i)
+    snpl[[i]] <-inner_join(thf,tmf)
+  }
+  asnpdf <- bind_rows(snpl)
+  nsnpdf <- inner_join(asnpdf,select(query_df,-rsid,-doFlip)) %>% filter(!duplicated(rsid))
+  return(nsnpdf)
+}
+
+
+stat_extract <- function(eqtlh5,rawh5,haph5,gwash5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcutoff,cis_LDcutoff,trans_LDcutoff,cisdist_cutoff=1e6,append=F){
+  require(rhdf5)
+  require(dplyr)
+  require(tidyr)
+  require(BBmisc)
+  # eqtlh5 <- "~/Desktop/eQTL/Snake/IBD_WholeBlood_eQTL.h5"
+  # rawh5 <- "/home/nwknoblauch/Desktop/eQTL/Snake/Whole_Blood_eQTL_raw_data.h5"
+  # haph5 <- "/home/nwknoblauch/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno_hap.h5"
+  # gwash5 <- "~/Desktop/eQTL/Snake/IBD.h5"
+  cat(paste0("Preparing data for chromosome:",chromosome,"\n"))
+  snpleg <- read_h5_df(rawh5,"SNPinfo") %>% mutate(snp_ind=1:length(rsid))
+  expleg <- as_data_frame(t(h5read(rawh5,"EXPinfo/annomat"))) %>% rename(fgeneid=V1,sgeneid=V2,chrom=V3,TSStart=V4,TSStop=V5) %>% mutate(exp_id=0:(length(fgeneid)-1))
+  bexpdat <- read_dmat_ind_h5(rawh5,"EXPdata","orthoexpression",c(1:23973))
+  cis_tcutoff <- abs(qt(cis_pcutoff,df = nrow(bexpdat)-2,lower.tail = F))
+  trans_tcutoff <- abs(qt(trans_pcutoff,df=nrow(bexpdat)-2,lower.tail=F))
+  ch19leg <- filter(snpleg,chrom==chromosome)
+  inter_df <- intersect_df(ch19leg,haph5,gwash5 = gwash5)
+  dfl <- chunk_df(inter_df,chunk.size = chunksize)
+  chunkind <- chunk(1:(nrow(inter_df)),chunk.size = chunksize)
+  if(file.exists(outh5)&(!append)){
+    file.remove(outh5)
+  }
+  for(i in 1:length(dfl)){
+    cat(paste0(i," of ",length(dfl),"\n"))
+    query_df <- dfl[[i]]
+    snpi <- query_df$snp_ind
+    query_df <- mutate(query_df,rsid=as.integer(gsub("rs","",rsid)))
+    rsids <- query_df$rsid
+    expids <- expleg$fgeneid
+
+    fmat <- comp_dense_LD(query_df$haplotype_ind,query_df$cummap,query_df$rsid,haph5,m=85,Ne=11490.672741,cutoff=1e-3)
+    osnpdat <- read_dmat_ind_h5(rawh5,"SNPdata","orthogenotype",snpi)
+
+    # betas <- betaMatrix(osnpdat,bexpdat)
+    rmat <- rMatrix(osnpdat,bexpdat)
+
+    cis_eqtl <- extract_stats(Genotype = osnpdat,snpanno = query_df,Expression =  bexpdat,
+                              expanno = expleg,LDmat = fmat,
+                              rmat=rmat,tcutoff = cis_tcutoff,
+                              LDcutoff = cis_LDcutoff,
+                              cisdist = 1e6,
+                              display_progress = T,doCis = T)
+    trans_eqtl<- extract_stats(Genotype = osnpdat,snpanno = query_df,Expression =  bexpdat,
+                            expanno = expleg,LDmat = fmat,
+                            rmat=rmat,tcutoff = trans_tcutoff,
+                            LDcutoff = trans_LDcutoff,
+                            cisdist = 1e6,
+                            display_progress = T,doCis = F)
+    write_Rnumeric_h5(outh5,"cis_eQTL","thetahat",data = cis_eqtl$theta,deflate_level = 4)
+    write_Rnumeric_h5(outh5,"cis_eQTL","serr",data = cis_eqtl$serr,deflate_level = 4)
+    write_Rint_h5(outh5,"cis_eQTL","rsid",data = cis_eqtl$rsid,deflate_level = 4)
+    write_Rint_h5(outh5,"cis_eQTL","fgeneid",data = cis_eqtl$fgeneid,deflate_level = 4)
+
+    write_Rnumeric_h5(outh5,"trans_eQTL","thetahat",data = trans_eqtl$theta,deflate_level = 4)
+    write_Rnumeric_h5(outh5,"trans_eQTL","serr",data = trans_eqtl$serr,deflate_level = 4)
+    write_Rint_h5(outh5,"trans_eQTL","rsid",data = trans_eqtl$rsid,deflate_level = 4)
+    write_Rint_h5(outh5,"trans_eQTL","fgeneid",data = trans_eqtl$fgeneid,deflate_level = 4)
+  }
+  cat("Done!\n")
 }
 
 
