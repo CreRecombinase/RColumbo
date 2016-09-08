@@ -140,6 +140,8 @@ size_t get_rownum_h5(const std::string hap_h5file,const std::string groupname, c
   return(datadim[0]);
 }
 
+
+
 //[[Rcpp::export]]
 arma::mat read_dmat_h5(const std::string hap_h5file,const std::string groupname, const std::string dataname, size_t offset, size_t chunksize){
 
@@ -198,6 +200,19 @@ arma::mat read_dmat_h5(const std::string hap_h5file,const std::string groupname,
   delete file;
   return(retmat);
 }
+
+
+//[[Rcpp::export]]
+arma::mat read_dmat_chunk_ind(const std::string h5file,const std::string groupname, const std::string dataname, const arma::uvec indvec){
+  arma::uword minind=arma::min(indvec);
+  arma::uword maxind=arma::max(indvec);
+  arma::uword chunksize=maxind-minind+1;
+  arma::uvec newind = indvec-minind;
+  arma::mat retmat=read_dmat_h5(h5file,groupname,dataname,minind-1,chunksize);
+  return(retmat.cols(newind));
+}
+
+
 
 
 std::vector<int> read_int_h5(const std::string h5file, const std::string groupname, const std::string dataname){
@@ -267,7 +282,6 @@ std::vector<unsigned int> read_uint_h5(const std::string h5file, const std::stri
   std::vector<unsigned int> retdat(datadim[0]);
 
   //  std::cout<<"Reading in int dataset dataname"<<std::endl;
-
   dataset->read(&retdat[0],dt,memspace,fspace);
   fspace.close();
   memspace.close();
@@ -275,8 +289,32 @@ std::vector<unsigned int> read_uint_h5(const std::string h5file, const std::stri
   file->close();
   //  std::cout<<"Last element of data is :"<<retdat[retdat.size()-1]<<std::endl;
   return(retdat);
-
 }
+
+
+//[[Rcpp::export]]
+arma::uvec intersect_col(const std::string h5file1, const std::string h5groupname1, const std::string h5colname1, const std::string h5file2, const std::string h5groupname2, const std::string h5colname2){
+  using namespace Rcpp;
+//  Rcout<<"Reading col1"<<std::endl;
+  std::vector<unsigned int> col1=read_uint_h5(h5file1,h5groupname1,h5colname1);
+//  Rcout<<"Sorting col1"<<std::endl;
+  std::sort(col1.begin(),col1.end());
+//  Rcout<<"Reading col2"<<std::endl;
+  std::vector<unsigned int> col2=read_uint_h5(h5file2,h5groupname2,h5colname2);
+//  Rcout<<"Sorting col2"<<std::endl;
+  std::sort(col2.begin(),col2.end());
+//  Rcout<<"Preallocating intersection"<<std::endl;
+  std::vector<unsigned int> intersection(std::max(col1.size(),col2.size()));
+  std::vector<unsigned int>::iterator it;
+//  Rcout<<"Computing intersection"<<std::endl;
+  it =std::set_intersection(col1.begin(),col1.end(),col2.begin(),col2.end(),intersection.begin());
+//  Rcout<<"Resizing results of size"<<it-intersection.begin()<<std::endl;
+  intersection.resize(it-intersection.begin());
+  return(arma::conv_to<arma::uvec>::from(intersection));
+}
+
+
+
 
 size_t write_mat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::mat &data,const unsigned int deflate_level){
 

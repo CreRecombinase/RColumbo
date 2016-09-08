@@ -8,7 +8,7 @@
 #include <boost/spirit/include/qi_match.hpp>
 #include <boost/spirit/include/qi_uint.hpp>
 #include <iterator>
-#include <boost/unordered_map.hpp>
+#include <unordered_map>
 #include <numeric>
 #include <fstream>
 #include <string>
@@ -201,7 +201,7 @@ private:
   size_t size;
   std::string gene_pos_file;
 public:
-  boost::unordered_map<arma::uword,arma::uword> gp_map;
+  std::unordered_map<arma::uword,arma::uword> gp_map;
   arma::umat annomat;
   genepos_map(std::string tdbsnpfile);
 };
@@ -217,7 +217,7 @@ genepos_map::genepos_map(std::string tdbsnpfile):annomat(){
 
 arma::umat find_gene_pos(genepos_map &gpm,arma::uvec &fgeneid){
   arma::uvec indices(fgeneid.n_rows);
-  boost::unordered_map<arma::uword,arma::uword>::iterator fit;
+  std::unordered_map<arma::uword,arma::uword>::iterator fit;
   for(size_t i=0; i<fgeneid.n_elem;i++){
     fit =gpm.gp_map.find(fgeneid[i]);
     if(fit!=gpm.gp_map.end()){
@@ -261,10 +261,10 @@ arma::uvec make_long(arma::uvec &vchrom, arma::uvec &vpos,arma::uvec &posmap){
   return(vlong);
 }
 
-boost::unordered_map<arma::uword,arma::uword> make_map(arma::uvec &chrom, arma::uvec &pos,arma::uvec &rsid,arma::uvec &posmap){
+std::unordered_map<arma::uword,arma::uword> make_map(arma::uvec &chrom, arma::uvec &pos,arma::uvec &rsid,arma::uvec &posmap){
   arma::uvec hashes =make_long(chrom,pos,posmap);
   std::cout<<"initializing map of size:"<<hashes.size()<<std::endl;
-  boost::unordered_map<arma::uword, arma::uword> retmap;
+  std::unordered_map<arma::uword, arma::uword> retmap;
   std::cout<<"reserving space"<<std::endl;
   retmap.reserve(pos.size());
   std::cout<<"filling map space"<<std::endl;
@@ -284,7 +284,7 @@ private:
   size_t size;
   std::string dbsnpfile;
 public:
-  boost::unordered_map<arma::uword,arma::uword> dbmap;
+  std::unordered_map<arma::uword,arma::uword> dbmap;
   arma::uvec posmap;
   dbsnpmap(std::string tdbsnpfile);
 };
@@ -310,7 +310,7 @@ arma::umat find_rsid(dbsnpmap &dbm, arma::uvec &chrv, arma::uvec &posv){
   indexvec.reserve(posv.size());
   arma::uvec hvec = make_long(chrv,posv,dbm.posmap);
   arma::uword vpos=0;
-  boost::unordered_map<arma::uword,arma::uword>::iterator fit;
+  std::unordered_map<arma::uword,arma::uword>::iterator fit;
   std::cout<<"mapping rsid"<<std::endl;
   for(arma::uvec::iterator rit=hvec.begin(); rit!=hvec.end(); rit++){
     fit =dbm.dbmap.find(*rit);
@@ -332,6 +332,10 @@ std::vector<std::string> subset_string_vec(std::vector<std::string> &ostring, ar
     retvec[i]=ostring[indices[i]];
   }
   return(retvec);
+}
+//[[Rcpp::export]]
+arma::rowvec colssd(const arma::mat &data){
+  return(arma::stddev(data));
 }
 
 

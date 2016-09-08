@@ -30,9 +30,11 @@ std::vector<int> read_int_h5(const std::string h5file, const std::string groupna
 
 std::vector<unsigned int> read_uint_h5(const std::string h5file, const std::string groupname, const std::string dataname);
 
+arma::uvec intersect_col(const std::string h5file1, const std::string h5groupname1, const std::string h5colname1, const std::string h5file2, const std::string h5groupname2, const std::string h5colname2);
+
 arma::mat read_dmat_h5(const std::string hap_h5file,const std::string groupname, const std::string dataname, size_t offset, size_t chunksize);
 
-
+arma::mat read_dmat_chunk_ind(const std::string h5file,const std::string groupname, const std::string dataname, const arma::uvec indvec);
 
 
 hsize_t get_arraysize(ArrayType &atype);

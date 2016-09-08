@@ -2,6 +2,7 @@
 // we only include RcppArmadillo.h which pulls Rcpp.h in for us
 #include "RcppArmadillo.h"
 #include "H5Cpp.h"
+#include "H5IO.hpp"
 #include <algorithm>
 #include <iterator>
 #include <vector>
@@ -29,31 +30,12 @@ using namespace H5;
 
 
 
-// arma::mat pcov(const arma::mat &tH,const arma::uvec &c1, const arma::uvec &c2, const bool isDiag){
-//   arma::mat covmat = arma::cov(tH.cols(c1),tH.cols(c2));
-//   if(isDiag){
-//     return(arma::trimatu(covmat));
-//   }
-//   else{
-//     return(covmat);
-//   }
-// }
-
-
 //[[Rcpp::export]]
 arma::uvec gen_rows(const int i, const size_t nrows, const size_t chunksize){
   return(arma::regspace<arma::uvec>((i-1)*chunksize+1,std::min(nrows,(i)*(chunksize)))-1);
 }
 
-// arma::mat pdist(const arma::vec &distvec,const arma::uvec &c1, const arma::uvec &c2){
-//   arma::mat retmat(c1.n_elem,c2.n_elem,arma::fill::zeros);
-//   for(size_t j=0; j<retmat.n_cols;j++ ){
-//     for(size_t i=j+1;i<retmat.n_rows; i++){
-//       retmat(i,j)=distvec(c1(j))-distvec(c2(i));
-//     }
-//   }
-//   return(retmat);
-// }
+
 
 //[[Rcpp::export]]
 arma::Mat<short> read_hap_txt(const char* inhapfile){
@@ -164,60 +146,6 @@ arma::sp_mat p_sparse_LD(const arma::rowvec cummap, const arma::mat Hpanel, cons
 }
 
 
-//
-// arma::sp_mat par_LD(const arma::Mat<int> &Hpanela,const arma::Mat<int> &Hpanelb, const arma::rowvec &cummapa,const arma::rowvec &cummapb, const double Ne, const int m,const double cutoff,arma::uword i,arma::uword j){
-//   double nmsum =arma::sum(1/arma::regspace<arma::vec>(1,(2*m-1)));
-//   double theta =(1/nmsum)/(2*m+1/nmsum);
-//   arma::uword nSNPs=Hpanel.n_cols;
-//   arma::uword nchunks=ceil((double)nSNPs/(double)chunksize);
-//   arma::mat distmat(chunksize,chunksize);
-//   arma::mat S(chunksize,chunksize);
-//   arma::field<arma::sp_mat> covmats(nchunks,nchunks);
-//   arma::umat indmat;
-//   arma::vec valvec;
-//   arma::uvec nonz;
-//   arma::vec variances(nSNPs);
-//   std::cout<<"Starting Computation("<<nchunks<<" chunks in total, and "<<nSNPs<<" SNPs in total)"<<std::endl;
-//
-//   arma::uword istart=i*chunksize;
-//   arma::uword jstart=j*chunksize;
-//   arma::uword istop=std::min((i+1)*chunksize-1,cummap.n_elem-1);
-//   arma::uword jstop=std::min((j+1)*chunksize-1,cummap.n_elem-1);
-//
-//   std::cout<<"i From:"<<istart<<" to "<<istop<<std::endl;
-//   std::cout<<"j From:"<<jstart<<" to "<<jstop<<std::endl;
-//   p_dist(cummap(arma::span(istart,istop)),cummap(arma::span(jstart,jstop)),distmat,i==j);
-//   p_cov(Hpanel.cols(istart,istop),Hpanel.cols(jstart,jstop),S,i==j);
-//   //      std::cout<<"Making shrinkage"<<std::endl;
-//   distmat=4*Ne*distmat/100;
-//   distmat=exp(-distmat/(2*m));
-//   distmat.elem(find(distmat<cutoff)).zeros();
-//   distmat=distmat%S;
-//   if(i==j){
-//     //        std::cout<<"Computing Diagonals"<<std::endl;
-//     //        arma::vec mvarvec=
-//     //        std::cout<<"size of mvarvec:"<<size(mvarvec)<<" size of distmat.diag():"<<size(distmat.diag())<<std::endl;
-//     distmat.diag()=var(Hpanel.cols(istart,istop));
-//     distmat=(1-theta)*(1-theta)*distmat+0.5*theta*(1-0.5*theta)*eye(size(distmat));
-//   }
-//   else{
-//     distmat=(1-theta)*(1-theta)*distmat;
-//   }
-//   nonz=arma::find(distmat!=0);
-//   indmat=arma::ind2sub(size(distmat),nonz);
-//   valvec=distmat.elem(nonz);
-//   //        std::cout<<"size of nonz:"<<size(nonz)<<std::endl;
-//   if(nonz.n_elem>0){
-//     arma::umat tmat=arma::ind2sub(size(distmat),nonz);
-//     //          std::cout<<"size of tmat:"<<size(tmat)<<std::endl;
-//     indmat.row(0)=indmat.row(0)+istart;
-//     indmat.row(1)=indmat.row(1)+jstart;
-//     arma::sp_mat retS(indmat,valvec,nSNPs,nSNPs);
-//     return(retS);
-//   }
-//   arma::sp_mat retS(nSNPs,nSNPs);
-//   return(retS);
-// }
 
 
 
@@ -277,46 +205,6 @@ arma::sp_mat sparse_LD(const arma::vec cummap, const arma::mat Hpanel, const dou
 }
 
 
-//
-// struct bigCov: public Worker {
-//   //input matrix
-//   const arma::mat Hpanel;
-//
-//   //output matrix
-//   arma::mat S;
-//   size_t chunksize;
-//   size_t nchunks;
-//   arma::uvec rvec;
-//   arma::uvec cvec;
-//   size_t nrows;
-//
-//   bigCov(const arma::mat inpm,const arma::mat rmat,const int nchunk, const int chunks) :Hpanel(inpm),S(rmat){
-//     nrows=inpm.n_rows;
-//     chunksize=chunks;
-//     nchunks=nchunk;
-//     size_t diag_mats=ceil(((double)nrows)/((double)chunksize));
-//     size_t total_mats = pow(diag_mats,2);
-//     size_t matnum = (total_mats-diag_mats)/2+diag_mats;
-//     rvec= arma::ones<arma::uvec>(matnum);
-//     cvec= arma::ones<arma::uvec>(matnum);
-//     int t=0;
-//     for(int i=0;i<nchunks; i++){
-//       for(int j=0; j<nchunks;j++){
-//         if(j>=i){
-//           rvec(t)=i;
-//           cvec(t)=j;
-//           t++;
-//         }
-//       }
-//     }
-//
-//   }
-//
-//   void operator()(std::size_t begin, std::size_t end){
-//
-//   }
-// };
-
 
 
 //[[Rcpp::export]]
@@ -328,4 +216,148 @@ arma::umat find_bwd(arma::mat &LDmat, const double LDcutoff){
   }
   return(bandmat);
 }
+
+
+
+
+
+//[[Rcpp::export]]
+void cov_2_cor(arma::fmat &covmat, arma::fmat &rowvara, arma::fmat &colvarb, const bool isDiag){
+
+  rowvara = 1/sqrt(rowvara);
+  colvarb=1/sqrt(colvarb);
+  if(rowvara.n_rows!=covmat.n_rows){
+    arma::inplace_trans(rowvara);
+  }
+  if(colvarb.n_cols!=covmat.n_cols){
+    arma::inplace_trans(colvarb);
+  }
+  covmat.each_col() %=rowvara; //rowvara should have as many rows as covmat
+  covmat.each_row() %=colvarb; //rowva
+  if(isDiag){
+    covmat.diag().ones();
+  }
+}
+
+
+
+//[[Rcpp::export]]
+void compute_shrinkage(arma::fmat &distmat,arma::fmat &S, const arma::fmat &hmata ,const arma::fmat &hmatb, const double theta, const double m, const double Ne,const double cutoff, const bool isDiag){
+  distmat=4*Ne*distmat/100;
+  distmat=exp(-distmat/(2*m));
+
+  distmat.elem(find(distmat<cutoff)).zeros();
+  distmat%=S;
+  S.resize(0);
+  if(isDiag){
+    std::cout<<"Computing Diagonals"<<std::endl;
+    distmat.diag() = arma::var(hmata);
+    distmat=(1-theta)*(1-theta)*distmat+0.5*theta*(1-0.5*theta)*arma::eye<arma::fmat>(size(distmat));
+  }
+  else{
+    distmat*=(1-theta)*(1-theta);
+  }
+}
+
+
+//[[Rcpp::export]]
+arma::sp_fmat gen_sparsemat(arma::fmat ldmat,const arma::uword istart,const arma::uword jstart,const arma::uword nSNPs){
+  arma::umat indmat=arma::ind2sub(size(ldmat),arma::find(ldmat!=0));
+  if(indmat.n_cols>0){
+    //    std::cout<<"size of tmat:"<<size(tmat)<<std::endl;
+    indmat.row(0)+=istart;
+    indmat.row(1)+=jstart;
+    std::cout<<"Allocating sparse matrix"<<std::endl;
+    arma::sp_fmat retS(indmat,ldmat.elem(arma::find(ldmat!=0)),nSNPs,nSNPs);
+    return(retS);
+  }
+  else{
+    arma::sp_fmat retS(nSNPs,nSNPs);
+    return(retS);
+  }
+}
+
+//[[Rcpp::export]]
+void calcLD(arma::fmat &hmata, arma::fmat &hmatb, arma::frowvec &mapa, arma::frowvec &mapb,arma::fmat &distmat, const double m, const double Ne,const double cutoff, const arma::uword aind, const arma::uword bind){
+
+  std::cout<<"mata:"<<mapa.n_elem<<std::endl;
+  std::cout<<"matb:"<<mapb.n_elem<<std::endl;
+  double nmsum =arma::sum(1/arma::regspace<arma::vec>(1,(2*m-1)));
+  double theta =(1/nmsum)/(2*m+1/nmsum);
+  ip_dist(mapa,mapb,distmat,aind==bind);
+  std::cout<<"Sum of distmat is "<<accu(distmat)<<std::endl;
+  arma::fmat S=ip_cov(hmata,hmatb,aind==bind);
+
+  std::cout<<"Sum of covmat is "<<accu(S)<<std::endl;
+
+  std::cout<<"Performing shrinkage"<<std::endl;
+  compute_shrinkage(distmat,S, hmata , hmatb, theta, m, Ne,cutoff, aind==bind);
+  std::cout<<"Sum of cormat is "<<accu(distmat)<<std::endl;
+  arma::fmat rowveca = arma::var(hmata)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
+  arma::fmat colvecb= arma::var(hmatb)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
+  cov_2_cor(distmat,rowveca,colvecb,aind==bind);
+}
+
+//[[Rcpp::export]]
+arma::fmat gen_dense_LD(const std::string hap_h5file, arma::uvec index,arma::frowvec map,const double m, const double Ne, const double cutoff,const arma::uword i, const arma::uword j, const arma::uword chunksize){
+  std::cout<<"counting SNPs"<<std::endl;
+  arma::uword nSNPs=map.n_elem;
+  arma::uword nchunks=ceil((double)nSNPs/(double)chunksize);
+
+  arma::uword istart=i*chunksize;
+  arma::uword jstart=j*chunksize;
+
+  arma::uword istop=std::min((i+1)*chunksize-1,map.n_elem-1);
+  arma::uword jstop=std::min((j+1)*chunksize-1,map.n_elem-1);
+  std::cout<<"subsetting map(nSNPs is: "<<nSNPs<<")"<<std::endl;
+  arma::frowvec mapa= map(arma::span(istart,istop));
+  arma::frowvec mapb= map(arma::span(jstart,jstop));
+  std::cout<<"subsetting haplotype data"<<std::endl;
+  arma::fmat hmata =arma::conv_to<arma::fmat>::from(flip_hap(hap_h5file,index,i,chunksize,nSNPs));
+  arma::fmat hmatb =arma::conv_to<arma::fmat>::from(flip_hap(hap_h5file,index,j,chunksize,nSNPs));
+  if(hmata.n_cols!=mapa.n_elem){
+    Rcpp::stop("Subsetting failed (mapa.length != mata.n_cols)");
+  }
+  if(hmatb.n_cols!=mapb.n_elem){
+    std::cout<<"!!!!map is of length"<<mapb.n_elem<<" while hmatb is has col number of "<<hmatb.n_cols<<std::endl;
+    Rcpp::stop("Subsetting failed (mapb.length != matb.n_cols)");
+  }
+
+  std::cout<<"Calculating LD"<<std::endl;
+  arma::fmat distmat(mapa.n_elem,mapb.n_elem,arma::fill::zeros);
+  calcLD(hmata,hmatb,mapa,mapb,distmat,m,Ne,cutoff,i,j);
+  return(distmat);
+}
+
+//[[Rcpp::export]]
+arma::sp_fmat flip_hap_LD(const std::string hap_h5file, arma::uvec index,arma::frowvec map,const double m, const double Ne, const double cutoff,const arma::uword i, const arma::uword j, const arma::uword chunksize){
+  arma::uword istart=i*chunksize;
+  arma::uword jstart=j*chunksize;
+  arma::uword nSNPs=map.n_elem;
+  arma::fmat distmat=gen_dense_LD(hap_h5file,index,map,m,Ne,cutoff,i,j,chunksize);
+  std::cout<<"Checking distmat"<<std::endl;
+  arma::uvec infvec =arma::find(abs(distmat)>1);
+
+
+  if(infvec.n_elem>0){
+    std::cout<<"incorrect correlation values found in chunk i:"<<i<<" j:"<<j<<std::endl;
+    std::cout<<"Value is: "<<distmat(infvec)<<std::endl;
+    arma::umat badel=arma::ind2sub(size(distmat),infvec);
+    size_t overr=istart+badel(0,0);
+    size_t overc=jstart+badel(1,0);
+    std::cout<<"overall row is: istart+badel(0,0)="<<istart<<"+"<<badel(0,0)<<"="<<overr<<std::endl;
+    std::cout<<"overall col is: jstart+badel(1,0)="<<jstart<<"+"<<badel(1,0)<<"="<<overc<<std::endl;
+    Rcpp::stop("correlation values greater than 1 found in correlation matrix!");
+  }
+  distmat.elem(arma::find_nonfinite(distmat)).zeros();
+
+  std::cout<<"Finding nonzero elements"<<std::endl;
+  std::cout<<"Creating index matrix"<<std::endl;
+  arma::sp_fmat retS= gen_sparsemat( distmat, istart, jstart, nSNPs);
+  return(retS);
+}
+
+
+
+
 

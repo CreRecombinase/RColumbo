@@ -117,6 +117,10 @@ write_leg_h5 <- function(legendfile,haph5,chunksize=100000){
                   dims=c(nrow(legdat)),
                   storage.mode="integer",
                   chunk=chunksize,level=2)
+  h5createDataset(haph5,"/Legend/rsidi",
+                  dims=c(nrow(legdat)),
+                  storage.mode="integer",
+                  chunk=chunksize,level=2)
   h5createDataset(haph5,"/Legend/rsid",
                   dims=c(nrow(legdat)),
                   storage.mode="character",
@@ -139,6 +143,9 @@ write_leg_h5 <- function(legendfile,haph5,chunksize=100000){
   for(i in 1:length(chunkind)){
     cat(paste0(i,"\n"))
     tldat <- slice(legdat,chunkind[[i]])
+    tldat$rsidi <- as.integer(gsub("rs","",tldat$id))
+    tldat$rsidi <- ifelse(is.na(mapdf$rsidi),0,tldat$rsidi)
+    h5write(tldat$rsidi,file=haph5,name="/Legend/rsidi",index=list(chunkind[[i]]))
     h5write(tldat$doFlip,file=haph5,name="/Legend/doFlip",index=list(chunkind[[i]]))
     h5write(tldat$id,file=haph5,name="/Legend/rsid",index=list(chunkind[[i]]))
     h5write(tldat$position,file=haph5,name="/Legend/pos",index=list(chunkind[[i]]))
@@ -147,6 +154,26 @@ write_leg_h5 <- function(legendfile,haph5,chunksize=100000){
   }
     H5close()
 }
+
+rewrite_h5 <- function(haph5,chunksize=100000){
+  hrsidi <- as.integer(gsub("rs","",c(h5read(haph5,"/Legend/rsid"))))
+  hrsidi <- ifelse(is.na(hrsidi),0,hrsidi)
+  mrsidi <- as.integer(gsub("rs","",c(h5read(haph5,"/Map/rsid"))))
+  mrsidi <- ifelse(is.na(mrsidi),0,mrsidi)
+  H5close()
+  h5createDataset(haph5,"/Legend/rsidi",
+                  dims=c(length(hrsidi)),
+                  storage.mode="integer",
+                  chunk=chunksize,level=2)
+  h5createDataset(haph5,"/Map/rsidi",
+                  dims=c(length(mrsidi)),
+                  storage.mode="integer",
+                  chunk=chunksize,level=2)
+  h5write(hrsidi,file=haph5,name="/Legend/rsidi")
+  h5write(mrsidi,file=haph5,name="/Map/rsidi")
+  H5close()
+}
+
 
 write_map_h5 <- function(mapfile,haph5,chunksize=125000){
   require(rhdf5)
@@ -169,29 +196,66 @@ write_map_h5 <- function(mapfile,haph5,chunksize=125000){
                   dims=c(nrow(mapdf)),
                   storage.mode="integer",
                   chunk=chunksize,level=2)
+  h5createDataset(haph5,"/Map/rsidi",
+                  dims=c(nrow(mapdf)),
+                  storage.mode="integer",
+                  chunk=chunksize,level=2)
   h5createDataset(haph5,"/Map/cummap",
                   dims=c(nrow(mapdf)),
                   storage.mode="double",
                   chunk=chunksize,level=2)
-
+  mapdf$rsidi <- as.integer(gsub("rs","",mapdf$rsid))
+  mapdf$rsidi <- ifelse(is.na(mapdf$rsidi),0,mapdf$rsidi)
+h5write(mapdf$rsidi,file=haph5,name="/Map/rsidi")
     h5write(mapdf$rsid,file=haph5,name="/Map/rsid")
     h5write(mapdf$pos,file=haph5,name="/Map/pos")
     h5write(mapdf$cummap,file=haph5,name="/Map/cummap")
 }
 
 
+read_h5_df_filter <- function(h5file,groupname,colname,filter_fun){
+  require(rhdf5)
+  idcol <- c(h5read(h5file,paste0("/",groupname,"/",colname)))
+  indexes <- which(filter_fun(idcol))
+  cols <- h5ls(h5file) %>% filter(group==paste0("/",groupname)) %>% select(name)
+  cols <- cols$name
+  retdf <- bind_cols(lapply(cols,function(x){
+    td <- data_frame(c(h5read(h5file,paste0("/",groupname,"/",x),index=list(indexes))))
+    colnames(td) <- x
+    return(td)
+  }))
+  return(retdf)
+}
 
 
+write_h5_df <- function(df,group,outfile,deflate_level=4){
+  dataname <- colnames(df)
+  for(i in 1:length(dataname)){
+    td <- df[[dataname[i]]]
+    if(typeof(td)=="integer"){
+      write_Rint_h5(h5file = outfile,groupname = group,dataname = dataname[i],data = td,deflate_level = deflate_level)
+    }
+    else{
+      if(typeof(td)=="double"){
+        write_Rnumeric_h5(h5file = outfile,groupname = group,dataname = dataname[i],data = td,deflate_level = deflate_level)
+      }
+      else{
+        stop(paste0("type for ",dataname[i]," is :",typeof(td)," no matching method to write to HDF5"))
+      }
+    }
+  }
+}
 
-read_h5_df <- function(h5file,group){
+read_h5_df <- function(h5file,groupname){
   require(rhdf5)
   require(dplyr)
-  td <-h5read(h5file,group)
-  retdf <- bind_cols(mapply(function(x,y){
-    ret <- data_frame(c(x))
-    colnames(ret)=y
-    return(ret)
-  },td,names(td),USE.NAMES=F))
+  cols <- h5ls(h5file) %>% filter(group==paste0("/",groupname)) %>% select(name)
+  cols <- cols$name
+  retdf <- bind_cols(lapply(cols,function(x){
+    td <- data_frame(c(h5read(h5file,paste0("/",groupname,"/",x))))
+    colnames(td) <- x
+    return(td)
+  }))
   return(retdf)
 }
 

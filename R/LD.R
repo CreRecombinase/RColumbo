@@ -389,6 +389,21 @@ comp_dense_LD <- function(indvec,cummap,rsid,haph5,m=85,Ne=11490.672741,cutoff=1
   return(fmat)
 }
 
+gen_LD_rsid <- function(rsidvec,haph5f,m=85,Ne=11490.672714,cutoff=1e-3){
+  require(rhdf5)
+  rsidfilt <- function(x){x %in% rsidvec}
+  full_rsid <- h5read(haph5f,"/Legend/rsid")
+  which_rsid <- which(full_rsid %in% rsidvec)
+  pos_df <- read_h5_df_filter(haph5f,"Legend","rsid",filter_fun = rsidfilt)
+  mapdf <- read_h5_df_filter(haph5f,"Map","rsid",filter_fun=rsidfilt)
+  leg_map <- inner_join(mapdf,pos_df)
+  cummap <- leg_map$cummap
+  stopifnot(nrow(leg_map)==length(which_rsid),length(which_rsid)==length(rsidvec))
+  fmat <- comp_dense_LD(which_rsid,cummap,rsidvec,haph5f,m,Ne,cutoff)
+  return(fmat)
+}
+
+
 
 
 
@@ -544,7 +559,94 @@ subset_all_hap <- function(query_df,haph5files,gwash5){
 }
 
 
-stat_extract <- function(eqtlh5,rawh5,haph5,gwash5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcutoff,cis_LDcutoff,trans_LDcutoff,cisdist_cutoff=1e6,append=F){
+sslab.em <- function(p,bh,si){
+  pi <- p[1]
+  tau <- p[2]
+#  uzin <- pi*dnorm(bh,mean=0,sd=sqrt(tau^2+si^2))
+  #uizd <- uzin+(1-pi)*dnorm(bh,mean=0,sd=si,log=F)
+  #uiz <- uzin/uizd
+  uiz <- 1/(1+((1-pi)*dnorm(bh,mean=0,sd=si,log=F))/(pi*dnorm(bh,mean=0,sd=sqrt(tau^2+si^2))))
+
+  # cat(paste0("pi:",pi,"\n"))
+  # cat(paste0("tau:",tau,"\n"))
+  nt <- sqrt(sum(uiz*bh^2)/sum(uiz)-sum(si^2*uiz)/sum(uiz))
+  np <- mean(uiz)
+  return(c(np,nt))
+}
+
+sslab.lik <- function(p,bh,si){
+  pi <- p[1]
+  tau <- p[2]
+  uzin <- pi*dnorm(bh,mean=0,sd=sqrt(tau^2+si^2))
+  uizd <- uzin+(1-pi)*dnorm(bh,mean=0,sd=si,log=F)
+  uiz <- uzin/uizd
+  return(-sum(uiz*dnorm(bh,mean=0,sd=sqrt(tau^2+si^2))+(1-uiz)*dnorm(bh,mean=0,sd=si)))
+}
+
+
+
+
+estimate_pi_tau <- function(rawh5,sub_snpleg,subleg,outh5,chunksize=100000){
+  require(rhdf5)
+  require(dplyr)
+  require(tidyr)
+  require(BBmisc)
+  require(SQUAREM)
+  stopifnot(nrow(subleg)==1)
+  chunkleg <- chunk_df(sub_snpleg,n.chunks = 2)
+  expdat <- read_dmat_ind_h5(rawh5,"EXPdata","orthoexpression",c(subleg$exp_id))
+  expsd <- apply(expdat,2,sd)
+  n <- nrow(expdat)
+  gp <- c(runif(1),exp(runif(1)))
+  betavl <- list()
+  serrvl <- list()
+  for(i in 1:length(chunkleg)){
+    cat(paste0("chunk: ",i," of ",length(chunkleg),"\n"))
+    tchunk <- chunkleg[[i]]
+    rawindvec <- tchunk$snp_ind
+    osnpdat <- read_dmat_chunk_ind(rawh5,"SNPdata","orthogenotype",rawindvec)
+    snpsd <- c(colssd(osnpdat))
+    rmat <- rMatrix(osnpdat,expdat)
+    betav <-c((rmat*expsd)/snpsd)
+    betavl[[i]] <- betav
+    serrv <- c(betav/(sqrt(n-2)*rmat/sqrt(1-rmat^2)))
+    serrvl[[i]] <- serrv
+  }
+  bh <- unlist(betavl)
+  si <- unlist(serrvl)
+  emr <- try(squarem(par=gp,bh=bh,si=si,fixptfn=sslab_em,control=list(trace=T)))
+  if(inherits(emr,"try-error")){
+    j <- 0
+    while(inherits(emr,"try-error")){
+      cat(paste0(j,"\n"))
+      tgp <- c(runif(1),exp(runif(1)))
+      emr <- try(squarem(par = tgp,y=y,fixptfn = sslab.em,objfn = sslab.lik,control = list(trace=T)))
+      j <- j+1
+    }
+  }
+  fpi <- emr$par[1]
+  ftau <- emr$par[2]
+  data <- data_frame(bh=bh,si=si)
+  data <- mutate(data,mu=c(pMu(bh,si,pi=fpi,tau=ftau)))
+  data <- mutate(data,rsidi=sub_snpleg$rsidi)
+  sub_snpleg <- inner_join(sub_snpleg,data)
+  sub_snpleg <- mutate(sub_snpleg,isCis=chrom==subleg$chrom&((abs(pos-subleg$TSStart)<1e6|abs(pos-subleg$TSStop)<1e6)|(pos<subleg$TSStop&pos>subleg$TSStart)))
+
+
+
+  ggplot(sub_snpleg)+geom_histogram(aes(x=mu,..density..),binwidth = 0.01)+facet_wrap(~isCis)
+
+
+
+  return(emr)
+}
+
+
+
+
+
+
+stat_extract <- function(rawh5,haph5,gwash5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcutoff,cis_LDcutoff,trans_LDcutoff,cisdist_cutoff=1e6,append=F){
   require(rhdf5)
   require(dplyr)
   require(tidyr)

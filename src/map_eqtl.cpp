@@ -57,7 +57,6 @@ arma::uvec isCis(const arma::ivec snp_chrom,const arma::ivec snp_pos, const arma
   if(sum(chromvec)==0){
     return(chromvec);
   }
-
   arma::ivec distvec=arma::min(arma::join_horiz(arma::abs(snp_pos-exp_start),arma::abs(snp_pos-exp_stop)), 1);
   distvec.elem(arma::find((exp_start-snp_pos)%(snp_pos-exp_stop)>0)).zeros();
   arma::uvec retvec(snp_chrom.n_elem,arma::fill::zeros);
