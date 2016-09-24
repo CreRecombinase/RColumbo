@@ -1,3 +1,4 @@
+
 #include "RcppArmadillo.h"
 #include <H5Cpp.h>
 #include "H5IO.hpp"
@@ -8,7 +9,9 @@
 #include <fstream>
 #include <numeric>
 #include "h5func.hpp"
+#include "snp_exp.hpp"
 #include <zlib.h>
+#include "tbb/tbb.h"
 
 #define ARMA_USE_CXX11
 // This is a simple example of exporting a C++ function to R. You can
@@ -61,6 +64,151 @@ int findbandwidth(Rcpp::IntegerVector &i, Rcpp::IntegerVector &j, Rcpp::NumericV
   return(bandwidth);
 }
 
+// class Legend{
+//arma::uvec chromposmap; //vector of length 22 giving cumulative position of last position of the chromomosme (from dbSNP)
+// public:
+//   arma::uvec chrom;
+//   arma::uvec pos;
+//   arma::uvec abspos;
+//   Legend(const arma::uvec tchrom,const arma::uvec tpos, const arma::uvec chrompos);
+//   Legend subset_index(const arma::uvec index);
+//   Legend subset_chrom(const arma::uword chromi);
+// };
+
+//[[Rcpp::export]]
+arma::uvec make_long(arma::uvec &vchrom, arma::uvec &vpos,arma::uvec &posmap){
+  if(vchrom.n_elem!=vpos.n_elem){
+    Rcpp::stop("length of vectors not equal in make_long");
+  }
+  arma::uvec vlong =posmap.elem(vchrom-1)+vpos;
+  return(vlong);
+}
+// Legend::Legend(){
+//   chrom.set_size(0);
+//   pos.set_size(0);
+//   abspos.set_size(0);
+// }
+//
+// Legend::Legend(const arma::uvec tchrom,const arma::uvec tpos, const arma::uvec chrompos):chrom(tchrom),pos(tpos),chromposmap(chrompos){
+//   abspos=chromposmap.elem(chrom-1)+pos;
+//   n=pos.n_elem;
+//   for(size_t i=0; i<n;i++){
+//     absposmap[abspos[i]]=i;
+//   }
+// }
+//
+// Legend Legend::subset_index(const arma::uvec &index){
+//   arma::uvec npos=pos.elem(index);
+//   arma::uvec nchrom=chrom.elem(index);
+//   return(Legend(nchrom,npos,chromposmap));
+// }
+//
+// Legend Legend::subset_chrom(const arma::uword chromi){
+//   arma::uvec indv=arma::find(chrom==chromi);
+//   return(subset_index(indv));
+// }
+//
+// Legend Legend::subset_abspos(const arma::uvec &absp){
+//   std::vector<arma::uword> indexvec;
+//   indexvec.reserve(absp.size());
+//   arma::uword vpos=0;
+//   std::unordered_map<arma::uword,arma::uword>::iterator fit;
+//   for(arma::uvec::const_iterator rit=absp.begin(); rit!=absp.end(); rit++){
+//     fit =absposmap.find(*rit);
+//     if(fit!=absposmap.end()){
+//       indexvec.push_back(fit->second);
+//     }
+//   }
+//   arma::uvec idv(&indexvec[0],indexvec.size());
+//   return(subset_index(idv));
+// }
+//
+//
+// dbsnp::dbsnp(std::string h5file){
+//   arma::uvec posv= arma::conv_to<arma::uvec>::from(read_uint_h5(h5file,"dbSNP","pos"));
+//   arma::uvec chromv= arma::conv_to<arma::uvec>::from(read_int_h5(h5file,"dbSNP","chrom"));
+//   arma::uvec rsidv = arma::conv_to<arma::uvec>::from(read_uint_h5(h5file,"dbSNP","rsid"));
+//   arma::uvec cs(23,arma::fill::zeros);
+//   for(size_t i=0; i<chromv.size();i++){
+//     rsid2posmap[rsidv[i]]=i;
+//     if(cs[chromv[i]]<posv[i]){
+//       cs[chromv[i]]= posv[i];
+//     }
+//   }
+//   arma::uvec chromposmap=cumsum(cs);
+//   legend = Legend(chromv,posv,chromposmap);
+//   pos2rsidmap=make_map(chromv,posv,rsidv,chromposmap);
+//
+//
+// }
+//
+// arma::umat dbsnp::find_rsid(const Legend &qlegend){
+//   std::vector<arma::uword> frsvec;
+//   std::vector<arma::uword> indexvec;
+//   frsvec.reserve(qlegend.size());
+//   indexvec.reserve(qlegend.size());
+//   arma::uword vpos=0;
+//   std::unordered_map<arma::uword,arma::uword>::iterator fit;
+//   std::cout<<"mapping rsid"<<std::endl;
+//   for(arma::uvec::const_iterator rit=qlegend.abspos.begin(); rit!=qlegend.abspos.end(); rit++){
+//     fit =pos2rsidmap.find(*rit);
+//     vpos = rit-qlegend.abspos.begin();
+//     if(fit!=pos2rsidmap.end()){
+//       indexvec.push_back(vpos);
+//       frsvec.push_back(fit->second);
+//     }
+//   }
+//   arma::uvec rsv(&frsvec[0],frsvec.size());
+//   arma::uvec idv(&indexvec[0],indexvec.size());
+//   return(arma::join_horiz(rsv,idv));
+// }
+//
+// Legend dbsnp::find_legend(const arma::uvec &rsidind){
+//
+//   std::vector<arma::uword> indexvec;
+//   indexvec.reserve(rsidind.size());
+//   std::unordered_map<arma::uword,arma::uword>::iterator fit;
+//   for(arma::uvec::const_iterator rit=rsidind.begin(); rit!=rsidind.end(); rit++){
+//     fit =rsid2posmap.find(*rit);
+//     if(fit!=rsid2posmap.end()){
+//       indexvec.push_back(fit->second);
+//     }
+//   }
+//   arma::uvec idv(&indexvec[0],indexvec.size());
+//   return(legend.subset_index(idv));
+// }
+//
+
+
+// class GWAS{
+// private:
+//   size_t n;
+// public:
+//   Legend legend;
+//   arma::vec betahat;
+//   arma::vec serr;
+//   GWAS(const std::string gwash5);
+//
+// // };
+// GWAS::GWAS(const std::string gwash5,const std::string dbsnph5){
+//   betahat= arma::conv_to<arma::vec>::from(read_float_h5(gwash5,"GWAS","beta"));
+//   serr= arma::conv_to<arma::vec>::from(read_float_h5(gwash5,"GWAS","serr"));
+//   rsid= arma::conv_to<arma::uvec>::from(read_int_h5(gwash5,"GWAS","rsid"));
+//   dbsnp dbm(dbsnph5);
+//   legend =dbm.find_legend(rsid);
+// }
+
+
+
+//
+//
+// }
+//
+
+
+
+
+
 //[[Rcpp::export]]
 int findcutoff(Rcpp::IntegerVector &i, Rcpp::IntegerVector &j, Rcpp::NumericVector &x,int bandwidth){
   double cutoff =0;
@@ -76,6 +224,43 @@ int findcutoff(Rcpp::IntegerVector &i, Rcpp::IntegerVector &j, Rcpp::NumericVect
   return(bandwidth);
 }
 
+// [[Rcpp::export]]
+arma::fmat read_fmat_gz(const std::string gzfile,const size_t chunksize, const size_t nrows, const arma::uvec keeprow,const size_t ncols){
+  size_t keeprown=sum(keeprow);
+  gzFile gz_in=gzopen(gzfile.c_str(),"rb");
+  arma::fmat datamat(keeprown,ncols);
+  size_t bytes_read=0;
+  size_t len=chunksize*ncols*2;
+  size_t datarow=0;
+  char *buffer= new char[len];
+  size_t bc=0;
+  size_t totrow=0;
+  for(;;){
+    bytes_read=gzread(gz_in,buffer,len);
+    bc=0;
+    if(bytes_read==0){
+      break;
+    }
+    size_t chunkrs=bytes_read/(ncols*2);
+    for(size_t row=0; row<chunkrs; row++){
+      if(totrow%10000==0){
+        std::cout<<"row :"<<totrow<<std::endl;
+      }
+      for(size_t col=0; col<ncols; col++){
+        //            std::cout<<"buffer[bc]:'"<<buffer[bc]<<"'="<<(int)(buffer[bc]-'0')<<" col="<<col<<" row="<<row<<std::endl;
+        if(keeprow[totrow]==1){
+          datamat(datarow,col)=(float)(buffer[bc]-'0');
+        }
+        bc+=2;
+      }
+      if(keeprow[totrow]==1){
+        datarow++;
+      }
+      totrow++;
+    }
+  }
+  return(datamat);
+}
 
 // [[Rcpp::export]]
 size_t write_haplotype_h5(const std::string hap_gzfile,const std::string hap_h5file,const size_t nrows,const size_t ncols,size_t chunksize,const unsigned int deflate_level){
@@ -138,16 +323,16 @@ size_t write_haplotype_h5(const std::string hap_gzfile,const std::string hap_h5f
 
         }
 
-          for(size_t col=0; col<ncols; col++){
-//            std::cout<<"buffer[bc]:'"<<buffer[bc]<<"'="<<(int)(buffer[bc]-'0')<<" col="<<col<<" row="<<row<<std::endl;
-            haplotypes[i]=(int)(buffer[bc]-'0');
-            rowsum+=haplotypes[i];
-            i++;
-            bc+=2;
-          }
-          if(rowsum==0||rowsum==ncols){
-            badrows++;
-          }
+        for(size_t col=0; col<ncols; col++){
+          //            std::cout<<"buffer[bc]:'"<<buffer[bc]<<"'="<<(int)(buffer[bc]-'0')<<" col="<<col<<" row="<<row<<std::endl;
+          haplotypes[i]=(int)(buffer[bc]-'0');
+          rowsum+=haplotypes[i];
+          i++;
+          bc+=2;
+        }
+        if(rowsum==0||rowsum==ncols){
+          badrows++;
+        }
       }
       //      std::cout<<"Finished processing haplotype array"<<std::endl;
       //      std::cout<<"Selected Hyperslab"<<std::endl;
@@ -441,8 +626,14 @@ arma::mat read_dmat_ind_h5(const std::string hap_h5file,const std::string groupn
 arma::uvec ind_lookup(const arma::uvec &queryvec, const arma::uvec &targetvec){
   arma::uvec result(queryvec.n_elem);
   for(size_t i = 0;i<queryvec.n_elem;i++){
-    result[i]= std::find(targetvec.begin(),targetvec.end(),queryvec[i])-targetvec.begin();
+    arma::uvec::const_iterator it=std::find(targetvec.begin(),targetvec.end(),queryvec[i]);
+    if(it!=targetvec.end()){
+    result[i]= it-targetvec.begin();
+    }else{
+      result[i]=-1;
+    }
   }
+  result=result.elem(arma::find(result>0));
   return(result);
 }
 
@@ -450,12 +641,40 @@ arma::uvec ind_lookup(const arma::uvec &queryvec, const arma::uvec &targetvec){
 arma::mat read_dmat_rowname(const std::string h5file,const std::string annogroupname, const std::string annocolname,const std::string datagroupname, const std::string datacolname,arma::uvec queryvec){
   arma::uvec annocol = arma::conv_to<arma::uvec>::from(read_uint_h5(h5file,annogroupname,annocolname));
   arma::uvec index = ind_lookup(queryvec,annocol)+1;
-  return(read_dmat_ind_h5(h5file,datagroupname,datacolname,index ));
+  return(read_dmat_chunk_ind(h5file,datagroupname,datacolname,index));
+}
+
+//[[Rcpp::export]]
+arma::fmat read_fmat_rowname(const std::string h5file,const std::string annogroupname, const std::string annocolname,const std::string datagroupname, const std::string datacolname,arma::uvec queryvec){
+  arma::uvec annocol = arma::conv_to<arma::uvec>::from(read_uint_h5(h5file,annogroupname,annocolname));
+  arma::uvec index = ind_lookup(queryvec,annocol)+1;
+  return(read_fmat_chunk_ind(h5file,datagroupname,datacolname,index));
+}
+
+
+void tbb_dist(const arma::frowvec &cummapa,const arma::frowvec &cummapb,arma::fmat &distmat,bool isDiag){
+  using namespace tbb;
+#pragma warning(disable: 588)
+  distmat.set_size(cummapa.n_elem,cummapb.n_elem);
+  size_t n=distmat.n_rows;
+  size_t itern=(n*n-n)/2;
+  if(isDiag){
+    parallel_for(size_t(0),itern,[&](size_t ind){
+      size_t i= n-2-floor(sqrt(-8*ind+4*n*(n-1)-7)/2.0-0.5);
+      size_t j= ind+i+1-n*(n-1)/2+(n-i)*((n-i)-1)/2;
+      distmat.at(i,j)=cummapb[j]-cummapa[i];
+      });
+  }
+  else{
+    parallel_for(size_t(0),n,[&](size_t ind){
+      distmat.row(ind)=cummapb-cummapa(ind);
+    });
+  }
 }
 
 
 void ip_dist(const arma::frowvec &cummapa,const arma::frowvec &cummapb,arma::fmat &distmat,bool isDiag){
-  std::cout<<"Doing p_dist"<<std::endl;
+//  std::cout<<"Doing p_dist"<<std::endl;
   distmat.set_size(cummapa.n_elem,cummapb.n_elem);
   if(isDiag){
     for(arma::uword ind=0; ind<distmat.n_rows; ind++){
@@ -471,7 +690,7 @@ void ip_dist(const arma::frowvec &cummapa,const arma::frowvec &cummapb,arma::fma
 
 //[[Rcpp::export]]
 arma::fmat ip_cov(const arma::fmat &Hpanela, const arma::fmat &Hpanelb, bool isDiag){
-  std::cout<<"Doing p_cov"<<std::endl;
+//  std::cout<<"Doing p_cov"<<std::endl;
   if(isDiag){
     arma::fmat covmat=trimatu(cov(Hpanela,Hpanelb));
     return(covmat);

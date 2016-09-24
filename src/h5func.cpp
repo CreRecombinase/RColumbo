@@ -52,6 +52,8 @@ H5GroupPtr create_or_open_group(H5FilePtr &file,const std::string &groupname)
   return H5GroupPtr(group);
 }
 
+
+
 H5DataSetPtr create_or_open_dataset(H5GroupPtr &group,const std::string &dataname, const DataType &data_type,std::vector<hsize_t> &cdatadim,std::vector<hsize_t> &mdatadim,std::vector<hsize_t> &chunkdim,const unsigned int deflate_level)
 {
   H5::Exception::dontPrint();
@@ -104,6 +106,7 @@ ArrayType read_arraytype(const DataSet *dataset, const PredType pt){
 
 
 
+
 hsize_t get_arraysize(ArrayType &atype){
   hsize_t asize[1];
   atype.getArrayDims(asize);
@@ -141,9 +144,168 @@ size_t get_rownum_h5(const std::string hap_h5file,const std::string groupname, c
 }
 
 
+// size_t copy_subset(const std::string oh5file,const std::string nh5file,const std::string groupname, const std::string dataname,const arma::uvec index){
+//
+// }
 
 //[[Rcpp::export]]
-arma::mat read_dmat_h5(const std::string hap_h5file,const std::string groupname, const std::string dataname, size_t offset, size_t chunksize){
+std::vector<std::string> getObjects(const std::string h5file, const std::string groupname){
+
+  H5File* file;
+
+  try{
+    file= new H5File( h5file.c_str(), H5F_ACC_RDONLY);
+  }
+  catch( FileIException error )
+  {
+    error.printError();
+  }
+  Group group = file->openGroup(groupname);
+  hsize_t objc= group.getNumObjs();
+  std::vector<std::string> retvec(objc);
+  bool fdat=false;
+  if(objc!=0){
+    for(hsize_t i=0; i<objc;i++){
+      std::string tst=group.getObjnameByIdx(i);
+      retvec[i]=tst;
+    }
+  }
+  group.close();
+  file->close();
+  return(retvec);
+}
+
+
+
+size_t get_arraydim(const std::string h5file, const std::string groupname,const std::string dataname){
+
+  H5File* file;
+  DataSet* dataset;
+  try{
+    file= new H5File( h5file.c_str(), H5F_ACC_RDONLY);
+  }
+  catch( FileIException error )
+  {
+    error.printError();
+  }
+  Group haplogroup = file->openGroup(groupname);
+  try{
+    dataset = new DataSet(haplogroup.openDataSet(dataname));
+  }
+  catch( DataSetIException error )
+  {
+    error.printError();
+  }
+  DataSpace fspace =dataset->getSpace();
+  DataType dt = dataset->getDataType();
+  hsize_t adim[1];
+  DataType dtss = dt.getSuper();
+  size_t dts=dt.getSize();
+  size_t bcs =dtss.getSize();
+  hsize_t dims= (dts/bcs);
+  adim[0]=dims;
+
+  dataset->close();
+  dt.close();
+  dtss.close();
+  dataset->close();
+  haplogroup.close();
+  fspace.close();
+
+  return(dims);
+}
+
+H5::DataType read_data_type(const std::string h5file, const std::string groupname, const std::string dataname){
+  H5File* file;
+  DataSet* dataset;
+  try{
+    file= new H5File( h5file.c_str(), H5F_ACC_RDONLY);
+  }
+  catch( FileIException error )
+  {
+    error.printError();
+  }
+  Group haplogroup = file->openGroup(groupname);
+  try{
+    dataset = new DataSet(haplogroup.openDataSet(dataname));
+  }
+  catch( DataSetIException error )
+  {
+    error.printError();
+  }
+  DataSpace fspace =dataset->getSpace();
+  DataType dt = dataset->getDataType();
+
+  dataset->close();
+  dt.close();
+  dataset->close();
+  haplogroup.close();
+  fspace.close();
+  return(dt);
+}
+
+
+//[[Rcpp::export]]
+arma::fmat read_fmat_h5(const std::string hap_h5file,const std::string groupname, const std::string dataname, size_t offset, size_t chunksize){
+
+  H5File* file;
+  DataSet* dataset;
+  try{
+    file= new H5File( hap_h5file.c_str(), H5F_ACC_RDONLY);
+  }
+  catch( FileIException error )
+  {
+    error.printError();
+  }
+  Group haplogroup = file->openGroup(groupname);
+  try{
+    dataset = new DataSet(haplogroup.openDataSet(dataname));
+  }
+  catch( DataSetIException error )
+  {
+    error.printError();
+  }
+
+  //  std::cout<<"opened dataset"<<std::endl;
+  ArrayType mem_arraytype=read_arraytype(dataset,PredType::NATIVE_FLOAT);
+
+
+  //  std::cout<<"Getting Array dimensions"<<std::endl;
+  //  std::cout<<"Getting Dataspace"<<std::endl;
+  DataSpace fspace =dataset->getSpace();
+
+  //  std::cout<<"Getting Data dimensions"<<std::endl;
+  hsize_t datadim[1];
+  fspace.getSimpleExtentDims(datadim,NULL);
+  size_t matrix_dims[2];
+  if(offset+chunksize>datadim[0]){
+    chunksize=datadim[0]-offset;
+  }
+  datadim[0]=chunksize;
+  matrix_dims[0]=get_arraysize(mem_arraytype);
+  matrix_dims[1]=chunksize;
+
+
+  // std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
+  hsize_t offseta[1];
+  offseta[0]=offset;
+  fspace.selectHyperslab(H5S_SELECT_SET,datadim,offseta);
+  std::cout<<"Allocating matrix of size:"<<matrix_dims[0]<<"x"<<matrix_dims[1]<<std::endl;
+  arma::fmat retmat(matrix_dims[0],matrix_dims[1]);
+  DataSpace memspace(1,datadim);
+  //  std::cout<<"Reading data"<<std::endl;
+  dataset->read(retmat.memptr(),mem_arraytype,memspace,fspace);
+  mem_arraytype.close();
+  memspace.close();
+  fspace.close();
+  haplogroup.close();
+  delete dataset;
+  delete file;
+  return(retmat);
+}
+
+//[[Rcpp::export]]
+arma::mat read_dmat_h5(const std::string hap_h5file,const std::string groupname, const std::string dataname, const size_t offset, const size_t chunksize){
 
   H5File* file;
   DataSet* dataset;
@@ -175,12 +337,13 @@ arma::mat read_dmat_h5(const std::string hap_h5file,const std::string groupname,
   hsize_t datadim[1];
   fspace.getSimpleExtentDims(datadim,NULL);
   size_t matrix_dims[2];
+  size_t nchunksize=chunksize;
   if(offset+chunksize>datadim[0]){
-    chunksize=datadim[0]-offset;
+    nchunksize=datadim[0]-offset;
   }
-  datadim[0]=chunksize;
+  datadim[0]=nchunksize;
   matrix_dims[0]=get_arraysize(mem_arraytype);
-  matrix_dims[1]=chunksize;
+  matrix_dims[1]=nchunksize;
 
 
   // std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
@@ -209,6 +372,16 @@ arma::mat read_dmat_chunk_ind(const std::string h5file,const std::string groupna
   arma::uword chunksize=maxind-minind+1;
   arma::uvec newind = indvec-minind;
   arma::mat retmat=read_dmat_h5(h5file,groupname,dataname,minind-1,chunksize);
+  return(retmat.cols(newind));
+}
+
+//[[Rcpp::export]]
+arma::fmat read_fmat_chunk_ind(const std::string h5file,const std::string groupname, const std::string dataname, const arma::uvec indvec){
+  arma::uword minind=arma::min(indvec);
+  arma::uword maxind=arma::max(indvec);
+  arma::uword chunksize=maxind-minind+1;
+  arma::uvec newind = indvec-minind;
+  arma::fmat retmat=read_fmat_h5(h5file,groupname,dataname,minind-1,chunksize);
   return(retmat.cols(newind));
 }
 
@@ -252,6 +425,54 @@ std::vector<int> read_int_h5(const std::string h5file, const std::string groupna
   std::cout<<"Last element of data is :"<<retdat[retdat.size()-1]<<std::endl;
   return(retdat);
 
+}
+
+
+
+//[[Rcpp::export]]
+std::vector<float> read_float_h5(const std::string h5file, const std::string groupname, const std::string dataname,const size_t offset,const size_t chunksize){
+  H5File* file;
+  DataSet* dataset;
+  try{
+    file= new H5File( h5file.c_str(), H5F_ACC_RDONLY);
+  }
+  catch( FileIException error )
+  {
+    error.printError();
+  }
+  Group haplogroup = file->openGroup(groupname);
+  try{
+    dataset = new DataSet(haplogroup.openDataSet(dataname));
+  }
+  catch( DataSetIException error )
+  {
+    error.printError();
+  }
+  DataType dt = dataset->getDataType();
+  DataSpace fspace =dataset->getSpace();
+  hsize_t datadim[1];
+  fspace.getSimpleExtentDims(datadim,NULL);
+  if(chunksize+offset>datadim[0]){
+    Rcpp::Rcerr<<"Attempting to access element past extent of data ("<<chunksize+offset<<">"<<datadim[0]<<")"<<std::endl;
+    Rcpp::stop("Error reading floatvec");
+  }
+  hsize_t readrows=chunksize;
+  datadim[0]=chunksize;
+  hsize_t offseta[1];
+  offseta[0]=offset;
+  fspace.selectHyperslab(H5S_SELECT_SET,datadim,offseta);
+  DataSpace memspace(1,datadim);
+  std::vector<float> retdat(chunksize);
+
+  std::cout<<"Reading in float dataset dataname"<<std::endl;
+
+  dataset->read(&retdat[0],dt,memspace,fspace);
+  fspace.close();
+  memspace.close();
+  dataset->close();
+  file->close();
+//  std::cout<<"Last element of data is :"<<retdat[retdat.size()-1]<<std::endl;
+  return(retdat);
 }
 
 
@@ -314,8 +535,6 @@ arma::uvec intersect_col(const std::string h5file1, const std::string h5groupnam
 }
 
 
-
-
 size_t write_mat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::mat &data,const unsigned int deflate_level){
 
   Rcpp::Rcout<<"Initializing write for file:"<<h5file<<std::endl;
@@ -336,6 +555,62 @@ size_t write_mat_h5(const std::string h5file, const std::string groupname, const
   hsize_t adim[1];//dimension of each array element (ncols)
   adim[0]=Nind; //Assign array size dimension
   ArrayType ahtypew(PredType::NATIVE_DOUBLE,1,adim); //Create array size type
+  H5FilePtr file =create_or_open_file(h5file);
+  H5GroupPtr group=create_or_open_group(file,groupname);
+  H5DataSetPtr dataset = create_or_open_dataset(group,dataname,ahtypew,cumdim,maxdim,chunkdim,deflate_level);
+  DataSpace* fdataspace = new DataSpace(dataset->getSpace());
+  hsize_t datadim[1];
+  fdataspace->getSimpleExtentDims(datadim,NULL);
+  std::cout<<"old data dim"<<datadim[0]<<std::endl;
+  chunkstart = datadim[0];
+  datadim[0]=datadim[0]+chunksize;
+  dataset->extend(datadim);
+  hsize_t memdim[]={chunksize};
+  fdataspace->close();
+  delete fdataspace;
+  fdataspace = new DataSpace(dataset->getSpace());
+  fdataspace->getSimpleExtentDims(datadim,NULL);
+  std::cout<<"new data dim"<<datadim[0]<<std::endl;
+  DataSpace *mspace= new DataSpace(1,memdim); //Size of first dataset (in memory, can be bigger or smaller than size on disk, depending on how much you're writing)
+  hsize_t odim[]={chunkstart};//dimension of each offset (current_chunk*chunksize)
+  hsize_t stridea[]={1};
+  hsize_t blocka[]={1};
+  //  std::cout<<"Getting Data dimensions"<<std::endl;
+  fdataspace->selectHyperslab( H5S_SELECT_SET, memdim, odim,stridea,blocka);
+  // std::cout<<"Starting to write data"<<std::endl;
+  dataset->write(data.memptr(),ahtypew,*mspace,*fdataspace);
+  // std::cout<<"Data sucessfully written"<<std::endl;
+  dataset->close();
+  fdataspace->close();
+  mspace->close();
+  group->close();
+  file->close();
+  delete fdataspace;
+  delete mspace;
+  return(chunksize);
+}
+
+
+size_t write_mat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::fmat &data,const unsigned int deflate_level){
+
+  Rcpp::Rcout<<"Initializing write for file:"<<h5file<<std::endl;
+  Rcpp::Rcout<<"Initiating write_mat on:"<<dataname<<std::endl;
+  hsize_t chunkstart=0;
+  size_t chunksize = data.size()/Nind;
+  if(chunksize!=data.n_cols){
+    Rcpp::Rcerr<<"chunksize not equal to column number!"<<std::endl;
+    Rcpp::stop("error int write_mat_h5");
+  }
+  size_t uchunksize=chunksize;
+  if(chunksize==Nsnps){
+    uchunksize=chunksize/2;
+  }
+  std::vector<hsize_t> cumdim{0};
+  std::vector<hsize_t> maxdim{Nsnps};
+  std::vector<hsize_t> chunkdim{uchunksize};
+  hsize_t adim[1];//dimension of each array element (ncols)
+  adim[0]=Nind; //Assign array size dimension
+  ArrayType ahtypew(PredType::NATIVE_FLOAT,1,adim); //Create array size type
   H5FilePtr file =create_or_open_file(h5file);
   H5GroupPtr group=create_or_open_group(file,groupname);
   H5DataSetPtr dataset = create_or_open_dataset(group,dataname,ahtypew,cumdim,maxdim,chunkdim,deflate_level);
@@ -561,7 +836,7 @@ int write_dmatrix_h5(Rcpp::String h5file,Rcpp::String groupname, Rcpp::String da
   std::string dn = dataname;
   hsize_t nsnp = Nsnps[0];
   hsize_t nid= Nind[0];
-  arma::mat tdat = Rcpp::as<arma::mat>(data);
+  arma::fmat tdat = Rcpp::as<arma::fmat>(data);
   Rcpp::Rcout<<" Writing "<<th5<<"Group name: "<<gn<<" data name:"<<dn<<" nsnp(cols): "<<nsnp<<" nid(rows)"<<nid<<" mat[0,0]:"<<tdat(0,0)<<std::endl;
   int ret = write_mat_h5(th5,gn,dn,nsnp,nid,tdat,deflate_level);
   return(ret);

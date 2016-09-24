@@ -73,6 +73,54 @@ return(arma::unique(arma::join_vert(snpind,posadd.col(0))));
 }
 
 
+arma::uvec chunk_index(const arma::uvec indexvec, const size_t chunksize,size_t i){
+  size_t nchunks =ceil(((double)indexvec.n_elem)/(double)chunksize);
+  if(i>nchunks){
+    Rcpp::stop("i greater than nchunks!");
+  }
+    size_t istart=i*chunksize;
+    size_t istop=std::min((i+1)*chunksize-1,(size_t)indexvec.n_elem-1);
+   return(indexvec(arma::span(istart,istop)));
+}
+
+//[[Rcpp::export]]
+Rcpp::DataFrame fast_GWAS(const arma::uvec query_posvec,const std::string h5file,const arma::fvec &phenotype, const size_t chunksize){
+  using namespace Rcpp;
+
+  size_t totsnps =query_posvec.n_elem;
+  // std::vector<arma::uvec> indexes=chunk_index(query_posvec,chunksize);
+  std::vector<float> betas;
+  std::vector<float> serrs;
+  std::vector<float> rvec;
+
+  betas.reserve(totsnps);
+  serrs.reserve(totsnps);
+//  rvec.reserve(totsnps);
+  arma::fvec tpheno=phenotype-arma::mean(phenotype);
+  float phenossd= arma::stddev(tpheno);
+  size_t nchunks =ceil(((double)query_posvec.n_elem)/(double)chunksize);
+  Rcout<<"Starting chunk 0 of "<<nchunks<<std::endl;
+  for(size_t i=0; i<nchunks;i++){
+    arma::fmat genomat= arma::conv_to<arma::fmat>::from(read_dmat_chunk_ind(h5file,"Genotype","genotype",chunk_index(query_posvec,chunksize,i)));
+    // genomat.each_col([](arma::fvec &a){a-=arma::mean(a);});
+    arma::fvec snpsd=arma::trans(arma::stddev(genomat));
+    float n=genomat.n_rows;
+    for(size_t j=0; j<genomat.n_cols;j++){
+      float tr=arma::as_scalar(arma::cor(genomat.col(j),tpheno));
+      betas.push_back((tr*phenossd)/snpsd[j]);
+      float tv=sqrt(n-2)*tr/(1-(tr*tr));
+      serrs.push_back(betas.back()/tv);
+    }
+  }
+  NumericVector Beta(betas.begin(),betas.end());
+  NumericVector Serr(serrs.begin(),serrs.end());
+  IntegerVector Index(query_posvec.begin(),query_posvec.end());
+  return(DataFrame::create(_["Betahat"]= Beta,
+                           _["serr"]= Serr,
+                           _["index"]=Index));
+}
+
+
 //[[Rcpp::export]]
 Rcpp::DataFrame extract_stats(const arma::fmat &Genotype,const Rcpp::DataFrame snpanno,const arma::fmat &Expression, const Rcpp::DataFrame expanno,const arma::fmat &LDmat,const arma::fmat &rmat,const double tcutoff,const double LDcutoff,const arma::uword cisdist,const bool display_progress,bool doCis){
   using namespace Rcpp;

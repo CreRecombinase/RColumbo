@@ -10,7 +10,7 @@ arma::vec pMu(const arma::vec &betahat, const arma::vec &serr,const double pi,co
   size_t n=betahat.size();
   parallel_for(size_t(0),n,[&](size_t i){
     output[i]=1/(1+((1-pi)*R::dnorm4(betahat[i],0,serr[i],0))/(pi*R::dnorm4(betahat[i],0,sqrt(tau*tau+serr[i]*serr[i]),0)));
-                 }
+  }
   );
   return(output);
 }
@@ -43,8 +43,4 @@ Rcpp::NumericVector sslab_em(const arma::vec &p, const arma::vec bh,const arma::
 //   return(-sum(uiz*dnorm(bh,mean=0,sd=sqrt(tau^2+si^2))+(1-uiz)*dnorm(bh,mean=0,sd=si)))
 // }
 
-// You can include R code blocks in C++ files processed with sourceCpp
-// (useful for testing and development). The R code will be automatically
-// run after the compilation.
-//
 
