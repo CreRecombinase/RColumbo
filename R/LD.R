@@ -376,6 +376,10 @@ intersect_df <- function(query_df,haph5,gwash5){
 }
 
 
+# fast_dense_LD <- function(h5file,offset,chunksize,m=85,Ne=11490.672741,cutoff=1e-3){
+#
+# }
+
  #Return Dense LD matrix from character vector of rsid's
 comp_dense_LD <- function(indvec,cummap,rsid,haph5,m=85,Ne=11490.672741,cutoff=1e-3){
   require(Matrix)
@@ -388,6 +392,8 @@ comp_dense_LD <- function(indvec,cummap,rsid,haph5,m=85,Ne=11490.672741,cutoff=1
   colnames(fmat) <- rsid
   return(fmat)
 }
+
+
 
 gen_LD_rsid <- function(rsidvec,haph5f,m=85,Ne=11490.672714,cutoff=1e-3){
   require(rhdf5)
@@ -402,7 +408,6 @@ gen_LD_rsid <- function(rsidvec,haph5f,m=85,Ne=11490.672714,cutoff=1e-3){
   fmat <- comp_dense_LD(which_rsid,cummap,rsidvec,haph5f,m,Ne,cutoff)
   return(fmat)
 }
-
 
 
 
@@ -581,6 +586,18 @@ sslab.lik <- function(p,bh,si){
   uizd <- uzin+(1-pi)*dnorm(bh,mean=0,sd=si,log=F)
   uiz <- uzin/uizd
   return(-sum(uiz*dnorm(bh,mean=0,sd=sqrt(tau^2+si^2))+(1-uiz)*dnorm(bh,mean=0,sd=si)))
+}
+
+
+independent_betahat <- function(h5file,LDcutoff,chunksize=50000){
+  require(rhdf5)
+  require(dplyr)
+  require(tidyr)
+  require(BBmisc)
+  require(SQUAREM)
+  mfmat <- chunk_LD(h5file = h5file,offset = 0,chunksize = chunksize,m=85,Ne=11490.672741,cutoff=1e-3)
+
+
 }
 
 

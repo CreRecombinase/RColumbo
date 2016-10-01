@@ -1,5 +1,6 @@
 #include "RcppArmadillo.h"
 #include "h5func.hpp"
+#include "snp_exp.hpp"
 #include <cmath>
 #include <vector>
 #include <algorithm>
@@ -67,6 +68,7 @@ arma::uvec isCis(const arma::ivec snp_chrom,const arma::ivec snp_pos, const arma
 
 //[[Rcpp::export]]
 arma::uvec addLD(const arma::uvec &snpind, const arma::fmat &LDmat, const float LDcutoff){
+  //Add SNPs that are adjacent to significant SNPs due to being in LD with them
   arma::umat posadd=arma::trans(arma::ind2sub(arma::size(LDmat.n_rows,snpind.n_elem),arma::find(abs(LDmat.cols(snpind)>LDcutoff))));
   //      Rcout<<"found "<<posadd.n_cols<<"additional  eQTL from LD gene"<<std::endl;
 return(arma::unique(arma::join_vert(snpind,posadd.col(0))));
@@ -83,6 +85,45 @@ arma::uvec chunk_index(const arma::uvec indexvec, const size_t chunksize,size_t 
    return(indexvec(arma::span(istart,istop)));
 }
 
+
+
+
+//[[Rcpp::export]]
+Rcpp::DataFrame ffast_GWAS(const std::string h5file,const arma::fvec &phenotype, const size_t chunksize){
+  using namespace Rcpp;
+
+  // std::vector<arma::uvec> indexes=chunk_index(query_posvec,chunksize);
+  Gwas_Dataset gwasdat(h5file);
+  std::vector<float> betas;
+  std::vector<float> serrs;
+  std::vector<float> rvec;
+  size_t totsnps=gwasdat.P;
+  betas.reserve(totsnps);
+  serrs.reserve(totsnps);
+  //  rvec.reserve(totsnps);
+  arma::fvec tpheno=phenotype-arma::mean(phenotype);
+  float phenossd= arma::stddev(tpheno);
+  size_t nchunks =ceil((double)totsnps/(double)chunksize);
+  Rcout<<"Starting chunk 0 of "<<nchunks<<std::endl;
+  for(size_t i=0; i<nchunks;i++){
+    arma::fmat genomat= gwasdat.read_and_offset(chunksize);
+    // genomat.each_col([](arma::fvec &a){a-=arma::mean(a);});
+    arma::fvec snpsd=arma::trans(arma::stddev(genomat));
+    float n=genomat.n_rows;
+    for(size_t j=0; j<genomat.n_cols;j++){
+      float tr=arma::as_scalar(arma::cor(genomat.col(j),tpheno));
+      betas.push_back((tr*phenossd)/snpsd[j]);
+      float tv=sqrt(n-2)*tr/(1-(tr*tr));
+      serrs.push_back(betas.back()/tv);
+    }
+  }
+  NumericVector Beta(betas.begin(),betas.end());
+  NumericVector Serr(serrs.begin(),serrs.end());
+  return(DataFrame::create(_["Betahat"]= Beta,
+                           _["serr"]= Serr));
+}
+
+
 //[[Rcpp::export]]
 Rcpp::DataFrame fast_GWAS(const arma::uvec query_posvec,const std::string h5file,const arma::fvec &phenotype, const size_t chunksize){
   using namespace Rcpp;
@@ -95,7 +136,7 @@ Rcpp::DataFrame fast_GWAS(const arma::uvec query_posvec,const std::string h5file
 
   betas.reserve(totsnps);
   serrs.reserve(totsnps);
-//  rvec.reserve(totsnps);
+  //  rvec.reserve(totsnps);
   arma::fvec tpheno=phenotype-arma::mean(phenotype);
   float phenossd= arma::stddev(tpheno);
   size_t nchunks =ceil(((double)query_posvec.n_elem)/(double)chunksize);

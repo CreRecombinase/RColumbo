@@ -54,21 +54,21 @@ arma::fmat Raw_Dataset::read_and_offset(const size_t num){
 }
 
 arma::fmat Raw_Dataset::read_chunk(const size_t num)const{
+
   using namespace H5;
+  //H5DataSetPtr data_dataset = get_dataset(h5filename,data_groupname,data_dataname);
   size_t nnum = resize_chunk(num);
-
-
-  int doubtype = PredType::NATIVE_DOUBLE.getId();
-  int floattype=PredType::NATIVE_FLOAT.getId();
+  // int doubtype = PredType::NATIVE_DOUBLE.getId();
+  // int floattype=PredType::NATIVE_FLOAT.getId();
   if(isCont){
-    if(datatype==PredType::NATIVE_DOUBLE){
-      return(arma::conv_to<arma::fmat>::from(read_dmat_h5(h5filename,data_groupname,data_dataname,offset,nnum)));
-    }
-    if(datatype==PredType::NATIVE_FLOAT){
+    // if(datatype==PredType::NATIVE_DOUBLE){
+    //   return(arma::conv_to<arma::fmat>::from(read_dmat_h5(h5filename,data_groupname,data_dataname,offset,nnum)));
+    // }
+//    if(datatype==PredType::NATIVE_FLOAT){
       return(read_fmat_h5(h5filename,data_groupname,data_dataname,offset,nnum));
-    }
-    Rcpp::Rcerr<<"No method exists to read type: "<<datatype.fromClass()<<std::endl;
-    Rcpp::stop("Can't read from file "+h5filename+" dataset/"+data_groupname+"/"+data_dataname);
+//    }
+    // Rcpp::Rcerr<<"No method exists to read type: "<<datatype.fromClass()<<std::endl;
+    // Rcpp::stop("Can't read from file "+h5filename+" dataset/"+data_groupname+"/"+data_dataname);
   }
   arma::size_t lind= std::min(offset+num-1,P-1);
   arma::uvec subind=data_index(arma::span(offset,lind));
@@ -87,16 +87,16 @@ arma::fmat Raw_Dataset::read_elem_ind(const arma::uvec ind) const{
 
 arma::fmat Raw_Dataset::read_elem_direct_ind(const arma::uvec ind) const{
   using namespace H5;
-  int doubtype = PredType::NATIVE_DOUBLE.getId();
-  int floattype=PredType::NATIVE_FLOAT.getId();
-  if(datatype==PredType::NATIVE_DOUBLE){
-    return(arma::conv_to<arma::fmat>::from(read_dmat_chunk_ind(h5filename,data_groupname,data_dataname,ind)));
-  }
-  if(datatype==PredType::NATIVE_FLOAT){
+  // int doubtype = PredType::NATIVE_DOUBLE.getId();
+  // int floattype=PredType::NATIVE_FLOAT.getId();
+  // if(datatype==PredType::NATIVE_DOUBLE){
+  //   return(arma::conv_to<arma::fmat>::from(read_dmat_chunk_ind(h5filename,data_groupname,data_dataname,ind)));
+  // }
+//  if(datatype==PredType::NATIVE_FLOAT){
     return(read_fmat_chunk_ind(h5filename,data_groupname,data_dataname,ind));
-  }
-  Rcpp::Rcerr<<"No method exists to read type: "<<datatype.fromClass()<<std::endl;
-  Rcpp::stop("Can't read from file "+h5filename+" dataset/"+data_groupname+"/"+data_dataname);
+//  }
+  // Rcpp::Rcerr<<"No method exists to read type: "<<datatype.fromClass()<<std::endl;
+  // Rcpp::stop("Can't read from file "+h5filename+" dataset/"+data_groupname+"/"+data_dataname);
 }
 
 size_t Raw_Dataset::set_offset(const size_t off){
@@ -108,9 +108,11 @@ size_t Raw_Dataset::set_offset(const size_t off){
 }
 size_t Raw_Dataset::increment_offset(const size_t off){
   if(offset+off>P){
-    Rcpp::stop("Can't set offset beyond P");
+    Rcpp::warning("Setting offset to maximum(P-1)");
+    offset=P;
+  }else{
+    offset=offset+off;
   }
-  offset=offset+off-1;
   return(offset);
 }
 size_t Raw_Dataset::reset_offset(){
@@ -121,16 +123,16 @@ size_t Raw_Dataset::get_offset() const{
   return(offset);
 }
 arma::fmat Raw_Dataset::read_elem_name(const arma::uvec ind) const{
-  int doubtype = PredType::NATIVE_DOUBLE.getId();
-  int floattype=PredType::NATIVE_FLOAT.getId();
-  if(datatype==PredType::NATIVE_DOUBLE){
-    return(arma::conv_to<arma::fmat>::from(read_dmat_rowname(h5filename,anno_groupname,anno_dataname,data_groupname,data_dataname,ind)));
-  }
-  if(datatype==PredType::NATIVE_FLOAT){
+  // int doubtype = PredType::NATIVE_DOUBLE.getId();
+  // int floattype=PredType::NATIVE_FLOAT.getId();
+  // if(datatype==PredType::NATIVE_DOUBLE){
+  //   return(arma::conv_to<arma::fmat>::from(read_dmat_rowname(h5filename,anno_groupname,anno_dataname,data_groupname,data_dataname,ind)));
+  // }
+//  if(datatype==PredType::NATIVE_FLOAT){
     return(read_fmat_rowname(h5filename,anno_groupname,anno_dataname,data_groupname,data_dataname,ind));
-  }
-  Rcpp::Rcerr<<"No method exists to read type: "<<datatype.fromClass()<<std::endl;
-  Rcpp::stop("Can't read from file "+h5filename+" dataset/"+data_groupname+"/"+data_dataname);
+//  }
+  // Rcpp::Rcerr<<"No method exists to read type: "<<datatype.fromClass()<<std::endl;
+  // Rcpp::stop("Can't read from file "+h5filename+" dataset/"+data_groupname+"/"+data_dataname);
 }
 
 arma::uvec Raw_Dataset::get_index() const{
@@ -189,12 +191,21 @@ arma::fvec LD_dataset::get_map_chunk(const size_t chunksize){
 
 
 
-//
-//
-//
-// }
+// class Gwas_Dataset:public Raw_Dataset{
+// private:
+//   Gwas_Dataset(const std::string h5filename);
+//   Gwas_Dataset(const std::string h5filename, arma::uvec tindex);
+//   arma::fvec mapvec;
+//   arma::fvec get_map_chunk(const size_t chunksize);
+// };
 
+Gwas_Dataset::Gwas_Dataset(const std::string h5filename):Raw_Dataset(h5filename,"eQTL","genotype","Legend","pos"),LD_data(h5filename){
+  betavec=read_ffeature("Legend","beta");
 
+}
+Gwas_Dataset::Gwas_Dataset(const std::string h5filename,arma::uvec tindex):Raw_Dataset(h5filename,"eQTL","genotype","Legend","pos",tindex),LD_data(h5filename,tindex){
+  betavec=read_ffeature("Legend","beta");
+}
 
 
 

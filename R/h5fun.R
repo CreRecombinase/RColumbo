@@ -20,6 +20,24 @@ h5vec <-function(h5file,groupname,dataname){
   return(retvec)
 }
 
+
+write_geno_h5 <- function(mapfile,gengz,famfile,dbsnpfile,h5file,chunksize=100000){
+  require(dplyr)
+  legdf <- read.table(mapfile,header=F,stringsAsFactors = F) %>% rename(chrom=V1,rsid=V2,score=V3,pos=V4) %>% mutate(rsid=as.integer(substring(rsid,3)))
+  legdf <- select(legdf,-score)
+  nsnp <- nrow(legdf)
+  famdf <- read.table(famfile,header=T,stringsAsFactors=F) %>% slice(-1)
+  nind <- nrow(famdf)
+  write_genofile_h5(gengz,dbsnpfile,nind,nsnp,chunksize,h5file,2)
+  write_h5_df(df = legdf,group = "Legend",outfile = h5file,deflate_level = 3)
+  nlegdf <- read_h5_df(h5file,"Legend")
+  tanno <- read_delim(gengz,delim = " ",col_names = c("chrom","rsid","pos","ref","alt"))
+
+}
+
+
+
+
 #' Turns matrix of diagonals in to sparse banded matrix
 #'
 #' @param bmat matrix of diagonals
@@ -210,6 +228,25 @@ h5write(mapdf$rsidi,file=haph5,name="/Map/rsidi")
     h5write(mapdf$rsid,file=haph5,name="/Map/rsid")
     h5write(mapdf$pos,file=haph5,name="/Map/pos")
     h5write(mapdf$cummap,file=haph5,name="/Map/cummap")
+}
+
+
+
+read_geno_h5_pos <- function(h5file,query_posdf){
+  #Figure out which dataset has the same dimensions as the array dataset and is named 'pos', use that to index
+  require(rhdf5)
+  datainfo <- h5ls(h5file)
+  arrayrow <- filter(datainfo,dclass=="ARRAY")
+  arraygroup <- substring(arrayrow$group,2)
+  arraydata <- arrayrow$name
+  annorows <- filter(datainfo,dim==arrayrow$dim,name %in% colnames(query_posdf))
+  annogroup <- substring(annorows$group[1],2)
+  tannodf <- read_h5_df(h5file,annogroup) %>% mutate(annopos=1:n())
+  read_ind <- semi_join(tannodf,query_posdf) %>% distinct()
+  # read_ind <- read_ind[!duplicated(annopos[read_ind])]
+  retmat <- read_dmat_chunk_ind(h5file,arraygroup,arraydata,read_ind$annopos)
+  colnames(retmat) <- as.character(read_ind$pos)
+  return(retmat)
 }
 
 

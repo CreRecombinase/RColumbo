@@ -686,6 +686,7 @@ void ip_dist(const arma::frowvec &cummapa,const arma::frowvec &cummapb,arma::fma
       distmat.row(ind)=cummapb-cummapa(ind);
     }
   }
+  std::cout<<"Done with p_dist"<<std::endl;
 }
 
 //[[Rcpp::export]]

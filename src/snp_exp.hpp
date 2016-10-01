@@ -44,6 +44,7 @@ private:
   const std::string anno_groupname;
   const std::string anno_dataname;
   const bool isCont;
+
   size_t offset;
   arma::uvec data_index;
   DataType datatype;
@@ -75,6 +76,16 @@ public:
   LD_dataset(const std::string h5filename);
   LD_dataset(const std::string h5filename, arma::uvec tindex);
   arma::fvec mapvec;
+  arma::fvec get_map_chunk(const size_t chunksize);
+};
+
+class Gwas_Dataset:public Raw_Dataset{
+private:
+  LD_dataset LD_data;
+public:
+  Gwas_Dataset(const std::string h5filename);
+  Gwas_Dataset(const std::string h5filename, arma::uvec tindex);
+  arma::fvec betavec;
   arma::fvec get_map_chunk(const size_t chunksize);
 };
 

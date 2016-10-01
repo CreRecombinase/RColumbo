@@ -4,7 +4,16 @@ library(rhdf5)
 library(dplyr)
 library(tidyr)
 rawh5 <- "/home/nwknoblauch/Desktop/eQTL/Snake/Whole_Blood_eQTL_raw_data.h5"
-haph5 <- "/home/nwknoblauch/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno_hap.h5"
+haph5 <- "/media/nwknoblauch/Data/GTEx/chr22_1kg_Whole_Blood_HEIGHT.h5"
+h5ls(haph5)
+datag <- "Haplotype"
+datan <- "genotype"
+print_datatype(haph5,datag,datan)
+datag <- "Legend"
+datan <- "beta"
+print_datatype(haph5,datag,datan)
+datag <- "Legend"
+
 haph5s <- paste0("/media/nwknoblauch/Data/1kg/haplotypes/EUR.chr",1:22,"_1kg_geno_hap.h5")
 gwasgz <- "/home/nwknoblauch/Desktop/eQTL/GIANT_HEIGHT_Wood_et_al_2014_publicrelease_HapMapCeuFreq.txt.gz"
 
@@ -26,7 +35,7 @@ nboth_df <- semi_join(both_df,ngtex_df) %>% filter(!duplicated(rsid))
 fgtex_df <- inner_join(ngtex_df,nboth_df)
 fgtex_df <- select(fgtex_df,-doFlip,-N)
 #int write_Rnumeric_h5(const std::string h5file, const std::string groupname, const std::string dataname, Rcpp::NumericVector &data,const unsigned int deflate_level);
-i <- 1
+i <- 22
 
 for(i in 2:22){
   cat(paste0(i,"of 22\n"))
