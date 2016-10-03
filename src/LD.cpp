@@ -269,7 +269,7 @@ arma::fmat hmat=read_fmat_h5(h5file,"Haplotype","haplotype",offset,map.n_elem);
 
 //[[Rcpp::export]]
 arma::fmat fslide_LD(const std::string h5file, const size_t chunksize,const size_t offset,const float cutoff){
-    
+
     float m=85;
     float Ne=11490.672741;
     size_t dchunksize=chunksize*2;
@@ -314,6 +314,22 @@ int Rwrite_cov_LD(Rcpp::String th5file, Rcpp::IntegerVector tdimension,Rcpp::Int
   chunkdims[1]=chunkvec[1];
   arma::fmat tdat = Rcpp::as<arma::fmat>(data);
   size_t ret=write_cov_LD(h5file,tdat,rowoffset,coloffset,dimension,chunkdims[0],chunkdims[1]);
+
+  arma::uvec wrow_offset(1);
+  wrow_offset[0]=rowoffset;
+  write_int_h5(h5file,"LD_mat_ref","LD_row_offset",H5S_UNLIMITED,wrow_offset,3);
+
+  arma::uvec wrow_size(1);
+  wrow_size[0]=tdat.n_rows;
+  write_int_h5(h5file,"LD_mat_ref","LD_row_size",H5S_UNLIMITED,wrow_size,3);
+
+  arma::uvec wcol_offset(1);
+  wcol_offset[0]=coloffset;
+  write_int_h5(h5file,"LD_mat_ref","LD_col_offset",H5S_UNLIMITED,wcol_offset,3);
+
+  arma::uvec wcol_size(1);
+  wcol_size[0]=tdat.n_cols;
+  write_int_h5(h5file,"LD_mat_ref","LD_col_size",H5S_UNLIMITED,wcol_size,3);
   return(ret);
 }
 
@@ -326,6 +342,8 @@ int Rwrite_blosc_cov_LD(Rcpp::String th5file, Rcpp::IntegerVector tdimension,Rcp
   size_t coloffset=Offset[0];
   arma::fmat tdat = Rcpp::as<arma::fmat>(data);
   size_t ret=write_covmat_h5(h5file,"LD_mat","LD",dimension,tdat,rowoffset,coloffset,1000,1000);
+
+
   return(ret);
 }
 //[[Rcpp::export]]

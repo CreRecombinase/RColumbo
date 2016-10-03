@@ -5,16 +5,22 @@ library(rhdf5)
 library(dplyr)
                                         # library(ggplot2)
 chrom <- 22
-chrom <- as.integer(commandArgs(trailingOnly=T))
-h5files <- paste0("/group/xhe-lab/RSS/EUR.chr",1:22,"_1kg_Whole_Blood_HEIGHT.h5")
-#th5file <- "/group/xhe-lab/RSS//media/nwknoblauch/Data/GTEx/chr22_1kg_Whole_Blood_HEIGHT.h5"
-oh5files <- paste0("/group/xhe-lab/RSS/LD_matrices/chr",1:22,"_1kg_WB_Height_LD.h5")
+# chrom <- as.integer(commandArgs(trailingOnly=T))
+gwdh <- strsplit(getwd(),split = "/",fixed=T)[[1]][3]
+if(gwdh=="nwknoblauch"){
+  h5files <- paste0("/media/nwknoblauch/Data/GTEx/chr",1:22,"_1kg_Whole_Blood_HEIGHT.h5")
+  oh5files <- paste0("/media/nwknoblauch/Data/GTEx/LDmats/chr",1:22,"_1kg_WB_Height_LD.h5")
+}else{
+  h5files <- paste0("/group/xhe-lab/RSS/EUR.chr",1:22,"_1kg_Whole_Blood_HEIGHT.h5")
+  oh5files <- paste0("/group/xhe-lab/RSS/LD_matrices/chr",1:22,"_1kg_WB_Height_LD.h5")
+}
+
 foh5files <-oh5files
 
 # get_rownum_h5(h5files[2],"Haplotype","genotype")
 # chunksize <- get_rownum_h5(hap_h5file = th5file,"Haplotype","genotype")
 ## chrom <- 22
- chunksize <- 1250
+ chunksize <- 12500
 ## cat(chrom,"\n")
 ## th5file <- h5files[chrom]
 ## foth5file <- foh5files[chrom]
@@ -42,13 +48,17 @@ if(file.exists(foth5file)){
 }
 
 
-testfunction <- function(chunksize,matrix){
-    
+
 
 for(j in 1:chunknum){
     cat(j," of ",chunknum,"\n")
     fLDmat <- fslide_LD(th5file,chunksize,offset,1e-3)
-Rwrite_blosc_cov_LD(th5file = foth5file,tdimension = nsnps,Offset = offset,data = fLDmat)
+    Rwrite_cov_LD(th5file = foth5file,tdimension = nsnps,Offset=offset,data=fLDmat,chunkvec = c(1250,1250))
+    tadj <- find_adjmat(fLDmat,0.25,offset[1],offset[2])
+    rowid <-tadj[1,]
+    colid <- tadj[2,]
+    write_Rint_h5(foth5file,"LD_adj","rowid",rowid,deflate_level = 3)
+    write_Rint_h5(foth5file,"LD_adj","colid",rowid,deflate_level = 3)
     offset <- offset+chunksize
 }
                                         #}
@@ -63,7 +73,7 @@ Rwrite_blosc_cov_LD(th5file = foth5file,tdimension = nsnps,Offset = offset,data 
 ## # sum(fLDmat[(nrow(ofLDmat)+1):nrow(fLDmat),(nrow(ofLDmat)+1):nrow(fLDmat)]!=tfLDmat)/length(tfLDmat)
 
 ## # fLDmat <- fslide_LD(th5file,chunksize,0,1e-3)
-## tadjmat <- find_adjmat_chunk(foth5file,0.25,12500)
+ tadjmat <- find_adjmat_chunk(foth5file,0.25,12500)
 ## chrom <- 22
 ## mapdf <- read_h5_df(h5files[chrom],"Legend")
 ## ccLDmat <- h5read(oth5file,name = "/LD_mat/LD")
