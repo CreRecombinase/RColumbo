@@ -269,49 +269,51 @@ arma::fmat hmat=read_fmat_h5(h5file,"Haplotype","haplotype",offset,map.n_elem);
 
 //[[Rcpp::export]]
 arma::fmat fslide_LD(const std::string h5file, const size_t chunksize,const size_t offset,const float cutoff){
-
-  float m=85;
-  float Ne=11490.672741;
-  size_t dchunksize=chunksize*2;
-  LD_dataset lddat(h5file);
-  lddat.set_offset(offset);
-  arma::frowvec mapa=arma::trans(lddat.get_map_chunk(chunksize));
-  arma::fmat mata=lddat.read_chunk(chunksize);
-  if(mapa.n_elem!=mata.n_cols){
-    Rcpp::stop("mapa n_elem!=mata.n_cols");
-  }
-  Rcpp::Rcout<<"distmatrix being generated"<<std::endl;
-  arma::fmat distmata(mapa.n_elem,mapa.n_elem);
-  Rcpp::Rcout<<"Calculating LD..."<<std::endl;
-  calcLD(mata,mata,mapa,mapa,distmata,m,Ne,cutoff,0,0);
-  size_t noffset=lddat.increment_offset(chunksize);
-  if(noffset==lddat.P){
-    return(distmata);
-  }
-  arma::frowvec mapb=arma::trans(lddat.get_map_chunk(chunksize));
-  arma::fmat matb=lddat.read_chunk(chunksize);
-  if(mapb.n_elem!=matb.n_cols){
-    Rcpp::stop("mapb n_elem!=matb.n_cols");
-  }
-  arma::fmat distmatb(mapa.n_elem,mapb.n_elem);
-  calcLD(mata,matb,mapa,mapb,distmatb,m,Ne,cutoff,0,1);
-  return(arma::join_horiz(distmata,distmatb));
+    
+    float m=85;
+    float Ne=11490.672741;
+    size_t dchunksize=chunksize*2;
+    LD_dataset lddat(h5file);
+    lddat.set_offset(offset);
+    arma::frowvec mapa=arma::trans(lddat.get_map_chunk(chunksize));
+    arma::fmat mata=lddat.read_chunk(chunksize);
+    if(mapa.n_elem!=mata.n_cols){
+        Rcpp::stop("mapa n_elem!=mata.n_cols");
+    }
+    Rcpp::Rcout<<"distmatrix being generated"<<std::endl;
+    arma::fmat distmata(mapa.n_elem,mapa.n_elem);
+    Rcpp::Rcout<<"Calculating LD..."<<std::endl;
+    calcLD(mata,mata,mapa,mapa,distmata,m,Ne,cutoff,0,0);
+    size_t noffset=lddat.increment_offset(chunksize);
+    if(noffset==lddat.P){
+        return(distmata);
+    }
+    arma::frowvec mapb=arma::trans(lddat.get_map_chunk(chunksize));
+    arma::fmat matb=lddat.read_chunk(chunksize);
+    if(mapb.n_elem!=matb.n_cols){
+        Rcpp::stop("mapb n_elem!=matb.n_cols");
+    }
+    arma::fmat distmatb(mapa.n_elem,mapb.n_elem);
+    calcLD(mata,matb,mapa,mapb,distmatb,m,Ne,cutoff,0,1);
+    return(arma::join_horiz(distmata,distmatb));
 }
 
-
-size_t write_cov_LD(const std::string oh5file,arma::fmat &rect_covmat,const size_t rowoffset,const size_t coloffset,const size_t dimension){
-  write_covmat_h5(oh5file,"LD_mat","LD",dimension,rect_covmat,rowoffset,coloffset,6);
+size_t write_cov_LD(const std::string oh5file,arma::fmat &rect_covmat,const size_t rowoffset,const size_t coloffset,const size_t dimension,const size_t rowchunksize,const size_t colchunksize){
+    write_covmat_h5(oh5file,"LD_mat","LD",dimension,rect_covmat,rowoffset,coloffset,rowchunksize,colchunksize);
   return(rect_covmat.n_cols);
 }
 
 //[[Rcpp::export]]
-int Rwrite_cov_LD(Rcpp::String th5file, Rcpp::IntegerVector tdimension,Rcpp::IntegerVector Offset, Rcpp::NumericMatrix data){
+int Rwrite_cov_LD(Rcpp::String th5file, Rcpp::IntegerVector tdimension,Rcpp::IntegerVector Offset, Rcpp::NumericMatrix data,Rcpp::IntegerVector chunkvec){
   std::string h5file=th5file;
   size_t dimension=tdimension[0];
   size_t rowoffset=Offset[0];
   size_t coloffset=Offset[0];
+  std::vector<size_t> chunkdims(2);
+  chunkdims[0]=chunkvec[0];
+  chunkdims[1]=chunkvec[1];
   arma::fmat tdat = Rcpp::as<arma::fmat>(data);
-  size_t ret=write_cov_LD(h5file,tdat,rowoffset,coloffset,dimension);
+  size_t ret=write_cov_LD(h5file,tdat,rowoffset,coloffset,dimension,chunkdims[0],chunkdims[1]);
   return(ret);
 }
 
@@ -323,7 +325,7 @@ int Rwrite_blosc_cov_LD(Rcpp::String th5file, Rcpp::IntegerVector tdimension,Rcp
   size_t rowoffset=Offset[0];
   size_t coloffset=Offset[0];
   arma::fmat tdat = Rcpp::as<arma::fmat>(data);
-  size_t ret=write_blosc_covmat_h5(h5file,"LD_mat","LD",dimension,tdat,rowoffset,coloffset,6);
+  size_t ret=write_covmat_h5(h5file,"LD_mat","LD",dimension,tdat,rowoffset,coloffset,1000,1000);
   return(ret);
 }
 //[[Rcpp::export]]

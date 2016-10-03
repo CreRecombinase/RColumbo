@@ -50,7 +50,7 @@ hsize_t get_arraysize(ArrayType &atype);
 size_t get_arraydim(const std::string h5file, const std::string groupname,const std::string dataname);
 size_t write_mat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::mat &data,const unsigned int deflate_level);
 size_t write_mat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::fmat &data,const unsigned int deflate_level);
-size_t write_covmat_h5(const std::string h5file, const std::string groupname, const std::string dataname, const size_t dimension, arma::fmat &data,const arma::uword rowoffset,const arma::uword coloffset,const unsigned int deflate_level);
+size_t write_covmat_h5(const std::string h5file, const std::string groupname, const std::string dataname, const size_t dimension, arma::fmat &data,const arma::uword rowoffset,const arma::uword coloffset,const size_t rowchunksize, const size_t colchunksize);
 size_t write_umat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::umat &data,const unsigned int deflate_level);
 
 int write_dmatrix_h5(Rcpp::String h5file,Rcpp::String groupname, Rcpp::String dataname, Rcpp::IntegerVector Nsnps, Rcpp::IntegerVector Nind, Rcpp::NumericMatrix data,const unsigned int deflate_level);

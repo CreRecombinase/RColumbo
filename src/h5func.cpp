@@ -508,6 +508,98 @@ H5DataSetPtr create_or_open_dataset(H5GroupPtr &group,const std::string &datanam
   return H5DataSetPtr(dataset);
 }
 
+
+
+H5DataSetPtr create_or_open_ref_dataset(H5GroupPtr &group,const std::string &dataname,std::vector<hsize_t> &cdatadim,std::vector<hsize_t> &mdatadim)
+{
+  H5::Exception::dontPrint();
+  DataSet* dataset;
+  DataSpace* fdataspace;
+  hsize_t objc= group->getNumObjs();
+  std::string refdataname=dataname+"_ref";
+
+  bool fdat=false;
+  if(objc!=0){
+    for(hsize_t i=0; i<objc;i++){
+      std::string tst=group->getObjnameByIdx(i);
+      if(tst==refdataname){
+        fdat = true;
+      }
+    }
+  }
+  if(fdat){
+    try{
+      dataset = new DataSet(group->openDataSet(refdataname));
+    }  catch( DataSetIException error )
+    {
+      error.printError();
+      Rcpp::stop("Error opening dataset");
+    }
+  }else{
+    std::cout<<"Creating dataset"<<std::endl;
+    hsize_t *cumdima = new hsize_t[cdatadim.size()];
+    hsize_t*mdima = new hsize_t[mdatadim.size()];
+
+    for(int i=0; i<cdatadim.size();i++){
+      cumdima[i]=cdatadim[i];
+      mdima[i]=mdatadim[i];
+    }
+    try{
+      std::cout<<"Creating dataspace of dimensions"<<cumdima[0]<<" up to "<<mdima[0]<<std::endl;
+      fdataspace= new DataSpace(cdatadim.size(),cumdima,mdima); //Create dataspace for dataset (on disk)
+    }catch(DataSpaceIException error)
+    {
+      error.printError();
+      Rcpp::stop("Error creating file dataspace");
+    }
+    try{
+      std::cout<<"Creating dataset: "<<refdataname<<std::endl;
+      DataType dt(PredType::STD_REF_DSETREG);
+      dataset = new DataSet(group->createDataSet(refdataname,dt,*fdataspace));
+    }  catch( DataSetIException error )
+      {
+	error.printError();
+	Rcpp::stop("Error creating dataset");
+      }
+      std::cout<<"Dataset created: "<<refdataname<<std::endl;
+  }
+  return H5DataSetPtr(dataset);
+}
+
+
+H5DataSetPtr open_ref_dataset(H5GroupPtr &group,const std::string &dataname)
+{
+  H5::Exception::dontPrint();
+  DataSet* dataset;
+  DataSpace* fdataspace;
+  hsize_t objc= group->getNumObjs();
+  std::string refdataname=dataname+"_ref";
+
+  bool fdat=false;
+  if(objc!=0){
+    for(hsize_t i=0; i<objc;i++){
+      std::string tst=group->getObjnameByIdx(i);
+      if(tst==refdataname){
+        fdat = true;
+      }
+    }
+  }
+  if(fdat){
+    try{
+      dataset = new DataSet(group->openDataSet(refdataname));
+    }  catch( DataSetIException error )
+    {
+      error.printError();
+      Rcpp::stop("Error opening dataset");
+    }
+  }else{
+    Rcpp::stop("Error opening dataset reference dataset");
+  }
+  return H5DataSetPtr(dataset);
+}
+
+
+
 H5DataSetPtr open_blosc_dataset(H5GroupPtr &group,const std::string &dataname)
 {
   H5::Exception::dontPrint();
@@ -517,13 +609,13 @@ H5DataSetPtr open_blosc_dataset(H5GroupPtr &group,const std::string &dataname)
   char* version;
   char* date;
   int r=0;
+  std::cout<<"registering blosc"<<std::endl;
   r = register_blosc(&version,&date);
   unsigned int cd_values[7];
   printf("Blosc version info: %s (%s)\n", version, date);
   // cd_values[4]=deflate_level;
   // cd_values[5]=1;
   // cd_values[6]=BLOSC_BLOSCLZ;
-
   bool fdat=false;
   if(objc!=0){
     for(hsize_t i=0; i<objc;i++){
@@ -581,7 +673,7 @@ H5DataSetPtr get_dataset(const std::string h5filename, const std::string groupna
 
 
 
-ArrayType read_arraytype(const DataSet *dataset, const PredType pt){
+ArrayType read_arraytype(H5DataSetPtr dataset, const PredType pt){
   hsize_t adim[1];
   DataType dt = dataset->getDataType();
   DataType dtss = dt.getSuper();
@@ -847,34 +939,19 @@ H5::DataType read_data_type(const std::string h5file, const std::string groupnam
 //[[Rcpp::export]]
 arma::fmat read_fmat_h5(const std::string hap_h5file,const std::string groupname, const std::string dataname, size_t offset, size_t chunksize){
 
-  H5File* file;
-  DataSet* dataset;
-  try{
-    file= new H5File( hap_h5file.c_str(), H5F_ACC_RDONLY);
-  }
-  catch( FileIException error )
-  {
-    error.printError();
-  }
-  Group haplogroup = file->openGroup(groupname);
-  try{
-    dataset = new DataSet(haplogroup.openDataSet(dataname));
-  }
-  catch( DataSetIException error )
-  {
-    error.printError();
-    Rcpp::stop("DataSetIException!");
-  }
-
-  //  std::cout<<"opened dataset"<<std::endl;
+  H5FilePtr file=open_file(hap_h5file);
+  H5GroupPtr group= open_group(file,groupname);
+  H5DataSetPtr dataset=open_blosc_dataset(group,dataname);
+  std::cout<<"opened dataset"<<std::endl;
+  std::cout<<"Getting array type"<<std::endl;
   ArrayType mem_arraytype=read_arraytype(dataset,PredType::NATIVE_FLOAT);
 
 
-  //  std::cout<<"Getting Array dimensions"<<std::endl;
-  //  std::cout<<"Getting Dataspace"<<std::endl;
+  std::cout<<"Getting Array dimensions"<<std::endl;
+  std::cout<<"Getting Dataspace"<<std::endl;
   DataSpace fspace =dataset->getSpace();
 
-  //  std::cout<<"Getting Data dimensions"<<std::endl;
+  std::cout<<"Getting Data dimensions"<<std::endl;
   hsize_t datadim[1];
   fspace.getSimpleExtentDims(datadim,NULL);
   size_t matrix_dims[2];
@@ -886,47 +963,33 @@ arma::fmat read_fmat_h5(const std::string hap_h5file,const std::string groupname
   matrix_dims[1]=chunksize;
 
 
-  // std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
+   std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
   hsize_t offseta[1];
   offseta[0]=offset;
   fspace.selectHyperslab(H5S_SELECT_SET,datadim,offseta);
   std::cout<<"Allocating matrix of size:"<<matrix_dims[0]<<"x"<<matrix_dims[1]<<std::endl;
   arma::fmat retmat(matrix_dims[0],matrix_dims[1]);
   DataSpace memspace(1,datadim);
-  //  std::cout<<"Reading data"<<std::endl;
+    std::cout<<"Reading data"<<std::endl;
   dataset->read(retmat.memptr(),mem_arraytype,memspace,fspace);
   mem_arraytype.close();
   memspace.close();
   fspace.close();
-  haplogroup.close();
-  delete dataset;
-  delete file;
+  group->close();
+  dataset->close();
+  file->close();
   return(retmat);
 }
 
 //[[Rcpp::export]]
 arma::mat read_dmat_h5(const std::string hap_h5file,const std::string groupname, const std::string dataname, const size_t offset, const size_t chunksize){
 
-  H5File* file;
-  DataSet* dataset;
-  try{
-    file= new H5File( hap_h5file.c_str(), H5F_ACC_RDONLY);
-  }
-  catch( FileIException error )
-  {
-    error.printError();
-  }
-  Group haplogroup = file->openGroup(groupname);
-  try{
-    dataset = new DataSet(haplogroup.openDataSet(dataname));
 
-  }
-  catch( DataSetIException error )
-  {
-    error.printError();
+  H5FilePtr file=open_file(hap_h5file);
+  H5GroupPtr group=open_group(file,groupname);
+  H5DataSetPtr dataset=open_blosc_dataset(group,dataname);
 
-  }
-  //  std::cout<<"opened dataset"<<std::endl;
+  
   ArrayType mem_arraytype=read_arraytype(dataset,PredType::NATIVE_DOUBLE);
   //  std::cout<<"Getting Array dimensions"<<std::endl;
   //  std::cout<<"Getting Dataspace"<<std::endl;
@@ -957,9 +1020,9 @@ arma::mat read_dmat_h5(const std::string hap_h5file,const std::string groupname,
   mem_arraytype.close();
   memspace.close();
   fspace.close();
-  haplogroup.close();
-  delete dataset;
-  delete file;
+  group->close();
+  dataset->close();
+  file->close();
   return(retmat);
 }
 
@@ -988,23 +1051,12 @@ arma::fmat read_fmat_chunk_ind(const std::string h5file,const std::string groupn
 
 
 std::vector<int> read_int_h5(const std::string h5file, const std::string groupname, const std::string dataname){
-  H5File* file;
-  DataSet* dataset;
-  try{
-    file= new H5File( h5file.c_str(), H5F_ACC_RDONLY);
-  }
-  catch( FileIException error )
-  {
-    error.printError();
-  }
-  Group haplogroup = file->openGroup(groupname);
-  try{
-    dataset = new DataSet(haplogroup.openDataSet(dataname));
-  }
-  catch( DataSetIException error )
-  {
-    error.printError();
-  }
+
+  H5FilePtr file=open_file(h5file);
+  H5GroupPtr group=open_group(file,groupname);
+  H5DataSetPtr dataset=open_blosc_dataset(group,dataname);
+
+  
   DataType dt = dataset->getDataType();
   DataSpace fspace =dataset->getSpace();
   hsize_t datadim[1];
@@ -1030,23 +1082,9 @@ std::vector<int> read_int_h5(const std::string h5file, const std::string groupna
 
 //[[Rcpp::export]]
 std::vector<float> read_float_h5(const std::string h5file, const std::string groupname, const std::string dataname,const size_t offset,const size_t chunksize){
-  H5File* file;
-  DataSet* dataset;
-  try{
-    file= new H5File( h5file.c_str(), H5F_ACC_RDONLY);
-  }
-  catch( FileIException error )
-  {
-    error.printError();
-  }
-  Group haplogroup = file->openGroup(groupname);
-  try{
-    dataset = new DataSet(haplogroup.openDataSet(dataname));
-  }
-  catch( DataSetIException error )
-  {
-    error.printError();
-  }
+  H5FilePtr file=open_file(h5file);
+  H5GroupPtr group=open_group(file,groupname);
+  H5DataSetPtr dataset=open_blosc_dataset(group,dataname);
   DataType dt = dataset->getDataType();
   DataSpace fspace =dataset->getSpace();
   hsize_t datadim[1];
@@ -1077,23 +1115,10 @@ std::vector<float> read_float_h5(const std::string h5file, const std::string gro
 
 
 std::vector<float> read_float_h5(const std::string h5file, const std::string groupname, const std::string dataname){
-  H5File* file;
-  DataSet* dataset;
-  try{
-    file= new H5File( h5file.c_str(), H5F_ACC_RDONLY);
-  }
-  catch( FileIException error )
-  {
-    error.printError();
-  }
-  Group haplogroup = file->openGroup(groupname);
-  try{
-    dataset = new DataSet(haplogroup.openDataSet(dataname));
-  }
-  catch( DataSetIException error )
-  {
-    error.printError();
-  }
+
+    H5FilePtr file=open_file(h5file);
+  H5GroupPtr group=open_group(file,groupname);
+  H5DataSetPtr dataset=open_blosc_dataset(group,dataname);
   DataType dt = dataset->getDataType();
   DataSpace fspace =dataset->getSpace();
   hsize_t datadim[1];
@@ -1114,23 +1139,11 @@ std::vector<float> read_float_h5(const std::string h5file, const std::string gro
 
 
 std::vector<unsigned int> read_uint_h5(const std::string h5file, const std::string groupname, const std::string dataname){
-  H5File* file;
-  DataSet* dataset;
-  try{
-    file= new H5File( h5file.c_str(), H5F_ACC_RDONLY);
-  }
-  catch( FileIException error )
-  {
-    error.printError();
-  }
-  Group haplogroup = file->openGroup(groupname);
-  try{
-    dataset = new DataSet(haplogroup.openDataSet(dataname));
-  }
-  catch( DataSetIException error )
-  {
-    error.printError();
-  }
+
+  H5FilePtr file=open_file(h5file);
+  H5GroupPtr group=open_group(file,groupname);
+  H5DataSetPtr dataset=open_blosc_dataset(group,dataname);
+  
   DataType dt = dataset->getDataType();
   DataSpace fspace =dataset->getSpace();
   hsize_t datadim[1];
@@ -1240,14 +1253,16 @@ arma::fmat read_2dfmat_h5(const std::string h5file, const std::string groupname,
 }
 
 
-size_t write_covmat_h5(const std::string h5file, const std::string groupname, const std::string dataname, const size_t dimension, arma::fmat &data,const arma::uword rowoffset,const arma::uword coloffset,const unsigned int deflate_level){
+
+size_t write_covmat_h5(const std::string h5file, const std::string groupname, const std::string dataname, const size_t dimension, arma::fmat &data,const arma::uword rowoffset,const arma::uword coloffset,const size_t rchunksize, const size_t cchunksize){
 
   Rcpp::Rcout<<"Initializing write for file:"<<h5file<<std::endl;
   Rcpp::Rcout<<"Data is of dimensions:"<<data.n_rows<<"x"<<data.n_cols<<std::endl;
   hsize_t chunkstart=0;
-  size_t rchunksize = data.n_cols/2;
-  size_t cchunksize = data.n_rows/2;
-  std::vector<float> tdat= arma::conv_to<std::vector<float>>::from(arma::vectorise(data));
+  //  size_t rchunksize = data.n_cols/5;
+  //  size_t cchunksize = data.n_rows/5;
+
+  //  std::vector<float> tdat= arma::conv_to<std::vector<float>>::from(arma::vectorise(data));
   // if(rchunksize!=data.n_cols){
   //   Rcpp::Rcerr<<"chunksize("<<rchunksize<<") not equal to column number("<<data.n_cols<<")!"<<std::endl;
   //   Rcpp::stop("error in write_covmat_h5");
@@ -1260,16 +1275,25 @@ size_t write_covmat_h5(const std::string h5file, const std::string groupname, co
   if(cchunksize==dimension){
     ucchunksize=cchunksize/2;
   }
+  
+  hsize_t mchunknum= std::ceil((double)dimension/(double)rchunksize);
+  mchunknum=mchunknum*10;
   std::vector<hsize_t> cumdim{dimension,dimension};
   std::vector<hsize_t> maxdim{dimension,dimension};
   std::vector<hsize_t> chunkdim{ucchunksize,urchunksize};
+  std::vector<hsize_t> refdim{1};
+  std::vector<hsize_t> mrefdim{mchunknum};
   hsize_t adim[2];//dimension of each array element (ncols)
   //  adim[0]=Nind; //Assign array size dimension
   FloatType ftypew(PredType::NATIVE_FLOAT);
   H5FilePtr file =create_or_open_file(h5file);
   H5GroupPtr group=create_or_open_group(file,groupname);
+  // // // std::cout<<"Creating/opening Reference dataset"<<std::endl;
+  // H5DataSetPtr refdataset = create_or_open_ref_dataset(group,dataname,refdim,mrefdim);
+    std::cout<<"Creating/opening Real dataset"<<std::endl;
+    size_t deflate_level=4;
   H5DataSetPtr dataset = create_or_open_dataset(group,dataname,ftypew,cumdim,maxdim,chunkdim,deflate_level);
-
+  
   DataSpace* fdataspace;
   try{
     fdataspace= new DataSpace(dataset->getSpace());
@@ -1277,15 +1301,27 @@ size_t write_covmat_h5(const std::string h5file, const std::string groupname, co
     error.printError();
     Rcpp::stop("Error creating memory dataspace ");
   }
+  // DataSpace* reffdataspace;
+  // try{
+  //   reffdataspace= new DataSpace(refdataset->getSpace());
+  // }catch(DataSpaceIException error){
+  //   error.printError();
+  //   Rcpp::stop("Error creating reference dataspace ");
+  // }
+
+  // hsize_t refdatadim[]={0};
+  // reffdataspace->getSimpleExtentDims(refdatadim,NULL);
+  // refdatadim[0]=refdatadim[0]+1;
+  // refdataset->extend(refdatadim);
+  // hsize_t refoffset[1];
+  // refoffset[0]=refdatadim[0]-1;
+  
   hsize_t datadim[2];
   fdataspace->getSimpleExtentDims(datadim,NULL);
   std::cout<<"old data dim"<<datadim[0]<<"x"<<datadim[1]<<std::endl;
   std::cout<<"data chunk size is "<<urchunksize<<"x"<<ucchunksize<<std::endl;
   // chunkstart = datadim[0];
   // size_t chunka[]={chunksize,chunksize};
-  // datadim[0]=datadim[0]+chunksize[0];
-  // datadim[1]=datadim[1]+chunksize[1];
-  // dataset->extend(datadim);
   hsize_t memdim[]={data.n_cols,data.n_rows};
   // fdataspace->close();
   // delete fdataspace;
@@ -1299,20 +1335,49 @@ size_t write_covmat_h5(const std::string h5file, const std::string groupname, co
     error.printError();
     Rcpp::stop("Error creating memory dataspace ");
   }
+  // hsize_t refmdim[]={1};
+  // DataSpace *refmspace;
+  // try{
+  //   mspace= new DataSpace(2,refmdim); //Size of first dataset (in memory, can be bigger or smaller than size on disk, depending on how much you're writing)
+  // }catch(DataSpaceIException error){
+  //   error.printError();
+  //   Rcpp::stop("Error creating reference memory dataspace ");
+  // }
   hsize_t odim[]={coloffset,rowoffset};//dimension of each offset (current_chunk*chunksize)
   hsize_t stridea[]={1,1};
   hsize_t blocka[]={1,1};
-  std::cout<<"Getting (disk) Data dimensions"<<std::endl;
-  fdataspace->selectHyperslab( H5S_SELECT_SET, memdim, odim,stridea,blocka);
+  
+  
+  fdataspace->selectHyperslab( H5S_SELECT_SET, memdim,odim,stridea,blocka);
+  //  std::cout<<"Getting Chunk Reference"<<std::endl;
+  //  dataset->reference(&regref[0],dataname,*fdataspace);
+
+  //  DataSpace trefds= dataset->getRegion(regref[0]);
   hsize_t block_start[]={0,0};
   hsize_t block_stop[]={0,0};
+  //  std::cout<<"Getting (referenced) Data dimensions"<<std::endl;
+  //trefds.getSelectBounds(block_start,block_stop);
+  //  std::cout<<"from "<<block_start[0]<<"to "<<block_stop[0]<<std::endl;
+  //    std::cout<<"from "<<block_start[1]<<"to "<<block_stop[1]<<std::endl;
+  //  trefds.close();
+  //  std::cout<<"Getting (real) Data dimensions"<<std::endl;
+  //  fdataspace->getSelectBounds(block_start,block_stop);
+  //  std::cout<<"from "<<block_start[0]<<"to "<<block_stop[0]<<std::endl;
+  //  std::cout<<"from "<<block_start[1]<<"to "<<block_stop[1]<<std::endl;
+  
+  
+  //  reffdataspace->selectHyperslab(H5S_SELECT_SET,refmdim,refoffset,refmdim,refmdim);
+  //  std::cout<<"Writing Chunk Reference"<<std::endl;
+  //  refdataset->write(&regref[0],PredType::STD_REF_DSETREG,*refmspace,*refmspace);
+  
+  //  refdataset->close();
+  //  refmspace->close();
+  //  reffdataspace->close();
+  
 
-  fdataspace->getSelectBounds(block_start,block_stop);
-  std::cout<<"Writing will be from row"<<block_start[0]<<"to row"<<block_stop[0]<<"size="<<block_stop[0]-block_start[0]+1<<std::endl;
-  std::cout<<"Writing will be from row"<<block_start[1]<<"to row"<<block_stop[1]<<"size="<<block_stop[1]-block_start[1]+1<<std::endl;
   std::cout<<"Starting to write data"<<std::endl;
   try{
-    dataset->write(&tdat[0],PredType::NATIVE_FLOAT,*mspace,*fdataspace);
+    dataset->write(data.memptr(),PredType::NATIVE_FLOAT,*mspace,*fdataspace);
   }  catch( DataSetIException error )
   {
     error.printError();
@@ -1332,8 +1397,8 @@ size_t write_covmat_h5(const std::string h5file, const std::string groupname, co
   mspace->close();
   group->close();
   file->close();
-  delete fdataspace;
-  delete mspace;
+  fdataspace->close();
+  mspace->close();
   return(rchunksize);
 }
 
