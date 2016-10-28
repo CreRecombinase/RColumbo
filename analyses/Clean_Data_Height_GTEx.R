@@ -5,14 +5,7 @@ library(dplyr)
 library(tidyr)
 rawh5 <- "/scratch/t.cri.nknoblauch/Whole_Blood_eQTL_raw_data.h5"
 haph5 <- "/media/nwknoblauch/Data/GTEx/chr22_1kg_Whole_Blood_HEIGHT.h5"
-## h5ls(haph5)
-## datag <- "Haplotype"
-## datan <- "genotype"
-## print_datatype(haph5,datag,datan)
-## datag <- "Legend"
-## datan <- "beta"
-## print_datatype(haph5,datag,datan)
-## datag <- "Legend"
+
 
 haph5s <- paste0("/group/xhe-lab/RSS/IMPUTE/EUR.chr",1:22,"_1kg_geno_hap.h5")
 

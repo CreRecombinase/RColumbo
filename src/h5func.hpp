@@ -23,7 +23,7 @@ H5GroupPtr create_or_open_group(H5FilePtr &file,const std::string &groupname);
 
 typedef std::shared_ptr<DataSet> H5DataSetPtr;
 
-H5DataSetPtr create_or_open_dataset(H5GroupPtr &group,const std::string &dataname, const DataType &data_type,std::vector<hsize_t> &cdatadim,std::vector<hsize_t> &mdatadim,std::vector<hsize_t> &chunkdim,const unsigned int deflate_level);
+H5DataSetPtr create_or_open_dataset(H5GroupPtr &group,const std::string &dataname, const DataType &data_type,std::vector<hsize_t> &cdatadim,std::vector<hsize_t> &mdatadim,std::vector<hsize_t> &chunkdim,const int deflate_level);
 H5DataSetPtr get_dataset(const std::string h5filename, const std::string groupname, const std::string dataname);
 ArrayType read_arraytype(const DataSet *dataset, const PredType pt);
 
@@ -43,25 +43,26 @@ arma::fmat read_fmat_chunk_ind(const std::string h5file,const std::string groupn
 H5::DataType read_data_type(const std::string h5file, const std::string groupname, const std::string dataname);
 std::vector<std::string> getObjects(const std::string h5file, const std::string groupname);
 std::vector<std::string> getGroups(const std::string h5file);
-size_t write_blosc_covmat_h5(const std::string h5file, const std::string groupname, const std::string dataname, const size_t dimension, arma::fmat &data,const arma::uword rowoffset,const arma::uword coloffset,const unsigned int deflate_level);
+size_t write_blosc_covmat_h5(const std::string h5file, const std::string groupname, const std::string dataname, const size_t dimension, arma::fmat &data,const arma::uword rowoffset,const arma::uword coloffset,const  int deflate_level);
 
 hsize_t get_arraysize(ArrayType &atype);
 
 size_t get_arraydim(const std::string h5file, const std::string groupname,const std::string dataname);
-size_t write_mat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::mat &data,const unsigned int deflate_level);
-size_t write_mat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::fmat &data,const unsigned int deflate_level);
+size_t write_mat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::mat &data,const int deflate_level);
+size_t write_mat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::fmat &data,const  int deflate_level);
 size_t write_covmat_h5(const std::string h5file, const std::string groupname, const std::string dataname, const size_t dimension, arma::fmat &data,const arma::uword rowoffset,const arma::uword coloffset,const size_t rowchunksize, const size_t colchunksize);
-size_t write_umat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::umat &data,const unsigned int deflate_level);
+size_t write_umat_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, const hsize_t Nind, arma::umat &data,const int deflate_level);
 
-int write_dmatrix_h5(Rcpp::String h5file,Rcpp::String groupname, Rcpp::String dataname, Rcpp::IntegerVector Nsnps, Rcpp::IntegerVector Nind, Rcpp::NumericMatrix data,const unsigned int deflate_level);
+int write_dmatrix_h5(Rcpp::String h5file,Rcpp::String groupname, Rcpp::String dataname, Rcpp::IntegerVector Nsnps, Rcpp::IntegerVector Nind, Rcpp::NumericMatrix data,const int deflate_level);
 
-int write_Rint_h5(const std::string h5file, const std::string groupname, const std::string dataname, Rcpp::IntegerVector &data,const unsigned int deflate_level);
+int write_Rint_h5(const std::string h5file, const std::string groupname, const std::string dataname, Rcpp::IntegerVector &data,const int deflate_level);
+Rcpp::IntegerVector read_Rint_h5(const std::string h5file, const std::string groupname, const std::string dataname);
 
-int write_Rnumeric_h5(const std::string h5file, const std::string groupname, const std::string dataname, Rcpp::NumericVector &data,const unsigned int deflate_level);
-size_t write_float_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, arma::fvec &data,const unsigned int deflate_level);
-size_t write_int_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, arma::uvec &data,const unsigned int deflate_level);
+int write_Rnumeric_h5(const std::string h5file, const std::string groupname, const std::string dataname, Rcpp::NumericVector &data,const int deflate_level);
+size_t write_float_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, arma::fvec &data,const int deflate_level);
+size_t write_int_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, arma::uvec &data,const int deflate_level);
 
-size_t write_uint_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, arma::uvec &data,const unsigned int deflate_level);
+size_t write_uint_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, arma::uvec &data,const int deflate_level);
 
 size_t get_rownum_h5(const std::string hap_h5file,const std::string groupname, const std::string dataname);
 

@@ -20,6 +20,14 @@ h5vec <-function(h5file,groupname,dataname){
   return(retvec)
 }
 
+read_h5_df_l <- function(h5files,chroms=1:22,group){
+  stopifnot(length(h5files)==length(chroms))
+  retdf <- bind_rows(mapply(function(chromi,file,group){
+    tdf <- read_h5_df(file,groupname = group) %>%mutate(chrom=chromi,ind=1:n())
+    return(tdf)
+  },chroms,h5files,MoreArgs=list(group=group),SIMPLIFY = F))
+}
+
 
 write_geno_h5 <- function(mapfile,gengz,famfile,dbsnpfile,h5file,chunksize=100000){
   require(dplyr)
@@ -265,6 +273,57 @@ read_h5_df_filter <- function(h5file,groupname,colname,filter_fun){
 }
 
 
+read_gtex_expression <- function(gzfile,h5file){
+  require(readr)
+  wbrows <- as.integer(strsplit(system(paste0("wc -l ",gzfile),intern = T),split = " ")[[1]][1])
+  wbdf <- read_delim(gzfile,delim="\t",col_names = T,guess_max=wbrows)
+  colnames(wbdf)[1] <- c("chr")
+  annocols <- c("chr","start","end","gene_id")
+  wbanno <- select(wbdf,one_of(annocols)) %>% mutate(fgeneid=as.integer(gsub("ENSG([0-9]+)\\.[0-9]+","\\1",gene_id))) %>% select(-gene_id) %>%
+    mutate(chr=ifelse(chr=="X",23,chr)) %>% mutate(chr=as.integer(chr))
+  wbexp <- data.matrix(select(wbdf,-one_of(annocols)))
+  write_h5_df(wbanno,group = "EXPinfo",outfile = h5file,deflate_level = 4)
+  write_dmatrix_h5(h5file = h5file,groupname = "EXPdata",dataname = "expression",Nsnps = nrow(wbexp),Nind = ncol(wbexp),data = wbexp,deflate_level = 4)
+  gc()
+  return(T)
+}
+
+
+
+read_dgn_exp <- function(ngzfile,h5file,chunksize=100000){
+
+
+
+
+}
+
+
+read_gtex_snp <- function(ngzfile,h5file,chunksize=100000){
+  require(readr)
+  require(tidyr)
+  require(dplyr)
+  wbrows <- as.integer(strsplit(system(paste0("wc -l ",ngzfile),intern = T),split = " ")[[1]][1])
+  gtex_cbf <- function(x,pos){
+    th5file <- h5file
+    annocols <-c("chrom","pos","ref","alt","b37")
+    nx <-separate(x,Id,into = annocols,sep="_") %>% mutate(doFlip=as.integer(ref<alt))
+    annodf <- select(nx,one_of(annocols),doFlip) %>% select(-ref,-alt,-b37) %>%
+      mutate(chrom=ifelse(chrom=="X",23,chrom)) %>% mutate(chrom=as.integer(chrom),pos=as.integer(pos))
+    rmna <- is.na(annodf$chrom)|is.na(annodf$pos)
+    datamat <- data.matrix(select(nx,-one_of(annocols),-doFlip))
+     datamat[nx$doFlip==1,] <-abs(2-datamat[nx$doFlip==1,])
+    datamat <- datamat[!rmna,]
+    annodf <- filter(annodf,!rmna)
+    write_h5_df(df = annodf,group = "SNPinfo",outfile = th5file,deflate_level = 4)
+    write_dmatrix_h5(h5file = th5file,groupname="SNPdata",dataname = "genotype",Nsnps = wbrows,Nind = ncol(datamat),data = datamat,deflate_level = 4)
+  }
+  wbdf <- read_delim_chunked(ngzfile,delim = "\t",col_names=T,callback = SideEffectChunkCallback$new(gtex_cbf),chunk_size = chunksize)
+  gc()
+  return(T)
+}
+
+
+
 write_h5_df <- function(df,group,outfile,deflate_level=4){
   dataname <- colnames(df)
   for(i in 1:length(dataname)){
@@ -286,15 +345,29 @@ write_h5_df <- function(df,group,outfile,deflate_level=4){
 read_h5_df <- function(h5file,groupname){
   require(rhdf5)
   require(dplyr)
-  cols <- h5ls(h5file) %>% filter(group==paste0("/",groupname)) %>% select(name)
-  cols <- cols$name
-  retdf <- bind_cols(lapply(cols,function(x){
-    td <- data_frame(c(h5read(h5file,paste0("/",groupname,"/",x))))
-    colnames(td) <- x
-    return(td)
-  }))
+  require(purrr)
+  stopifnot(file.exists(h5file))
+  h5file <- system(paste0("echo ",h5file),intern = T)
+  datarows <- h5ls(h5file) %>% filter(group==paste0("/",groupname)) %>% mutate(h5file=h5file,dim=as.integer(dim)) %>%
+    filter(dclass %in% c("INTEGER","FLOAT","DOUBLE"))
+  retdf <- datarows %>% split(.$name) %>% map(~read_h5_type(h5file=h5file,groupname=groupname,name=.$name,dclass=.$dclass)) %>% bind_cols()
   return(retdf)
 }
+
+read_h5_type <-function(h5file,groupname,name,dclass){
+  require(dplyr)
+  # groupname <- substring(group,2)
+  if(dclass=="FLOAT"){
+    return(read_Rfloat_h5(h5file,groupname,name))
+  }else{
+    if(dclass=="INTEGER"){
+      return(read_Rint_h5(h5file,groupname,name))
+    }else{
+      stop(paste0("Type:",dclass," not supported by read_h5_type\n"))
+    }
+  }
+}
+
 
 
 #' Write haplotype data to HDF5 data
@@ -345,6 +418,39 @@ vegas.merge <- function(vegasf,gmf){
   return(gmd)
 }
 
+
+read_fgid <- function(res_row){
+  library(tidyr)
+  snpleg <-read_h5_df(h5file,"SNPinfo") %>% mutate(snp_ind=1:n())
+  expleg <-read_h5_df(h5file,"EXPinfo") %>% mutate(exp_ind=1:n()) %>% filter(fgeneid %in% fgeneidv)
+  snpexp <- group_by(expleg,fgeneid) %>%
+    do(snpdf=filter(snpleg,chrom==.$chr,
+                    (abs(pos-.$start)<cisdist|abs(pos-.$end)<cisdist))) %>%
+    unnest(snpdf) %>% inner_join(expleg)
+  tidydat <- function(df,valname="snp"){
+    colnames(df) <- paste0("ind:",1:ncol(df))
+    df <- mutate(df,row=paste0(valname,":",1:n()))
+    retdf <- gather(df,ind,value,-row)
+
+  }
+
+  df <- as_data_frame(read_fmat_chunk_ind(h5file,"SNPdata","genotype",indvec=snpexp$snp_ind[snpexp$fgeneid==fgeneidv[1]]))
+  snpdat <- group_by(snpexp,fgeneid) %>% do(snpdata=as_data_frame(read_fmat_chunk_ind(h5file,"SNPdata","genotype",indvec = .$snp_ind)))
+  snpdat <- ungroup(snpdat)
+  expdat <- read_fmat_chunk_ind(h5file,"EXPdata","expression",indvec=expleg$exp_ind)
+  snpdat <- unnest(snpdat)
+
+
+
+
+
+
+
+}
+
+
+
+
 #' Merge eQTL results with gencode file to get gene symbols for every eQTL
 #' @param eqtldf eQTL dataframe
 #' @param gmf path to gencode file
@@ -385,59 +491,6 @@ sparse_cov2cor <-function(rdsfile,chunksize,variances,nSNPs){
   tdat[istart:istop,jstart:jstop] <-r
   return(tdat)
 }
-
-
-
-
-# mydat <- matrix(runif(30),6,5)
-# V <- cov(mydat)
-# Is <- sqrt(1/diag(V)) # diag( 1/sigma_i )
-# r <- V # keep dimnames
-# r[] <- Is * V * rep(Is, each = p)
-# ##	== D %*% V %*% D  where D = diag(Is)
-# r[cbind(1:p,1:p)] <- 1 # exact in diagonal
-# r
-# tcov2cor <- function(V)
-# {
-#   ## Purpose: Covariance matrix |--> Correlation matrix -- efficiently
-#   ## ----------------------------------------------------------------------
-#   ## Arguments: V: a covariance matrix (i.e. symmetric and positive definite)
-#   ## ----------------------------------------------------------------------
-#   ## Author: Martin Maechler, Date: 12 Jun 2003, 11:50
-#   p <- (d <- dim(V))[1]
-#   if(!is.numeric(V) || length(d) != 2 || p != d[2])
-#     stop("`V' is not a square numeric matrix")
-#   Is <- sqrt(1/diag(V)) # diag( 1/sigma_i )
-#   if(any(!is.finite(Is)))
-#     warning("diagonal has non-finite entries")
-#   r <- V # keep dimnames
-#   r[] <- Is * V * rep(Is, each = p)
-#   ##	== D %*% V %*% D  where D = diag(Is)
-#   r[cbind(1:p,1:p)] <- 1 # exact in diagonal
-#   r
-# }
-#
-# reconst_R <- function(directory,chunksize,chrom){
-#   rdsfiles <-dir(directory,pattern = paste0("chr",chrom,".*_",chunksize,".RDS"),full.names = T)
-#   maxchunk <-max(c(as.numeric(gsub(paste0(".+chr",chrom,"_([0-9]+)_([0-9]+)_",chunksize,".RDS"),"\\1",rdsfiles))),
-#                  as.numeric(gsub(paste0(".+chr",chrom,"_([0-9]+)_([0-9]+)_",chunksize,".RDS"),"\\2",rdsfiles)))
-#   diagfiles <- character(maxchunk+1)
-#   for(i in 0:maxchunk){
-#     diagfiles[i+1] <- rdsfiles[grepl(paste0("chr",chrom,"_",i,"_",i,"_",chunksize,".RDS"),rdsfiles)]
-#   }
-#   variances<- unlist(lapply(diagfiles,function(x){
-#     tdiag <-diag(readRDS(x))
-#     return(tdiag[tdiag!=0])
-#   }))
-#   nSNPs <- nrow(readRDS(rdsfiles[1]))
-#   nvars <- list()
-#   for(k in 1:length(rdsfiles)){
-#     nvars[[as.character(k)]] <- sparse_cov2cor(rdsfiles[k],variances = variances,chunksize = chunksize,nSNPs = nSNPs)
-#   }
-#   nvars <- lapply(rdsfiles,sparse_cov2cor,variances=variances,chunksize=chunksize,nSNPs=nSNPs)
-#   newR <- Reduce("+",nvars)
-# }
-
 
 
 .ls.objects <- function (pos = 1, pattern, order.by,

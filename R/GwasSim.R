@@ -12,11 +12,15 @@ betasim_h5 <- function(h5file,pi,sa){
   return(resdf)
 }
 #
+
 yhat <-function(tdf){
-  chunksize <- get_rownum_h5(tdf$h5file[1],"eQTL","genotype")
-  tgeno <- read_fmat_h5(tdf$h5file[1],"eQTL","genotype",0,chunksize)
+  #chunksize <- get_rownum_h5(tdf$h5file[1],"eQTL","genotype")
+  #tgeno <- read_fmat_h5(tdf$h5file[1],"eQTL","genotype",0,chunksize)
+  tgeno <- read_fmat_chunk_ind(tdf$h5file[1],"eQTL","genotype",tdf$ind)
+  tgeno <-scale(tgeno,center = T,scale = F)
   ty <- tgeno %*%  tdf$Beta
   retdf <- data_frame(ind=1:length(ty),yh=c(ty),chrom=tdf$chrom[1])
+  return(retdf)
 }
 
 

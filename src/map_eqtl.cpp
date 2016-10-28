@@ -18,15 +18,15 @@
 //
 
 //[[Rcpp::export]]
-arma::mat orthogonalize_covar(const arma::mat &Covariates){
-  arma::mat ncovariates;
-  arma::mat R;
+arma::fmat orthogonalize_covar(const arma::fmat &Covariates){
+  arma::fmat ncovariates;
+  arma::fmat R;
   arma::qr(ncovariates,R,Covariates);
   return(ncovariates.head_cols(Covariates.n_cols));
 }
 
 //[[Rcpp::export]]
-arma::mat orthogonalize_data(const arma::mat &Data, const arma::mat &covariates){
+arma::fmat orthogonalize_data(const arma::fmat &Data, const arma::fmat &covariates){
   return(Data-arma::trans((Data.t()*covariates)*covariates.t()));
 }
 
@@ -52,6 +52,23 @@ arma::fmat rMatrix(const arma::fmat &Genotype,const arma::fmat &Expression){
 }
 
 //[[Rcpp::export]]
+arma::uvec isCis_mat(const arma::ivec snp_chrom,const arma::ivec snp_pos, const arma::ivec exp_chrom,const arma::ivec exp_start, const arma::ivec exp_stop,const arma::uword cisdist_cutoff){
+
+  arma::uvec retvec(snp_chrom.n_elem,arma::fill::zeros);
+  arma::uvec cisc=arma::find(snp_chrom==exp_chrom);
+  if(cisc.n_elem==0){
+    return(retvec);
+  }
+  arma::ivec distvec=arma::min(arma::join_horiz(arma::abs(snp_pos.elem(cisc)-exp_start.elem(cisc)),arma::abs(snp_pos.elem(cisc)-exp_stop.elem(cisc))),1);
+  cisc=cisc.elem(arma::find(distvec<cisdist_cutoff));
+  if(cisc.n_elem==0){
+    return(retvec);
+  }
+  retvec.elem(cisc).ones();
+  return(retvec);
+}
+
+//[[Rcpp::export]]
 arma::uvec isCis(const arma::ivec snp_chrom,const arma::ivec snp_pos, const arma::sword exp_chrom,const arma::sword exp_start, const arma::sword exp_stop,const arma::uword cisdist_cutoff){
   arma::uvec chromvec(snp_chrom.n_elem,arma::fill::zeros);
   chromvec.elem(arma::find(snp_chrom==exp_chrom)).ones();
@@ -64,6 +81,8 @@ arma::uvec isCis(const arma::ivec snp_chrom,const arma::ivec snp_pos, const arma
   retvec.elem(arma::find(((distvec<cisdist_cutoff)+(chromvec==1))==2)).ones();
   return(retvec);
 }
+
+
 
 
 //[[Rcpp::export]]
@@ -125,24 +144,28 @@ Rcpp::DataFrame ffast_GWAS(const std::string h5file,const arma::fvec &phenotype,
 
 
 //[[Rcpp::export]]
-Rcpp::DataFrame fast_GWAS(const arma::uvec query_posvec,const std::string h5file,const arma::fvec &phenotype, const size_t chunksize){
+Rcpp::DataFrame ifast_GWAS(const arma::uvec index, const std::string h5file,const arma::fvec &phenotype, const size_t chunksize){
   using namespace Rcpp;
 
-  size_t totsnps =query_posvec.n_elem;
   // std::vector<arma::uvec> indexes=chunk_index(query_posvec,chunksize);
+  Gwas_Dataset gwasdat(h5file,index);
   std::vector<float> betas;
   std::vector<float> serrs;
   std::vector<float> rvec;
-
+  size_t totsnps=gwasdat.P;
+  if(totsnps!=index.n_elem){
+    Rcpp::Rcerr<<"There are "<<totsnps<<" in the gwasdat object and "<<index.n_elem<<" objects in the index"<<std::endl;
+    Rcpp::stop("mismatch between P and index.n_elem in ifast_GWAS");
+  }
   betas.reserve(totsnps);
   serrs.reserve(totsnps);
   //  rvec.reserve(totsnps);
   arma::fvec tpheno=phenotype-arma::mean(phenotype);
   float phenossd= arma::stddev(tpheno);
-  size_t nchunks =ceil(((double)query_posvec.n_elem)/(double)chunksize);
+  size_t nchunks =ceil((double)totsnps/(double)chunksize);
   Rcout<<"Starting chunk 0 of "<<nchunks<<std::endl;
   for(size_t i=0; i<nchunks;i++){
-    arma::fmat genomat= arma::conv_to<arma::fmat>::from(read_dmat_chunk_ind(h5file,"Genotype","genotype",chunk_index(query_posvec,chunksize,i)));
+    arma::fmat genomat= gwasdat.read_and_offset(chunksize);
     // genomat.each_col([](arma::fvec &a){a-=arma::mean(a);});
     arma::fvec snpsd=arma::trans(arma::stddev(genomat));
     float n=genomat.n_rows;
@@ -153,14 +176,135 @@ Rcpp::DataFrame fast_GWAS(const arma::uvec query_posvec,const std::string h5file
       serrs.push_back(betas.back()/tv);
     }
   }
+  if(betas.size()!=totsnps){
+    Rcpp::Rcerr<<"There are "<<totsnps<<" in the gwasdat object and "<<betas.size()<<" objects in the betas vector"<<std::endl;
+    Rcpp::stop("mismatch between P and betas.size() in ifast_GWAS");
+  }
   NumericVector Beta(betas.begin(),betas.end());
   NumericVector Serr(serrs.begin(),serrs.end());
-  IntegerVector Index(query_posvec.begin(),query_posvec.end());
   return(DataFrame::create(_["Betahat"]= Beta,
-                           _["serr"]= Serr,
-                           _["index"]=Index));
+                           _["serr"]= Serr));
 }
 
+
+
+//[[Rcpp::export]]
+Rcpp::DataFrame fast_eQTL(const arma::fmat &Genotype, const Rcpp::DataFrame snpanno, const arma::fmat &Expression, const Rcpp::DataFrame expanno, const double cis_tcutoff, const double trans_tcutoff,const arma::uword cisdist, const bool doTrans,const bool doCis){
+  using namespace Rcpp;
+  double n =Genotype.n_rows;
+  double cis_rcutoff =cis_tcutoff/sqrt(n+cis_tcutoff*cis_tcutoff-2);
+  double trans_rcutoff =trans_tcutoff/sqrt(n+trans_tcutoff*trans_tcutoff-2);
+
+  if(!doCis&&!doTrans){
+    Rcpp::stop("at least one of doCis or doTrans must be true");
+  }
+  std::vector<int> cistransvec;
+  Rcpp::Rcout<<"Reading SNP annotations"<<std::endl;
+  // arma::uvec rsids = arma::conv_to<arma::uvec>::from(Rcpp::as<std::vector<int>>(snpanno["rsid"]));
+  arma::ivec snp_chrom = Rcpp::as<arma::ivec>(snpanno["chrom"]);
+  arma::ivec snp_pos = Rcpp::as<arma::ivec>(snpanno["pos"]);
+
+  Rcpp::Rcout<<"Reading Exp annotations"<<std::endl;
+  arma::uvec fgeneids = arma::conv_to<arma::uvec>::from(Rcpp::as<std::vector<int>>(expanno["fgeneid"]));
+  arma::ivec exp_chrom = Rcpp::as<arma::ivec>(expanno["chrom"]);
+  arma::ivec exp_start = Rcpp::as<arma::ivec>(expanno["start"]);
+  arma::ivec exp_stop = Rcpp::as<arma::ivec>(expanno["end"]);
+  Rcpp::Rcout<<"Computing correlation"<<std::endl;
+  arma::fmat rmat =rMatrix(Genotype,Expression);
+
+  Rcpp::Rcout<<"Reserving Memory"<<std::endl;
+
+  // betavec.reserve(rmat.n_elem);
+  // serrvec.reserve(rmat.n_elem);
+  // snppvec.reserve(rmat.n_elem);
+  // snpcvec.reserve(rmat.n_elem);
+  // genevec.reserve(rmat.n_elem);
+  // cistransvec.reserve(rmat.n_elem);
+  arma::fvec Betas;
+  arma::fvec serrv;
+  arma::uvec cid;
+  Rcpp::Rcout<<"Computing std error"<<std::endl;
+  arma::fvec snpsd=arma::trans(arma::stddev(Genotype));
+  arma::fvec expsd=arma::trans(arma::stddev(Expression));
+  double rcutoff;
+  arma::fvec rcutoff_vec(2);
+  rcutoff_vec[0]=trans_rcutoff;
+  rcutoff_vec[1]=cis_rcutoff;
+
+  bool skipSearch=false;
+
+  if(!doTrans){
+    std::vector<arma::uword> aschroms=arma::conv_to<std::vector<arma::uword>>::from(arma::unique(snp_chrom));
+    std::vector<arma::uword> agchroms=arma::conv_to<std::vector<arma::uword>>::from(arma::unique(exp_chrom));
+    std::vector<arma::uword> bchroms;
+    std::set_intersection(aschroms.begin(),aschroms.end(),agchroms.begin(),agchroms.end(),std::back_inserter(bchroms));
+    if(bchroms.size()==0){
+      skipSearch=true;
+    }
+  }
+  if(!skipSearch){
+    Rcpp::Rcout<<"Mapping eQTL"<<std::endl;
+    double rcutoff=std::min(cis_rcutoff,trans_rcutoff);
+    arma::uvec sigr=arma::find(abs(rmat)>rcutoff);
+    arma::fvec tr = rmat.elem(sigr);
+    arma::umat sigmat= arma::ind2sub(arma::size(rmat),sigr);
+    rmat.clear();
+    arma::uvec snpind = arma::trans(sigmat.row(0));
+    arma::uvec geneind = arma::trans(sigmat.row(1));
+    Rcpp::Rcout<<"ID-ing cis-trans relationships"<<std::endl;
+    cid=isCis_mat(snp_chrom.elem(snpind),snp_pos.elem(snpind),exp_chrom.elem(geneind),exp_start.elem(geneind),exp_stop.elem(geneind),cisdist);
+    Rcpp::Rcout<<"Subsetting Annotations"<<std::endl;
+    if(!doCis){
+      arma::uvec tid=arma::find(cid==0);
+      snpind = snpind.elem(tid);
+      geneind = geneind.elem(tid);
+      cid = cid.elem(tid);
+      tr=tr.elem(tid);
+    }
+    if(!doTrans){
+      arma::uvec tid=arma::find(cid==1);
+      snpind = snpind.elem(tid);
+      geneind = geneind.elem(tid);
+      cid = cid.elem(tid);
+      tr=tr.elem(tid);
+    }
+    arma::uvec sigid=arma::find(abs(tr)>rcutoff_vec.elem(cid));
+    snpind=snpind.elem(sigid);
+    geneind=geneind.elem(sigid);
+    cid = cid.elem(sigid);
+    tr=tr.elem(sigid);
+    if(snpind.n_elem>0){
+      //        arma::uvec allind=addLD(snpind,LDmat,LDcutoff);
+      //      Rcout<<"found "<<snpind.n_elem<<" sig eQTL for gene"<<i<<std::endl;
+      //      Rcout<<"Total of "<<snpind.n_elem<<" eQTL will be recorded for gene "<<i<<", the largest of which is at position: "<<arma::max(snpind)<<std::endl;
+      Betas=tr%(expsd(geneind)/snpsd.elem(snpind));
+      arma::fvec tv= sqrt(n-2)*(tr/arma::sqrt(1-arma::pow(tr,2)));
+      serrv=Betas/tv;
+      snp_pos=snp_pos.elem(snpind);
+      snp_chrom=snp_chrom.elem(snpind);
+      fgeneids=fgeneids.elem(geneind);
+    }
+    arma::uvec sizes={Betas.n_elem,serrv.n_elem,snp_pos.n_elem,fgeneids.n_elem,cid.n_elem};
+    if(arma::any(sizes!=Betas.n_elem)){
+      Rcerr<<"sizes not equal"<<std::endl;
+      sizes.print();
+      stop("Error: cannot create dataframe from vectors of unequal size");
+    }
+  }
+  NumericVector theta(Betas.begin(),Betas.end());
+  NumericVector serr(serrv.begin(),serrv.end());
+  IntegerVector snpchrom(snp_chrom.begin(),snp_chrom.end());
+  IntegerVector snppos(snp_pos.begin(),snp_pos.end());
+  IntegerVector geneid(fgeneids.begin(),fgeneids.end());
+  IntegerVector cistrans(cid.begin(),cid.end());
+
+  return(DataFrame::create(_["theta"]= theta,
+                           _["serr"]= serr,
+                           _["chrom"]=snpchrom,
+                           _["pos"]=snppos,
+                           _["fgeneid"]=geneid,
+                           _["cistrans"]=cistrans));
+}
 
 //[[Rcpp::export]]
 Rcpp::DataFrame extract_stats(const arma::fmat &Genotype,const Rcpp::DataFrame snpanno,const arma::fmat &Expression, const Rcpp::DataFrame expanno,const arma::fmat &LDmat,const arma::fmat &rmat,const double tcutoff,const double LDcutoff,const arma::uword cisdist,const bool display_progress,bool doCis){
@@ -281,10 +425,10 @@ arma::mat serrMatrix(const arma::mat &Genotype, const arma::mat &Expression, con
 
 
 //[[Rcpp::export]]
-void orthogonalize_dataset(std::string h5filename,std::string datagroup, std::string datasetname,std::string newdatasetname,size_t chunksize,const unsigned int deflate_level){
-  arma::mat ocovariates= read_dmat_h5(h5filename,"Covardat","covariates",0,40);
-  ocovariates = join_horiz(arma::mat(ocovariates.n_rows,1,arma::fill::ones),ocovariates);
-  arma::mat Covariates = orthogonalize_covar(ocovariates);
+void orthogonalize_dataset(std::string h5filename,std::string newh5filename,std::string datagroup, std::string datasetname,std::string newdatasetname,size_t chunksize,const unsigned int deflate_level){
+  arma::fmat ocovariates= read_fmat_h5(h5filename,"Covardat","covariates",0,40);
+  ocovariates = join_horiz(arma::fmat(ocovariates.n_rows,1,arma::fill::ones),ocovariates);
+  arma::fmat Covariates = orthogonalize_covar(ocovariates);
   size_t Nrows= get_rownum_h5(h5filename,datagroup,datasetname);
   Rcpp::Rcout<<"total number of rows:"<<Nrows<<std::endl;
   size_t nchunks=ceil(((double)Nrows)/(double)chunksize);
@@ -294,11 +438,11 @@ void orthogonalize_dataset(std::string h5filename,std::string datagroup, std::st
     Rcpp::Rcout<<"Starting chunk"<<i<<" of size:"<<chunksize<<std::endl;
     size_t offset =i*chunksize;
     Rcpp::Rcout<<"Reading data for chunk"<<i<<std::endl;
-    arma::mat Data = read_dmat_h5(h5filename,datagroup,datasetname,offset,chunksize);
+    arma::fmat Data = read_fmat_h5(h5filename,datagroup,datasetname,offset,chunksize);
     Rcpp::Rcout<<"Orthogonalizing data wrt (orthogonalized)covariates for chunk"<<i<<std::endl;
-    arma::mat oData =orthogonalize_data(Data,Covariates);
+    arma::fmat oData =orthogonalize_data(Data,Covariates);
     Rcpp::Rcout<<"oData is of dimensions:"<<oData.n_rows<<"x"<<oData.n_cols<<std::endl;
-    write_mat_h5(h5filename,datagroup,newdatasetname,Nrows,oData.n_rows,oData,deflate_level);
+    write_mat_h5(newh5filename,datagroup,newdatasetname,Nrows,oData.n_rows,oData,deflate_level);
   }
 
 }

@@ -33,7 +33,7 @@ Gen_mixnorm <- function(n,pi,tau){
   si <- runif(n)
   B <- ifelse(Z,rnorm(n=n,mean = 0,sd = tau),0)
   bhat <- rnorm(n = n,mean = B,sd = si)
-  return(data.frame(betahat=bhat,si=si,Z=Z))
+  return(data.frame(betahat=bhat,si=si,Z=Z,beta=B))
 }
 
 

@@ -673,8 +673,8 @@ stat_extract <- function(rawh5,haph5,gwash5,outh5,chromosome,chunksize,cis_pcuto
   # haph5 <- "/home/nwknoblauch/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno_hap.h5"
   # gwash5 <- "~/Desktop/eQTL/Snake/IBD.h5"
   cat(paste0("Preparing data for chromosome:",chromosome,"\n"))
-  snpleg <- read_h5_df(rawh5,"SNPinfo") %>% mutate(snp_ind=1:length(rsid))
-  expleg <- as_data_frame(t(h5read(rawh5,"EXPinfo/annomat"))) %>% rename(fgeneid=V1,sgeneid=V2,chrom=V3,TSStart=V4,TSStop=V5) %>% mutate(exp_id=0:(length(fgeneid)-1))
+  snpleg <- read_h5_df(rawh5,"SNPinfo") %>% mutate(snp_ind=1:n())
+  expleg <-read_h5_df(rawh5,"EXPinfo") %>% mutate(exp_ind=1:n())
   bexpdat <- read_dmat_ind_h5(rawh5,"EXPdata","orthoexpression",c(1:23973))
   cis_tcutoff <- abs(qt(cis_pcutoff,df = nrow(bexpdat)-2,lower.tail = F))
   trans_tcutoff <- abs(qt(trans_pcutoff,df=nrow(bexpdat)-2,lower.tail=F))
@@ -706,11 +706,11 @@ stat_extract <- function(rawh5,haph5,gwash5,outh5,chromosome,chunksize,cis_pcuto
                               cisdist = 1e6,
                               display_progress = T,doCis = T)
     trans_eqtl<- extract_stats(Genotype = osnpdat,snpanno = query_df,Expression =  bexpdat,
-                            expanno = expleg,LDmat = fmat,
-                            rmat=rmat,tcutoff = trans_tcutoff,
-                            LDcutoff = trans_LDcutoff,
-                            cisdist = 1e6,
-                            display_progress = T,doCis = F)
+                               expanno = expleg,LDmat = fmat,
+                               rmat=rmat,tcutoff = trans_tcutoff,
+                               LDcutoff = trans_LDcutoff,
+                               cisdist = 1e6,
+                               display_progress = T,doCis = F)
     write_Rnumeric_h5(outh5,"cis_eQTL","thetahat",data = cis_eqtl$theta,deflate_level = 4)
     write_Rnumeric_h5(outh5,"cis_eQTL","serr",data = cis_eqtl$serr,deflate_level = 4)
     write_Rint_h5(outh5,"cis_eQTL","rsid",data = cis_eqtl$rsid,deflate_level = 4)
@@ -720,6 +720,65 @@ stat_extract <- function(rawh5,haph5,gwash5,outh5,chromosome,chunksize,cis_pcuto
     write_Rnumeric_h5(outh5,"trans_eQTL","serr",data = trans_eqtl$serr,deflate_level = 4)
     write_Rint_h5(outh5,"trans_eQTL","rsid",data = trans_eqtl$rsid,deflate_level = 4)
     write_Rint_h5(outh5,"trans_eQTL","fgeneid",data = trans_eqtl$fgeneid,deflate_level = 4)
+  }
+  cat("Done!\n")
+}
+
+run_eqtl<- function(rawh5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcutoff=1e-3,cisdist_cutoff=1e6,append=F,useortho=F){
+  require(dplyr)
+  require(tidyr)
+  require(BBmisc)
+  # eqtlh5 <- "~/Desktop/eQTL/Snake/IBD_WholeBlood_eQTL.h5"
+  # rawh5 <- "/home/nwknoblauch/Desktop/eQTL/Snake/Whole_Blood_eQTL_raw_data.h5"
+  # haph5 <- "/home/nwknoblauch/Desktop/LDmapgen/1kgenotypes/IMPUTE/EUR.chr19_1kg_geno_hap.h5"
+  # gwash5 <- "~/Desktop/eQTL/Snake/IBD.h5"
+  cat(paste0("Preparing data for chromosome:",chromosome,"\n"))
+  snpleg <- read_h5_df(rawh5,"SNPinfo") %>% mutate(snp_ind=1:n())
+  expleg <-read_h5_df(rawh5,"EXPinfo") %>% mutate(exp_ind=1:n()) %>% rename(chrom=chr)
+  # expleg <- as_data_frame(t(h5read(rawh5,"EXPinfo/annomat"))) %>% rename(fgeneid=V1,sgeneid=V2,chrom=V3,TSStart=V4,TSStop=V5) %>% mutate(exp_id=0:(length(fgeneid)-1))
+  # expleg <- rename(expleg,start=TSStart,end=TSStop)
+  if(useortho){
+    bexpdat <- read_dmat_ind_h5(rawh5,"EXPdata","orthoexpression",c(1:get_rownum_h5(rawh5,"EXPdata","orthoexpression")))
+  }else{
+    bexpdat <- read_dmat_ind_h5(rawh5,"EXPdata","expression",c(1:get_rownum_h5(rawh5,"EXPdata","expression")))
+    bexpdat <- scale(bexpdat,center = T,scale=T)
+  }
+
+
+  cis_tcutoff <- abs(qt(cis_pcutoff,df = nrow(bexpdat)-2,lower.tail = F))
+  trans_tcutoff <- abs(qt(trans_pcutoff,df=nrow(bexpdat)-2,lower.tail=F))
+  chleg <- filter(snpleg,chrom==chromosome)
+  dfl <- chunk_df(chleg,chunk.size = chunksize)
+  chunkind <- chunk(1:(nrow(chleg)),chunk.size = chunksize)
+  if(file.exists(outh5)&(!append)){
+    file.remove(outh5)
+  }
+  for(i in 1:length(dfl)){
+    cat(paste0(i," of ",length(dfl),"\n"))
+    query_df <- dfl[[i]]
+    snpi <- query_df$snp_ind
+    # fmat <- comp_dense_LD(query_df$haplotype_ind,query_df$cummap,query_df$rsid,haph5,m=85,Ne=11490.672741,cutoff=1e-3)
+    # tsnp <- osnpdat[,13]
+    # texp <- bexpdat[,1]
+    # summary(lm(texp~tsnp+0))
+    if(useortho){
+      osnpdat <- read_dmat_ind_h5(rawh5,"SNPdata","orthogenotype",snpi)
+    }
+    else{
+      osnpdat <- read_dmat_ind_h5(rawh5,"SNPdata","genotype",snpi)
+    }
+    # betas <- betaMatrix(osnpdat,bexpdat)
+    eqtl <- fast_eQTL(Genotype=osnpdat,snpanno=query_df,Expression=bexpdat,
+                          expanno=expleg,cis_tcutoff = cis_tcutoff,trans_tcutoff = trans_tcutoff,cisdist = 1e6,doTrans = T,doCis = T)
+    cis_eqtl <-filter(eqtl,cistrans==1) %>% select(-cistrans) %>% mutate(tstat=theta/serr)
+    trans_eqtl <- filter(eqtl,cistrans==0) %>% select(-cistrans)
+    if(nrow(cis_eqtl)>0){
+      write_h5_df(cis_eqtl,"cis_eQTL",outfile = outh5)
+    }
+    if(nrow(trans_eqtl)>0){
+      write_h5_df(trans_eqtl,"trans_eQTL",outfile = outh5)
+    }
+    gc()
   }
   cat("Done!\n")
 }

@@ -344,6 +344,8 @@ size_t read_genofile_gz(boost::iostreams::filtering_istream &fs,const size_t Nsn
   return(ct);
 }
 
+
+
 size_t read_expression_gz(boost::iostreams::filtering_istream &fs, const size_t Ngenes, const size_t Nind,const size_t chunksize,arma::uvec &fgeneid,arma::uvec &sgeneid,arma::mat &expression){
   using namespace Rcpp;
   using namespace boost::spirit::qi;
@@ -351,6 +353,7 @@ size_t read_expression_gz(boost::iostreams::filtering_istream &fs, const size_t 
   std::vector<int> tsgeneid;
   std::vector<unsigned int> tfgeneid;
   std::vector<double> texpression;
+
 
   tsgeneid.reserve(chunksize);
   tfgeneid.reserve(chunksize);
