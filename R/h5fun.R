@@ -40,8 +40,119 @@ write_geno_h5 <- function(mapfile,gengz,famfile,dbsnpfile,h5file,chunksize=10000
   write_h5_df(df = legdf,group = "Legend",outfile = h5file,deflate_level = 3)
   nlegdf <- read_h5_df(h5file,"Legend")
   tanno <- read_delim(gengz,delim = " ",col_names = c("chrom","rsid","pos","ref","alt"))
-
 }
+
+
+
+
+
+
+sample_h5_df <-function(mh5file,groupname,blocksize=20000,pval.cutoff=1e-5,gwasdf=NULL){
+  require(rhdf5)
+  cut_t <- qt(p = pval.cutoff,df = 337,lower.tail = F)
+  tdf <- read_h5_df(mh5file,groupname=groupname,subcols = c("theta","serr"))
+
+  filtervec <- abs(tdf$theta/tdf$serr)>cut_t
+  rm(tdf)
+  snpdf <- read_h5_df(mh5file,groupname=groupname,subcols=c("chrom","pos")) %>% distinct
+  stopifnot(nrow(distinct(snpdf,chrom))==1)
+  ldblocks <- sort(unique(c(seq(from=min(snpdf$pos)-1,to=max(snpdf$pos)+1,by = blocksize),max(snpdf$pos)+1)))
+  snpdf <- mutate(snpdf,ldblock=cut(pos,breaks = ldblocks,labels = F,right=F))
+  sigdf <- read_h5_df(mh5file,groupname=groupname,filtervec = filtervec)  %>% inner_join(snpdf,by=c("chrom","pos"))
+  if(!is.null(gwasdf)){
+    sigdf <- inner_join(sigdf,gwasdf,by=c("chrom","pos"))
+  }
+  sigdf<-  mutate(sigdf,tstat=theta/serr) %>% mutate(pvale=pt(abs(tstat),337,lower.tail = F)) %>%
+    group_by(fgeneid,ldblock) %>% filter(pvale==min(pvale)) %>% ungroup()
+  gc()
+  return(sigdf)
+}
+
+
+
+fsample_h5_df <-function(mh5file,groupname,blocksize=20000,pval.cutoff=1e-5,gwasdf=NULL,chunksize=500000){
+  require(rhdf5)
+  cut_t <- qt(p = pval.cutoff,df = 337,lower.tail = F)
+  tdf <- fread_h5_df(mh5file,groupname=groupname,subcols = c("theta","serr"),chunksize=chunksize)
+  filtervec <- abs(tdf$theta/tdf$serr)>cut_t
+  filvi <- which(filtervec)
+
+  rm(tdf)
+  snpdf <- fread_h5_df(mh5file,groupname=groupname,subcols=c("chrom","pos"),chunksize=chunksize) %>% distinct
+  stopifnot(nrow(distinct(snpdf,chrom))==1)
+  cat(snpdf$chrom[1],"\n")
+  ldblocks <- sort(unique(c(seq(from=min(snpdf$pos)-1,to=max(snpdf$pos)+1,by = blocksize),max(snpdf$pos)+1)))
+  snpdf <- mutate(snpdf,ldblock=cut(pos,breaks = ldblocks,labels = F,right=F))
+  # sigdf <- read_h5_df(mh5file,groupname=groupname,filtervec = filtervec) %>% inner_join(snpdf,by=c("chrom","pos"))
+  sigdf <- fread_h5_df(mh5file,groupname=groupname,indexvec = filvi,chunksize=chunksize)%>% inner_join(snpdf,by=c("chrom","pos"))
+  if(!is.null(gwasdf)){
+    sigdf <- inner_join(sigdf,gwasdf,by=c("chrom","pos"))
+  }
+  sigdf<-  mutate(sigdf,tstat=theta/serr) %>% mutate(pvale=pt(abs(tstat),337,lower.tail = F)) %>%
+    group_by(fgeneid,ldblock) %>% filter(pvale==min(pvale)) %>% ungroup()
+  gc()
+  return(sigdf)
+}
+
+
+
+# construct_LD_graph <- function(geno_h5,geno_leg,LD_cutoff,chunksize=30000){
+#   require(graph)
+#   require(RBGL)
+#   require(tidyr)
+#   require(SparseM)
+#
+#
+#   stopifnot(all(c("chrom","pos","snp_ind") %in% colnames(geno_leg)))
+#   stopifnot(all(!duplicated(geno_leg$snp_ind)))
+#   geno_leg <- group_by(geno_leg,chrom) %>% mutate(chunkid=cut(snp_ind,breaks = ceiling(n()/chunksize),labels = F)) %>% ungroup()
+#
+#   dimtot <-nrow(geno_leg)
+#   group_by(geno_leg,chrom,chunkid)
+#   tgeno_leg <- filter(geno_leg,chrom==1,chunkid==1)
+#   tgenod <- read_fmat_chunk_ind(geno_h5,"SNPdata","genotype",tgeno_leg$snp_ind[1:100])
+#   genoco <- cor(tgenod)
+#   genoco <- as_data_frame(genoco)
+#   ogenoco <- as_data_frame(gtex_LDM)
+#   colnames(ogenoco) <- paste0("S",1:ncol(ogenoco))
+#   ogenoco <- mutate(ogenoco,rowid=1:n())
+#   ogenoco <- gather(ogenoco,colid,LD,-rowid)
+#   ogenoco <- mutate(ogenoco,colid=as.integer(gsub(pattern = "S([0-9]+)",replacement = "\\1",x = colid)))
+#
+#
+#
+#   colnames(genoco) <- paste0("S",1:ncol(genoco))
+#   genoco <- mutate(genoco,rowid=1:n())
+#   genoco <- gather(genoco,colid,LD,-rowid)
+#   genoco <- mutate(genoco,colid=as.integer(gsub(pattern = "S([0-9]+)",replacement = "\\1",x = colid)))
+#
+#
+#   # genoc <- cor_h5(geno_h5,groupname = "SNPdata",dataname = "genotype",indvec = tgeno_leg$snp_ind,LDcutoff = 0.01,cutBelow = T)
+#
+#
+#   tgenoc <- arrange(genoc,rowind+colind) %>%slice(1:10000)
+#
+# ogenoco%>%ggplot(aes(rowid,colid))+geom_raster(aes(fill=LD))
+#   snpa <- select(tgeno_leg,chromA=chrom,posA=pos,rowind=snp_ind)
+#   snpb <-select(tgeno_leg,chromB=chrom,posB=pos,colind=snp_ind)
+#   ngenoc <- inner_join(genoc,snpa) %>% inner_join(snpb)
+#   ngenoc <- filter(ngenoc,chromA==chromB,posA<posB)
+#   edgel <- as.matrix.csr(new("matrix.coo",
+#                ra=rep.int(1,length(ngenoc$rowind)),
+#                ja=ngenoc$colind,
+#                ia=ngenoc$rowind,
+#                dimension=c(dimtot,dimtot)))
+#   genog <- graphAM(adjMat = edgel,
+#                    edgemode ="directed")
+#
+#
+#   genog <- sparseM2Graph(edgel,nodeNames =as.character(geno_leg$snp_ind),
+#                 edgemode = "directed")
+#
+#
+# }
+
+
 
 
 
@@ -258,19 +369,7 @@ read_geno_h5_pos <- function(h5file,query_posdf){
 }
 
 
-read_h5_df_filter <- function(h5file,groupname,colname,filter_fun){
-  require(rhdf5)
-  idcol <- c(h5read(h5file,paste0("/",groupname,"/",colname)))
-  indexes <- which(filter_fun(idcol))
-  cols <- h5ls(h5file) %>% filter(group==paste0("/",groupname)) %>% select(name)
-  cols <- cols$name
-  retdf <- bind_cols(lapply(cols,function(x){
-    td <- data_frame(c(h5read(h5file,paste0("/",groupname,"/",x),index=list(indexes))))
-    colnames(td) <- x
-    return(td)
-  }))
-  return(retdf)
-}
+
 
 
 read_gtex_expression <- function(gzfile,h5file){
@@ -342,7 +441,9 @@ write_h5_df <- function(df,group,outfile,deflate_level=4){
   }
 }
 
-read_h5_df <- function(h5file,groupname){
+
+
+read_h5_df <- function(h5file,groupname,subcols=NULL,filtervec=NULL){
   require(rhdf5)
   require(dplyr)
   require(purrr)
@@ -350,23 +451,70 @@ read_h5_df <- function(h5file,groupname){
   h5file <- system(paste0("echo ",h5file),intern = T)
   datarows <- h5ls(h5file) %>% filter(group==paste0("/",groupname)) %>% mutate(h5file=h5file,dim=as.integer(dim)) %>%
     filter(dclass %in% c("INTEGER","FLOAT","DOUBLE"))
-  retdf <- datarows %>% split(.$name) %>% map(~read_h5_type(h5file=h5file,groupname=groupname,name=.$name,dclass=.$dclass)) %>% bind_cols()
+  if(!is.null(subcols)){
+    datarows <- filter(datarows,name %in% subcols)
+  }
+  retdf <- datarows %>% split(.$name) %>% map(~read_h5_type(h5file=h5file,groupname=groupname,name=.$name,dclass=.$dclass,filtervec=filtervec)) %>% bind_cols()
   return(retdf)
 }
 
-read_h5_type <-function(h5file,groupname,name,dclass){
+
+fread_h5_df <- function(h5file,groupname,subcols=NULL,indexvec=numeric(0),chunksize=500000){
+  require(rhdf5)
+  require(dplyr)
+  require(purrr)
+  stopifnot(file.exists(h5file))
+  if(length(indexvec)>0){
+    if(length(indexvec)>chunksize){
+      mbreaks <-c(seq(min(indexvec)-1,max(indexvec),by=chunksize),max(indexvec)+10)
+      chunkl <- split(indexvec,f = cut(indexvec,mbreaks,labels = F))
+    }else{
+      chunkl <- list(indexvec)
+    }
+  }
+  else{
+    chunkl <- list(numeric(0))
+  }
+  h5file <- system(paste0("echo ",h5file),intern = T)
+  datarows <- h5ls(h5file) %>% filter(group==paste0("/",groupname)) %>% mutate(h5file=h5file,dim=as.integer(dim)) %>%
+    filter(dclass %in% c("INTEGER","FLOAT","DOUBLE"))
+  if(!is.null(subcols)){
+    datarows <- filter(datarows,name %in% subcols)
+  }
+  # Rcpp::DataFrame read_h5_df_col(const std::string h5file, const std::string groupname, const std::string dataname,const std::string dclass,const arma::uvec col_index){
+  # name <- datarows$name[1]
+  # dclass <- datarows$dclass[1]
+  # tres <-   read_h5_df_col(h5file=h5file,groupname=groupname,dataname=name,dclass=dclass,col_index=filtervec)
+  retdf <- bind_rows(lapply(chunkl,function(x,datar){
+    return(datar %>% split(.$name) %>% map(~read_h5_df_col(h5file=h5file,groupname=groupname,dataname=.$name,dclass=.$dclass,col_index=x)) %>% bind_cols())
+  },datar=datarows))
+  return(retdf)
+
+}
+
+
+read_h5_type <-function(h5file,groupname,name,dclass,filtervec=NULL){
   require(dplyr)
   # groupname <- substring(group,2)
   if(dclass=="FLOAT"){
-    return(read_Rfloat_h5(h5file,groupname,name))
+    if(!is.null(filtervec)){
+      return(read_Rfloat_h5(h5file,groupname,name)[filtervec])
+    }else{
+      return(read_Rfloat_h5(h5file,groupname,name))
+    }
   }else{
     if(dclass=="INTEGER"){
-      return(read_Rint_h5(h5file,groupname,name))
+      if(!is.null(filtervec)){
+        return(read_Rint_h5(h5file,groupname,name)[filtervec])
+      }else{
+        return(read_Rint_h5(h5file,groupname,name))
+      }
     }else{
       stop(paste0("Type:",dclass," not supported by read_h5_type\n"))
     }
   }
 }
+
 
 
 

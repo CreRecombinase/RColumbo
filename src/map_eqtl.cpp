@@ -45,6 +45,24 @@ arma::fmat betaMatrix(const arma::fmat &Genotype,const arma::fmat &Expression) {
 }
 
 
+//[[Rcpp::export]]
+Rcpp::DataFrame cor_h5(const std::string h5file, const std::string groupname, const std::string dataname, const arma::uvec indvec,const float LDcutoff,const bool cutBelow){
+  arma::fmat tdata= read_fmat_chunk_ind(h5file,groupname,dataname,indvec);
+  arma::fmat rmat=arma::abs(cor(tdata));
+  arma::umat sigind;
+  if(cutBelow){
+    sigind=arma::ind2sub(arma::size(rmat),arma::find(rmat<LDcutoff));
+  }else{
+    sigind=arma::ind2sub(arma::size(rmat),arma::find(rmat>LDcutoff));
+  }
+  arma::uvec rowind=indvec.elem(arma::trans(sigind.row(0)));
+  arma::uvec colind=indvec.elem(arma::trans(sigind.row(1)));
+  Rcpp::IntegerVector Row(rowind.begin(),rowind.end());
+  Rcpp::IntegerVector Col(colind.begin(),colind.end());
+  return(Rcpp::DataFrame::create(_["rowind"]= Row,
+                                 _["colind"]= Col));
+}
+
 
 //[[Rcpp::export]]
 arma::fmat rMatrix(const arma::fmat &Genotype,const arma::fmat &Expression){

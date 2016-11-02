@@ -1000,14 +1000,14 @@ arma::fmat read_fmat_h5(const std::string hap_h5file,const std::string groupname
   matrix_dims[1]=chunksize;
 
 
-//   std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
+  //   std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
   hsize_t offseta[1];
   offseta[0]=offset;
   fspace.selectHyperslab(H5S_SELECT_SET,datadim,offseta);
-//  std::cout<<"Allocating matrix of size:"<<matrix_dims[0]<<"x"<<matrix_dims[1]<<std::endl;
+  //  std::cout<<"Allocating matrix of size:"<<matrix_dims[0]<<"x"<<matrix_dims[1]<<std::endl;
   arma::fmat retmat(matrix_dims[0],matrix_dims[1]);
   DataSpace memspace(1,datadim);
-//    std::cout<<"Reading data"<<std::endl;
+  //    std::cout<<"Reading data"<<std::endl;
   dataset->read(retmat.memptr(),mem_arraytype,memspace,fspace);
   mem_arraytype.close();
   memspace.close();
@@ -1114,6 +1114,238 @@ std::vector<int> read_int_h5(const std::string h5file, const std::string groupna
   return(retdat);
 
 }
+
+
+//
+//
+// template <int RTYPE> Vector<RTYPE> read_h5_col(const std::string h5file, const std::string groupname, const std::string dataname, const std::string dclass, const arma::uvec col_index){
+//
+//   using namespace Rcpp;
+//   const size_t indnum=col_index.n_elem;
+//
+//   H5FilePtr file=open_file(h5file);
+//   H5GroupPtr group=open_group(file,groupname);
+//   H5DataSetPtr dataset =open_blosc_dataset(group,dataname);
+//   DataType dt = dataset->getDataType();
+//   DataSpace fspace =dataset->getSpace();
+//
+//   hsize_t datadim[]={0,0};
+//   fspace.getSimpleExtentDims(datadim,NULL);
+//
+//   hsize_t readrows=datadim[0];
+//   if(indnum==0){
+//     std::cout<<"Reading entire dataset"<<std::endl;
+//     if(datadim[0]==1&&datadim[1]!=0){
+//       fspace.close();
+//       dataset->close();
+//       file->close();
+//       DataSpace memspace(1,datadim);
+//       if(dclass=="FLOAT"){
+//         if(dt.getSize()==4){
+//           arma::fvec retdat=arma::vectorise(read_fmat_h5(h5file,groupname,dataname,0,datadim[1]));
+//           memspace.close();
+//           return(Rcpp::DataFrame::create(_[dataname]= Rcpp::NumericVector(retdat.begin(),retdat.end())));
+//         }else{
+//           arma::fvec retdat =arma::conv_to<arma::fvec>::from(arma::vectorise(read_dmat_h5(h5file,groupname,dataname,0,datadim[1])));
+//           memspace.close();
+//           return(Rcpp::DataFrame::create(_[dataname]= Rcpp::NumericVector(retdat.begin(),retdat.end())));
+//         }
+//       }else{
+//         Rcpp::stop("reading matrix class of given data type is not yet supported");
+//       }
+//     }
+//     if(dclass=="FLOAT"){
+//       std::vector<float> retdat(datadim[0]);
+//       //std::cout<<"Reading in float dataset "<<dataname<<std::endl;
+//       DataSpace memspace(1,datadim);
+//       dataset->read(&retdat[0],PredType::NATIVE_FLOAT,memspace,fspace);
+//       fspace.close();
+//       memspace.close();
+//       dataset->close();
+//       file->close();
+//       //  std::cout<<"Last element of data is :"<<retdat[retdat.size()-1]<<std::endl;
+//       return(Rcpp::DataFrame::create(_[dataname]= Rcpp::NumericVector(retdat.begin(),retdat.end())));
+//     }else{
+//       if(dclass=="INTEGER"){
+//         std::vector<int> retdat(datadim[0]);
+//         //      std::cout<<"Reading in float dataset "<<dataname<<std::endl;
+//         DataSpace memspace(1,datadim);
+//         dataset->read(&retdat[0],PredType::NATIVE_INT,memspace,fspace);
+//         fspace.close();
+//         memspace.close();
+//         dataset->close();
+//         file->close();
+//         //  std::cout<<"Last element of data is :"<<retdat[retdat.size()-1]<<std::endl;
+//         return(Rcpp::DataFrame::create(_[dataname]= Rcpp::IntegerVector(retdat.begin(),retdat.end())));
+//       }
+//     }
+//   }else{
+//
+//     arma::sword min_ind= arma::min(col_index);
+//     arma::sword max_ind= arma::max(col_index);
+//
+//     arma::uword chunksize=max_ind-min_ind+1;
+//     std::cout<<"Reading subset of size: "<<chunksize<<" from "<<min_ind<<" to "<<max_ind<<std::endl;
+//     arma::uvec scol_index = col_index-min_ind;
+//     hsize_t offseta[1];
+//     offseta[0] =min_ind-1;
+//     hsize_t memdim[1];
+//     memdim[0]=chunksize;
+//     fspace.selectHyperslab(H5S_SELECT_SET,memdim,offseta);
+//
+//     //   std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
+//     //    fspace.selectElements(H5S_SELECT_SET,indnum,scol_index.memptr());
+//     //  std::cout<<"Allocating matrix of size:"<<matrix_dims[0]<<"x"<<matrix_dims[1]<<std::endl;
+//     DataSpace memspace(1,memdim);
+//
+//     if(dclass=="FLOAT"){
+//       arma::fvec retdat(chunksize);
+//       //      std::cout<<"Reading float data"<<std::endl;
+//       dataset->read(retdat.memptr(),PredType::NATIVE_FLOAT,memspace,fspace);
+//       retdat = retdat.elem(scol_index);
+//       memspace.close();
+//       fspace.close();
+//       group->close();
+//       dataset->close();
+//       file->close();
+//       return(Rcpp::DataFrame::create(_[dataname]= Rcpp::NumericVector(retdat.begin(),retdat.end())));
+//     }else{
+//       if(dclass=="INTEGER"){
+//         arma::Col<int> retdat(chunksize,arma::fill::zeros);
+//         std::cout<<"Reading in integer dataset "<<dataname<<std::endl;
+//         dataset->read(retdat.memptr(),PredType::NATIVE_INT,memspace,fspace);
+//         std::cout<<"Subsetting integer dataset "<<dataname<<std::endl;
+//         retdat=retdat.elem(scol_index);
+//         fspace.close();
+//         memspace.close();
+//         dataset->close();
+//         file->close();
+//         return(Rcpp::DataFrame::create(_[dataname]= Rcpp::IntegerVector(retdat.begin(),retdat.end())));
+//       }else{
+//         Rcpp::stop("reading matrix class of given data type is not yet supported");
+//       }
+//     }
+//   }
+// }
+
+
+
+// }
+
+//[[Rcpp::export]]
+Rcpp::DataFrame read_h5_df_col(const std::string h5file, const std::string groupname, const std::string dataname,const std::string dclass,const arma::uvec col_index){
+
+  using namespace Rcpp;
+  const size_t indnum=col_index.n_elem;
+
+  H5FilePtr file=open_file(h5file);
+  H5GroupPtr group=open_group(file,groupname);
+  H5DataSetPtr dataset =open_blosc_dataset(group,dataname);
+  DataType dt = dataset->getDataType();
+  DataSpace fspace =dataset->getSpace();
+
+  hsize_t datadim[]={0,0};
+  fspace.getSimpleExtentDims(datadim,NULL);
+
+  hsize_t readrows=datadim[0];
+  if(indnum==0){
+    std::cout<<"Reading entire dataset"<<std::endl;
+    if(datadim[0]==1&&datadim[1]!=0){
+      fspace.close();
+      dataset->close();
+      file->close();
+      DataSpace memspace(1,datadim);
+      if(dclass=="FLOAT"){
+        if(dt.getSize()==4){
+          arma::fvec retdat=arma::vectorise(read_fmat_h5(h5file,groupname,dataname,0,datadim[1]));
+          memspace.close();
+          return(Rcpp::DataFrame::create(_[dataname]= Rcpp::NumericVector(retdat.begin(),retdat.end())));
+        }else{
+          arma::fvec retdat =arma::conv_to<arma::fvec>::from(arma::vectorise(read_dmat_h5(h5file,groupname,dataname,0,datadim[1])));
+          memspace.close();
+          return(Rcpp::DataFrame::create(_[dataname]= Rcpp::NumericVector(retdat.begin(),retdat.end())));
+        }
+      }else{
+        Rcpp::stop("reading matrix class of given data type is not yet supported");
+      }
+    }
+    if(dclass=="FLOAT"){
+
+      std::vector<float> retdat(datadim[0]);
+      //std::cout<<"Reading in float dataset "<<dataname<<std::endl;
+      DataSpace memspace(1,datadim);
+      dataset->read(&retdat[0],PredType::NATIVE_FLOAT,memspace,fspace);
+      fspace.close();
+      memspace.close();
+      dataset->close();
+      file->close();
+      //  std::cout<<"Last element of data is :"<<retdat[retdat.size()-1]<<std::endl;
+      return(Rcpp::DataFrame::create(_[dataname]= Rcpp::NumericVector(retdat.begin(),retdat.end())));
+    }else{
+      if(dclass=="INTEGER"){
+        std::vector<int> retdat(datadim[0]);
+        //      std::cout<<"Reading in float dataset "<<dataname<<std::endl;
+        DataSpace memspace(1,datadim);
+        dataset->read(&retdat[0],PredType::NATIVE_INT,memspace,fspace);
+        fspace.close();
+        memspace.close();
+        dataset->close();
+        file->close();
+        //  std::cout<<"Last element of data is :"<<retdat[retdat.size()-1]<<std::endl;
+        return(Rcpp::DataFrame::create(_[dataname]= Rcpp::IntegerVector(retdat.begin(),retdat.end())));
+      }
+    }
+  }else{
+
+    arma::sword min_ind= arma::min(col_index);
+    arma::sword max_ind= arma::max(col_index);
+    // std:vector<float> retdat
+    arma::uword chunksize=max_ind-min_ind+1;
+    std::cout<<"Reading subset of size: "<<chunksize<<" from "<<min_ind<<" to "<<max_ind<<std::endl;
+    arma::uvec scol_index = col_index-min_ind;
+    hsize_t offseta[1];
+    offseta[0] =min_ind-1;
+    hsize_t memdim[1];
+    memdim[0]=chunksize;
+    fspace.selectHyperslab(H5S_SELECT_SET,memdim,offseta);
+
+    //   std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
+    //    fspace.selectElements(H5S_SELECT_SET,indnum,scol_index.memptr());
+    //  std::cout<<"Allocating matrix of size:"<<matrix_dims[0]<<"x"<<matrix_dims[1]<<std::endl;
+    DataSpace memspace(1,memdim);
+
+    if(dclass=="FLOAT"){
+      arma::fvec retdat(chunksize);
+      //      std::cout<<"Reading float data"<<std::endl;
+      dataset->read(retdat.memptr(),PredType::NATIVE_FLOAT,memspace,fspace);
+      retdat = retdat.elem(scol_index);
+      memspace.close();
+      fspace.close();
+      group->close();
+      dataset->close();
+      file->close();
+      return(Rcpp::DataFrame::create(_[dataname]= Rcpp::NumericVector(retdat.begin(),retdat.end())));
+    }else{
+      if(dclass=="INTEGER"){
+        arma::Col<int> retdat(chunksize,arma::fill::zeros);
+        std::cout<<"Reading in integer dataset "<<dataname<<std::endl;
+        dataset->read(retdat.memptr(),PredType::NATIVE_INT,memspace,fspace);
+        std::cout<<"Subsetting integer dataset "<<dataname<<std::endl;
+        retdat=retdat.elem(scol_index);
+        fspace.close();
+        memspace.close();
+        dataset->close();
+        file->close();
+        return(Rcpp::DataFrame::create(_[dataname]= Rcpp::IntegerVector(retdat.begin(),retdat.end())));
+      }else{
+        Rcpp::stop("reading matrix class of given data type is not yet supported");
+      }
+    }
+  }
+}
+
+
+
 
 //[[Rcpp::export]]
 Rcpp::IntegerVector read_Rint_h5(const std::string h5file, const std::string groupname, const std::string dataname){
@@ -1237,15 +1469,15 @@ Rcpp::NumericVector read_Rfloat_h5(const std::string h5file, const std::string g
       return(retvec);
     }
     std::vector<float> retdat(datadim[0]);
-//      std::cout<<"Reading in float dataset "<<dataname<<std::endl;
-      dataset->read(&retdat[0],dt,memspace,fspace);
-      fspace.close();
-      memspace.close();
-      dataset->close();
-      file->close();
-      Rcpp::NumericVector retvec(retdat.begin(),retdat.end());
-      //  std::cout<<"Last element of data is :"<<retdat[retdat.size()-1]<<std::endl;
-      return(retvec);
+    //      std::cout<<"Reading in float dataset "<<dataname<<std::endl;
+    dataset->read(&retdat[0],dt,memspace,fspace);
+    fspace.close();
+    memspace.close();
+    dataset->close();
+    file->close();
+    Rcpp::NumericVector retvec(retdat.begin(),retdat.end());
+    //  std::cout<<"Last element of data is :"<<retdat[retdat.size()-1]<<std::endl;
+    return(retvec);
   }else{
     if(datadim[0]==1&&datadim[1]!=0){
       fspace.close();
@@ -1258,7 +1490,7 @@ Rcpp::NumericVector read_Rfloat_h5(const std::string h5file, const std::string g
       return(retvec);
     }
     std::vector<double> retdat(datadim[0]);
-//    std::cout<<"Reading in double dataset"<<dataname<<std::endl;
+    //    std::cout<<"Reading in double dataset"<<dataname<<std::endl;
     dataset->read(&retdat[0],dt,memspace,fspace);
     fspace.close();
     memspace.close();
