@@ -4,8 +4,7 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
-// [[Rcpp::depends(RcppProgress)]]
-#include <progress.hpp>
+
 
 // This is a simple example of exporting a C++ function to R. You can
 // source this function into an R session using the Rcpp::sourceCpp
@@ -47,6 +46,7 @@ arma::fmat betaMatrix(const arma::fmat &Genotype,const arma::fmat &Expression) {
 
 //[[Rcpp::export]]
 Rcpp::DataFrame cor_h5(const std::string h5file, const std::string groupname, const std::string dataname, const arma::uvec indvec,const float LDcutoff,const bool cutBelow){
+  using namespace Rcpp;
   arma::fmat tdata= read_fmat_chunk_ind(h5file,groupname,dataname,indvec);
   arma::fmat rmat=arma::abs(cor(tdata));
   arma::umat sigind;
@@ -354,7 +354,7 @@ Rcpp::DataFrame extract_stats(const arma::fmat &Genotype,const Rcpp::DataFrame s
   arma::fvec snpsd=arma::trans(arma::stddev(Genotype));
   arma::fvec expsd=arma::trans(arma::stddev(Expression));
   arma::fvec tr(rmat.n_rows);
-  Progress p(rmat.n_cols, display_progress);
+  //  Progress p(rmat.n_cols, display_progress);
   bool skipSearch=false;
   if(doCis){
     std::vector<arma::uword> aschroms=arma::conv_to<std::vector<arma::uword>>::from(arma::unique(snp_chrom));
@@ -367,7 +367,7 @@ Rcpp::DataFrame extract_stats(const arma::fmat &Genotype,const Rcpp::DataFrame s
   }
   if(!skipSearch){
     for(arma::uword i=0; i<rmat.n_cols;i++){
-      p.increment();
+    
       tr=rmat.col(i);
       arma::uvec snpind =arma::find(abs(tr)>rcutoff);
       arma::uvec cid=isCis(snp_chrom.elem(snpind),snp_pos.elem(snpind),exp_chrom[i],exp_start[i],exp_stop[i],cisdist);
