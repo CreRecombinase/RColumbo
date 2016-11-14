@@ -1,0 +1,23 @@
+These files are the summary association statistics corresponding to Liu, van Sommeren et al, Nature Genetics, 2015. 
+
+Group 1 files:
+EUR.IBD.gwas.assoc.gz - European IBD 1KGP imputed GWAS meta-analysis
+
+
+Columns:
+CHR - chromosome
+SNP - rsid
+BP - position in b37
+A1 - effect allele 
+A2 - other allele
+FRQ_A_XXXX - effect allele frequency in XXXX cases
+FRQ_U_XXXXX - effect allele frequency in XXXXX controls
+INFO - IMPUTE2 info score
+OR - odds ratio
+beta - log(OR)
+isNovel - whether the variant was (not) previously described as associated
+SE - standard error
+P - P value
+Direction - direction of effect in each study included int he meta-analysis
+HetISqt - Between study Heterogenity score - I squared 
+HetPVa - P value for heterogeneity test
