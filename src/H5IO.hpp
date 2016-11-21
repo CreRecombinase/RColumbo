@@ -1,10 +1,6 @@
 #ifndef H5IO_HPP
 #define H5IO_HPP
 #include "RcppArmadillo.h"
-#include "tbb/tbb.h"
-#include "tbb/concurrent_hash_map.h"
-#include "tbb/blocked_range.h"
-#include "tbb/parallel_for.h"
 #include <unordered_map>
 #include <vector>
 #include <tuple>

@@ -11,7 +11,6 @@
 #include "h5func.hpp"
 #include "snp_exp.hpp"
 #include <zlib.h>
-#include "tbb/tbb.h"
 
 #define ARMA_USE_CXX11
 // This is a simple example of exporting a C++ function to R. You can
@@ -652,25 +651,25 @@ arma::fmat read_fmat_rowname(const std::string h5file,const std::string annogrou
 }
 
 
-void tbb_dist(const arma::frowvec &cummapa,const arma::frowvec &cummapb,arma::fmat &distmat,bool isDiag){
-  using namespace tbb;
-#pragma warning(disable: 588)
-  distmat.set_size(cummapa.n_elem,cummapb.n_elem);
-  size_t n=distmat.n_rows;
-  size_t itern=(n*n-n)/2;
-  if(isDiag){
-    parallel_for(size_t(0),itern,[&](size_t ind){
-      size_t i= n-2-floor(sqrt(-8*ind+4*n*(n-1)-7)/2.0-0.5);
-      size_t j= ind+i+1-n*(n-1)/2+(n-i)*((n-i)-1)/2;
-      distmat.at(i,j)=cummapb[j]-cummapa[i];
-      });
-  }
-  else{
-    parallel_for(size_t(0),n,[&](size_t ind){
-      distmat.row(ind)=cummapb-cummapa(ind);
-    });
-  }
-}
+// void tbb_dist(const arma::frowvec &cummapa,const arma::frowvec &cummapb,arma::fmat &distmat,bool isDiag){
+//   using namespace tbb;
+// #pragma warning(disable: 588)
+//   distmat.set_size(cummapa.n_elem,cummapb.n_elem);
+//   size_t n=distmat.n_rows;
+//   size_t itern=(n*n-n)/2;
+//   if(isDiag){
+//     parallel_for(size_t(0),itern,[&](size_t ind){
+//       size_t i= n-2-floor(sqrt(-8*ind+4*n*(n-1)-7)/2.0-0.5);
+//       size_t j= ind+i+1-n*(n-1)/2+(n-i)*((n-i)-1)/2;
+//       distmat.at(i,j)=cummapb[j]-cummapa[i];
+//       });
+//   }
+//   else{
+//     parallel_for(size_t(0),n,[&](size_t ind){
+//       distmat.row(ind)=cummapb-cummapa(ind);
+//     });
+//   }
+// }
 
 
 void ip_dist(const arma::frowvec &cummapa,const arma::frowvec &cummapb,arma::fmat &distmat,bool isDiag){
