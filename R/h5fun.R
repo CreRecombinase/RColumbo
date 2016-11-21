@@ -47,9 +47,9 @@ write_geno_h5 <- function(mapfile,gengz,famfile,dbsnpfile,h5file,chunksize=10000
 
 
 
-sample_h5_df <-function(mh5file,groupname,blocksize=20000,pval.cutoff=1e-5,gwasdf=NULL){
+sample_h5_df <-function(mh5file,groupname,blocksize=20000,pval.cutoff=1e-5,gwasdf=NULL,tstat_df=337){
   require(rhdf5)
-  cut_t <- qt(p = pval.cutoff,df = 337,lower.tail = F)
+  cut_t <- qt(p = pval.cutoff,df = tstat_df,lower.tail = F)
   tdf <- read_h5_df(mh5file,groupname=groupname,subcols = c("theta","serr"))
 
   filtervec <- abs(tdf$theta/tdf$serr)>cut_t
@@ -62,7 +62,7 @@ sample_h5_df <-function(mh5file,groupname,blocksize=20000,pval.cutoff=1e-5,gwasd
   if(!is.null(gwasdf)){
     sigdf <- inner_join(sigdf,gwasdf,by=c("chrom","pos"))
   }
-  sigdf<-  mutate(sigdf,tstat=theta/serr) %>% mutate(pvale=pt(abs(tstat),337,lower.tail = F)) %>%
+  sigdf<-  mutate(sigdf,tstat=theta/serr) %>% mutate(pvale=pt(abs(tstat),tstat_df,lower.tail = F)) %>%
     group_by(fgeneid,ldblock) %>% filter(pvale==min(pvale)) %>% ungroup()
   gc()
   return(sigdf)
@@ -389,28 +389,23 @@ read_gtex_expression <- function(gzfile,h5file){
 
 
 
-read_dgn_exp <- function(ngzfile,h5file,chunksize=100000){
-
-
-
-
-}
-
-
-read_gtex_snp <- function(ngzfile,h5file,chunksize=100000){
+read_gtex_snp <- function(ngzfile,h5file,chunksize=100000,FlipAllele=T){
   require(readr)
   require(tidyr)
   require(dplyr)
   wbrows <- as.integer(strsplit(system(paste0("wc -l ",ngzfile),intern = T),split = " ")[[1]][1])
   gtex_cbf <- function(x,pos){
     th5file <- h5file
+    flipA=FlipAllele
     annocols <-c("chrom","pos","ref","alt","b37")
     nx <-separate(x,Id,into = annocols,sep="_") %>% mutate(doFlip=as.integer(ref<alt))
     annodf <- select(nx,one_of(annocols),doFlip) %>% select(-ref,-alt,-b37) %>%
       mutate(chrom=ifelse(chrom=="X",23,chrom)) %>% mutate(chrom=as.integer(chrom),pos=as.integer(pos))
     rmna <- is.na(annodf$chrom)|is.na(annodf$pos)
     datamat <- data.matrix(select(nx,-one_of(annocols),-doFlip))
-     datamat[nx$doFlip==1,] <-abs(2-datamat[nx$doFlip==1,])
+    if(flipA){
+      datamat[nx$doFlip==1,] <-abs(2-datamat[nx$doFlip==1,])
+    }
     datamat <- datamat[!rmna,]
     annodf <- filter(annodf,!rmna)
     write_h5_df(df = annodf,group = "SNPinfo",outfile = th5file,deflate_level = 4)
@@ -421,9 +416,36 @@ read_gtex_snp <- function(ngzfile,h5file,chunksize=100000){
   return(T)
 }
 
+ write_gtex_eqtl_h5 <- function(txtfile,eqtlh5file,chunksize=500000){
+   require(readr)
+   require(tidyr)
+   require(dplyr)
+
+
+   gtex_cbf <- function(x,pos){
+     th5file <- eqtlh5file
+     annocols <-c("chrom","pos","ref","alt","b37")
+     nx <-separate(x,variant_id,into = annocols,sep="_",convert = T) %>% mutate(doFlip=as.integer(ref<alt),fgeneid=as.integer(gsub("ENSG([0-9]+).+","\\1",gene_id)))
+     annodf <- select(nx,-b37,-gene_id,-ref,-alt) %>%rename(pval.e=pval_nominal,weight=slope) %>%
+       mutate(chrom=ifelse(chrom=="X",23,chrom)) %>%
+       mutate(chrom=as.integer(chrom),
+              pos=as.integer(pos),
+              weight=ifelse(doFlip==1,-weight,weight))
+     rmna <- is.na(annodf$chrom)|is.na(annodf$pos)
+     annodf <- filter(annodf,!rmna)
+     write_h5_df(df = annodf,group = "cis_eQTL",outfile = th5file,deflate_level = 4)
+   }
+   wbdf <- read_delim_chunked(txtfile,delim = "\t",col_names=T,callback = SideEffectChunkCallback$new(gtex_cbf),chunk_size = chunksize)
+   gc()
+   return(T)
+ }
+
+
+
 
 
 write_h5_df <- function(df,group,outfile,deflate_level=4){
+  library(h5)
   dataname <- colnames(df)
   for(i in 1:length(dataname)){
     td <- df[[dataname[i]]]
@@ -435,8 +457,21 @@ write_h5_df <- function(df,group,outfile,deflate_level=4){
         write_Rnumeric_h5(h5file = outfile,groupname = group,dataname = dataname[i],data = td,deflate_level = deflate_level)
       }
       else{
+        if(typeof(td)=="character"){
+          f <- h5file(outfile)
+          dsn <- paste0(group,"/",dataname[i])
+          tdata <- f[dsn]
+          if(!is.null(nrow(tdata))){
+            tdata <- c(tdata,td)
+          }else{
+            tdata <- td
+          }
+          h5close(f)
+        }else{
+
         stop(paste0("type for ",dataname[i]," is :",typeof(td)," no matching method to write to HDF5"))
       }
+    }
     }
   }
 }
