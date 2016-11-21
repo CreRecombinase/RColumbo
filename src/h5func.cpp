@@ -1116,6 +1116,8 @@ std::vector<int> read_int_h5(const std::string h5file, const std::string groupna
 }
 
 
+
+
 //
 //
 // template <int RTYPE> Vector<RTYPE> read_h5_col(const std::string h5file, const std::string groupname, const std::string dataname, const std::string dclass, const arma::uvec col_index){
@@ -2260,6 +2262,62 @@ int write_Rnumeric_h5(const std::string h5file, const std::string groupname, con
 }
 
 
+
+
+
+//
+// int write_RString_h5(const std::string h5file, const std::string groupname, const std::string dataname, Rcpp::CharacterVector &data,const int deflate_level){
+//   using namespace Rcpp;
+//
+//   char** strbuf = (char**) R_alloc(LENGTH(data),sizeof(char*));
+//   for(int i=0; i<LENGTH(data); i++){
+//     strbuf[i]=(char*)CHAR(STRING_ELT(data,i));
+//   }
+//   int ret = write_char_h5(h5file,groupname,dataname,H5S_UNLIMITED,strbuf,deflate_level);
+//   return(ret);
+// }
+//
+// int write_char_h5(const std::string h5file, const std::string groupname, const std::string dataname,const hsize_t Nsnps, void *data,const  int deflate_level){
+//
+//     typedef std::vector<float> istd;
+//     std::vector<float>tdata = arma::conv_to<istd>::from(data);
+//     hsize_t chunkstart=0;
+//     size_t chunksize = tdata.size();
+//     std::vector<hsize_t> cumdim{0};
+//     std::vector<hsize_t> maxdim{Nsnps};
+//     std::vector<hsize_t> chunkdim{chunksize};
+//     H5FilePtr file =create_or_open_file(h5file);
+//     H5GroupPtr group=create_or_open_group(file,groupname);
+//     H5DataSetPtr dataset = create_or_open_dataset(group,dataname,PredType::NATIVE_FLOAT,cumdim,maxdim,chunkdim,deflate_level);
+//
+//     DataSpace* fdataspace = new DataSpace(dataset->getSpace());
+//     hsize_t datadim[1];
+//     fdataspace->getSimpleExtentDims(datadim,NULL);
+//     chunkstart = datadim[0];
+//     datadim[0]=datadim[0]+chunksize;
+//     dataset->extend(datadim);
+//     hsize_t memdim[]={chunksize};
+//     fdataspace->close();
+//     delete fdataspace;
+//     fdataspace = new DataSpace(dataset->getSpace());
+//     fdataspace->getSimpleExtentDims(datadim,NULL);
+//
+//     DataSpace *mspace= new DataSpace(1,memdim); //Size of first dataset (in memory, can be bigger or smaller than size on disk, depending on how much you're writing)
+//     hsize_t odim[]={chunkstart};//dimension of each offset (current_chunk*chunksize)
+//     hsize_t stridea[]={1};
+//     hsize_t blocka[]={1};
+//     //  std::cout<<"Getting Data dimensions"<<std::endl;
+//     fdataspace->selectHyperslab( H5S_SELECT_SET, memdim, odim,stridea,blocka);
+//     std::cout<<"Starting to write data"<<std::endl;
+//     dataset->write(&tdata[0],PredType::NATIVE_FLOAT,*mspace,*fdataspace);
+//     file->flush(H5F_SCOPE_GLOBAL);
+//     dataset->close();
+//     mspace->close();
+//     fdataspace->close();
+//     group->close();
+//     file->close();
+//     return(0);
+//   }
 
 
 
