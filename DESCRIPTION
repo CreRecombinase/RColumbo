@@ -8,5 +8,5 @@ Description: More about what it does (maybe more than one line)
 License: What license is it under?
 LazyData: TRUE
 LinkingTo:Rcpp,RcppArmadillo
-Imports: rhdf5,Matrix,dplyr,future,Rcpp (>= 0.12.5),tidyr,BBmisc,glmnet,broom,gdsfmt,SNPRelate,feather
+Imports: rhdf5,Matrix,dplyr,future,Rcpp (>= 0.12.5),tidyr,BBmisc,glmnet,broom,gdsfmt,SNPRelate
 Suggests: testthat
