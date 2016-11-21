@@ -11,6 +11,38 @@
 
 
 
+sub_cistrans <- function(tsnp,texp,cisdist=1e6){
+  length_snps <-length(tsnp)
+  length_exps <- length(texp)
+  dfl <- list()
+  for(i in 1:length_snps){
+    cat(i,"\n")
+    for(j in 1:length_exps){
+      cat(j,"\n")
+      dfl[[paste0(i,"_",j)]] <- full_join(tsnp[[i]],texp[[j]],by="chrom") %>% filter((pos>pmax(start-cisdist,0)),(pos<start+cisdist))
+    }
+  }
+  retdf <- bind_rows(dfl)
+  return(retdf)
+}
+
+
+map_cistrans <- function(snpleg,expleg,maxsize=10000,cisdist=1e6,outh5file=NULL,write=T){
+  ##Assumes that snps are ordered by chrom, then by pos
+  ##Assumes that genes are ordered by chrom then start, then stop
+  snp_list <- split(snpleg,snpleg$chrom)
+  exp_list <- split(expleg,expleg$chrom)
+  snp_list <- lapply(snp_list,chunk_df,chunk.size=maxsize)
+  exp_list <- lapply(exp_list,chunk_df,chunk.size=maxsize)
+  cis_transdf <- bind_rows(mapply(sub_cistrans,snp_list,exp_list,SIMPLIFY = F))
+  if(write==T){
+    stopifnot(!is.null(outh5file))
+    write_h5_df(df=cis_transdf,group="cis",outfile = outh5file,deflate_level = 4)
+  }else{
+  return(cis_transdf)
+  }
+}
+
 flipmat <- function(hapd,doFlip){
   nhapd <- rbind(doFlip,hapd)
   rhapd <- apply(nhapd,2,function(x){
@@ -734,7 +766,7 @@ run_eqtl<- function(rawh5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcut
   # gwash5 <- "~/Desktop/eQTL/Snake/IBD.h5"
   cat(paste0("Preparing data for chromosome:",chromosome,"\n"))
   snpleg <- read_h5_df(rawh5,"SNPinfo") %>% mutate(snp_ind=1:n())
-  expleg <-read_h5_df(rawh5,"EXPinfo") %>% mutate(exp_ind=1:n()) %>% rename(chrom=chr)
+  expleg <-read_h5_df(rawh5,"EXPinfo") %>% mutate(exp_ind=1:n())
   # expleg <- as_data_frame(t(h5read(rawh5,"EXPinfo/annomat"))) %>% rename(fgeneid=V1,sgeneid=V2,chrom=V3,TSStart=V4,TSStop=V5) %>% mutate(exp_id=0:(length(fgeneid)-1))
   # expleg <- rename(expleg,start=TSStart,end=TSStop)
   if(useortho){
@@ -746,6 +778,7 @@ run_eqtl<- function(rawh5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcut
 
 
   cis_tcutoff <- abs(qt(cis_pcutoff,df = nrow(bexpdat)-2,lower.tail = F))
+
   trans_tcutoff <- abs(qt(trans_pcutoff,df=nrow(bexpdat)-2,lower.tail=F))
   chleg <- filter(snpleg,chrom==chromosome)
   dfl <- chunk_df(chleg,chunk.size = chunksize)
