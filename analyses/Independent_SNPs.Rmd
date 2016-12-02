@@ -1,0 +1,364 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Obtain Independent SNP set from DGN and GTEx data
+
+Data will now be stored using the Genomic Data Structure (GDS) file format, so that we can use the SNPrelate packages
+```{r,echo=FALSE,message=FALSE}
+library(ggplot2)
+library(dplyr)
+library("devtools")
+library(rhdf5)
+library(RColumbo)
+```
+
+
+
+
+Now we can look at patterns of eQTL and GWAS sharing in Whole Blood (first in GTEx)
+
+
+
+```{r}
+library(dplyr)
+library(feather)
+
+
+allresfeather <- "/media/nwknoblauch/Data/GTEx/all_res_ortho_flip.feather"
+dgnallresfeather <- "/media/nwknoblauch/Data/DGN/Lev/eQTL/DGN_eQTL.feather"
+gtex_eqtl <- "/media/nwknoblauch/Data/GTEx/eQTL/GTEx_Analysis_v6p_all-associations/Whole_Blood_Analysis.v6p.all_snpgene_pairs.txt.gz"
+
+
+gtex_allres <- read_feather(allresfeather)
+dgn_allres <- read_feather(dgnallresfeather)
+gtex_allres <- mutate(gtex_allres,isCis=ifelse(is.na(isCis),T,isCis))
+
+cis_gtex <- read_delim(gtex_eqtl,delim="\t",col_names=T)
+
+all_res <- select(all_res,fgeneid,theta,beta,serrg,isCis)
+
+bres <- inner_join(gtex_allres,dgn_allres,by=c("chrom","pos","fgeneid"),suffix=c(".GTEx",".DGN"))
+
+
+bres <- mutate(bres,isCis=as.integer(isCis.GTEx&isCis.DGN))
+bres <- group_by(bres,fgeneid,isCis) %>% summarise(snpct=n()) %>% ungroup() %>% arrange(desc(snpct)) %>% inner_join(bres)
+breslm <- filter(bres,snpct>4) %>% group_by(fgeneid) %>% nest(theta.GTEx,serr.GTEx,theta.DGN) %>% mutate(model=purrr::map(data,~lm(theta.GTEx~theta.DGN,data=.,weights=1/.$serr.GTEx^2)))
+bressumm <- breslm %>% unnest(model %>% purrr::map(tidy)) 
+bressumm %>%  filter(term=="theta.DGN") %>% arrange(p.value) %>% head
+ggplot(bressumm)+geom_histogram(aes(x=estimate))+facet_wrap(~term)
+
+summary(lm(theta.GTEx~theta.DGN*isCis,weights = (1/bres$serr.GTEx^2),data=bres))
+
+
+ggplot(bres,aes(x=abs(theta.GTEx),y=abs(theta.DGN)))+geom_point()+geom_abline()+facet_wrap(~isCis.GTEx)
+
+ggplot(all_res)+geom_histogram(aes(x=log10(pvale),..density..),bins=10000)+ggtitle(label = "Histogram of eQTL p-values")
+```
+
+
+
+```{r}
+snpct <- group_by(all_res,chrom,pos,isCis) %>% summarise(ngene=n()) %>% ungroup()
+ggplot(snpct)+geom_histogram(aes(x=ngene,..density..))+facet_wrap(~isCis,scales="free")+ggtitle("Genes per SNP")
+```
+
+
+```{r}
+
+all_res <- inner_join(snpct,all_res,by=c("chrom","pos","isCis"))
+all_res <- mutate(all_res,pvale=pt(abs(tstat),df = 337,lower.tail = F))
+ggplot(all_res)+geom_hex(aes(x = log10(pvale),y=ngene))
+
+genect <- group_by(all_res,fgeneid,isCis) %>% summarise(nsnp=n(),min.pg=min(pvalg),min.pe=min(pvale))
+ggplot(genect)+geom_histogram(aes(x=nsnp,..density..))+facet_wrap(~isCis,scales = "free")+ggtitle(label = "SNPs per Gene (by Cis status)")
+all_res <- inner_join(all_res,genect,by=c("fgeneid","isCis"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+ggplot(all_res)+geom_histogram(aes(x=pvale),bins=10000)+facet_wrap(~isCis,scales = "free")+ggtitle(label = "histogram of eQTLs (cis vs trans)")
+head(all_res) %>% mutate(ensid=paste0("ENSG",sprintf("%011d",fgeneid)))
+
+
+```
+
+```{r}
+
+
+
+```
+
+
+```{r}
+ggplot(all_res)+geom_histogram(aes(x=beta),bins=1000)
+```
+
+
+
+```{r}
+library(purrr)
+library(tidyr)
+library(broom)
+# saveRDS(all_res,"/media/nwknoblauch/Data/GTEx/all_res_no_ortho.RDS")
+all_res <- filter(all_res,pvale<0.015)
+genect <- group_by(genect,isCis) %>% arrange(desc(nsnp)) %>% ungroup()
+
+best_gene <- group_by(genect,isCis) %>% arrange(desc(nsnp)) %>% slice(1:100) %>% ungroup()
+
+sub_res <- semi_join(all_res,best_gene,by=c("fgeneid","isCis"))
+
+sub_lambda_noi_cistrans <- sub_res %>% select(-ldblock,-rsid) %>% group_by(fgeneid,isCis) %>% nest() %>% mutate(model=purrr::map(data,~lm(log(beta)~theta+0,data=.,weights=1/.$serrg^2)))
+
+sub_summs <- sub_lambda_noi_cistrans %>% unnest(model %>% purrr::map(glance))
+sub_effects <- sub_lambda_noi_cistrans %>% unnest(model %>% purrr::map(tidy))
+sub_resid <- sub_lambda_noi_cistrans %>% unnest(model %>% purrr::map(broom::augment))
+
+ggplot(sub_resid,aes(x=abs(theta),y=abs(.resid),color=isCis))+geom_point() +geom_abline()+facet_wrap(~isCis)
+
+```
+
+```{r}
+ggplot(sub_resid,aes(x=abs(theta),y=abs(.resid),color=isCis))+geom_point() +geom_abline()+facet_wrap(~isCis)
+```
+
+
+
+```{r}
+all_lambda_noi <- group_by(all_res,fgeneid) %>% filter(n_distinct(theta)>3,n_distinct(beta)>3) %>% 
+  do(par=coef(summary(lm(log(beta)~theta+0,data = .,weights = 1/.$serrg^2))),
+     fgeneid=.$fgeneid[1],nsnp=nrow(.)) %>%
+  do(data.frame(lambda=.$par[1,1],p=.$par[1,4],fgeneid=.$fgeneid[1],
+                t=.$par[1,3],n=.$n[1])) %>% ungroup() %>% arrange(p) 
+
+all_lambda_noi <- mutate(all_lambda_noi,q=p.adjust(p,method="fdr"))
+
+
+
+cis_trans_lambda <- group_by(all_res,fgeneid,isCis) %>% filter(n_distinct(theta)>3,n_distinct(beta)>3) %>% 
+  do(par=coef(summary(lm(log(beta)~theta+0,data = .,weights = 1/(.$serrg^2)))),
+     fgeneid=.$fgeneid[1],nsnp=nrow(.),isCis=.$isCis[1]) %>%
+  do(data.frame(lambda=.$par[1,1],p=.$par[1,4],fgeneid=.$fgeneid[1],
+                t=.$par[1,3],n=.$n[1],isCis=.$isCis[1])) %>% ungroup() %>% arrange(p) 
+cis_trans_lambda <- group_by(cis_trans_lambda,isCis) %>% mutate(q=p.adjust(p,method="fdr")) %>% ungroup() %>% arrange(q)
+
+sub_cis_trans_lamb <- filter(cis_trans_lambda,p<0.05) %>% select(fgeneid,lambda,isCis) %>% mutate(isCis=ifelse(isCis==T,"Cis","Trans"))  %>% spread(isCis,lambda) %>% na.omit()
+ggplot(sub_cis_trans_lamb) +geom_point(aes(x=Cis,y=Trans))
+cor(sub_cis_trans_lamb$Cis,sub_cis_trans_lamb$Trans)
+
+
+head(all_lambda_noi) %>%mutate(ensid=paste0("ENSG",sprintf("%011d",fgeneid)))
+ggplot(cis_trans_lambda)+geom_histogram(aes(x=lambda,..density..),bins=100)+facet_wrap(~isCis,scales = "free")
+ggplot(all_lambda_noi)+geom_histogram(aes(x=p),bins=100)
+
+```
+
+
+How do the residuals look vs the predictors (and their std. error?)
+
+```{r}
+library(tidyr)
+library(ggplot2)
+library(broom)
+library(purrr)
+library(dplyr)
+all_genes <- unique(all_res$fgeneid)
+lambda_interf <- "~/Desktop/eQTL/lambda_inter.RDS"
+lambda_nointerf <- "~/Desktop/eQTL/lambda_nointer.RDS"
+lambda_inter <- readRDS(lambda_interf)
+
+lambda_inter <- all_res %>% 
+  mutate(isCis=as.integer(isCis),beta=log(beta)) %>% 
+  select(serrg,theta,beta,serrg,fgeneid,isCis)  %>%
+  group_by(fgeneid) %>% 
+  nest() %>% 
+  mutate(model=purrr::map(data,~lm(beta~theta*isCis+0,data=.,weights=1/(.$serrg^2)))) %>% 
+  select(-data) %>% 
+  unnest(model %>% purrr::map(broom::tidy))
+
+saveRDS(lambda_inter,lambda_interf)
+
+lambda_nointer <- all_res %>% 
+  mutate(isCis=as.integer(isCis),beta=log(beta)) %>% 
+  select(serrg,theta,beta,serrg,fgeneid,isCis)  %>%
+  group_by(fgeneid) %>% 
+  nest() %>% 
+  mutate(model=purrr::map(data,~lm(beta~theta+0,data=.,weights=1/(.$serrg^2)))) %>% 
+  select(-data) %>% 
+  unnest(model %>% purrr::map(broom::tidy))
+
+lsos()
+saveRDS(lambda_nointer,lambda_nointerf)
+
+```
+
+
+
+```{r}
+library(dplyr)
+library(RColumbo)
+library(ggplot2)
+
+
+cis_res <- readRDS("~/Desktop/eQTL/cis_res_gwas.RDS")
+
+
+
+tcis_res <- filter(cis_res,fgeneid %in% fgeneid[1:5])
+all_lambdas_cis <-group_by(cis_res,fgeneid) %>% filter(n_distinct(theta)>3,n_distinct(beta)>3) %>%  
+  do(par=coef(summary(lm(beta~theta,data = .,weights = 1/.$serr))),
+     fgeneid=.$fgeneid[1],nsnp=nrow(.)) %>% 
+  do(data.frame(intercept=.$par[1,1],
+                lambda=.$par[2,1],
+                p=.$par[2,4],
+                fgeneid=.$fgeneid[1],
+                nsnp=.$nsnp[1],
+                t=.$par[2,3])) %>% ungroup()
+  
+  
+ggplot(all_lambdas_cis)+geom_histogram(aes(x=lambda),bins = 1000)
+```
+```{r}
+
+ggplot(all_lambdas_cis)+geom_histogram(aes(x=abs(lambda)),bins = 1000)
+
+
+```
+
+```{r}
+
+all_lambdas_cis_noi <-group_by(cis_res,fgeneid) %>% filter(n_distinct(theta)>3,n_distinct(beta)>3) %>%   
+  do(par=coef(summary(lm(beta~theta+0,data = .,weights = 1/.$serr))),fgeneid=.$fgeneid[1],nsnp=nrow(.)) %>%
+  do(data.frame(lambda=.$par[1,1],p=.$par[1,4],fgeneid=.$fgeneid[1],
+                t=.$par[1,3],n=.$n[1])) %>% ungroup()
+  
+  
+
+i_noi <- select(all_lambdas_cis_noi,lambda_noi=lambda,fgeneid)
+
+
+```
+
+
+
+Now for the independent results
+```{r}
+library(tidyr)
+library(purrr)
+
+ind_gtex_leg <- select(ind_gtex_leg,pos=position,chrom)
+trans_res <- read_h5_df(eqtlh5s[19],"trans_eQTL")
+
+trans_res <- bind_rows(lapply(eqtlh5s,function(x,ind){
+  return(inner_join(read_h5_df(x,"trans_eQTL"),ind))
+},ind=ind_gtex_leg))
+itrans_res <- inner_join(dbsnpdat,trans_res) %>% inner_join(gwas_dat)
+
+lambda_trans <- group_by(itrans_res,fgeneid) %>% filter(n_distinct(theta)>3,n_distinct(beta)>3) %>%
+  do(par=coef(summary(lm(beta~theta+0,data = .,weights = 1/.$serr))),fgeneid=.$fgeneid[1],nsnp=nrow(.)) %>%
+  do(data.frame(lambda=.$par[1,1],p=.$par[1,4],fgeneid=.$fgeneid[1],
+                t=.$par[1,3],n=.$n[1])) %>% ungroup()
+
+arrange(lambda_trans,desc(abs(lambda))) %>% 
+
+
+
+ind_cis_res <- select(ind_gtex_leg,pos=position,chrom) %>% inner_join(cis_res)
+
+ind_all_lambdas_cis_noi <-group_by(ind_cis_res,fgeneid) %>% filter(n_distinct(theta)>3,n_distinct(beta)>3) %>%
+  do(par=coef(summary(lm(beta~theta+0,data = .,weights = 1/.$serrg))),fgeneid=.$fgeneid[1],nsnp=nrow(.)) %>%
+  do(data.frame(lambda=.$par[1,1],p=.$par[1,4],fgeneid=.$fgeneid[1],
+                t=.$par[1,3],n=.$n[1])) %>% ungroup()
+
+
+ind_all_lambdas_cis <-group_by(ind_cis_res,fgeneid) %>% 
+  filter(n_distinct(theta)>3,n_distinct(beta)>3) %>% 
+  do(par=coef(summary(lm(beta~theta,data = .,weights = 1/.$serrg))),
+     fgeneid=.$fgeneid[1],nsnp=nrow(.)) %>% 
+  do(data.frame(intercept=.$par[1,1],
+                lambda=.$par[2,1],
+                p=.$par[2,4],
+                fgeneid=.$fgeneid[1],
+                nsnp=.$nsnp[1],
+                t=par[2,3])) %>% ungroup()
+
+
+cis_trans <- bind_rows(select(itrans_res,-N),ind_cis_res)
+
+
+cistrans_noi <- group_by(cis_trans,fgeneid) %>% 
+  filter(n_distinct(theta)>3,n_distinct(beta)>3) %>% 
+  nest() %>% mutate(model=map(data,~lm(beta~theta+0,data=.,weights = 1/serrg)))
+
+cistrans_l <- lambda_cistrans_noi %>% unnest(model %>% map(tidy)) %>% mutate(nsnp=map_int(data,~nrow(.))) %>% select(-data,-model,-term,lambda=estimate,t.stat=statistic,fgeneid,nsnp)
+ggplot(cistrans_l) + geom_histogram(aes(x=lambda))
+
+aresid <- lambda_cistrans_noi %>% unnest(model %>% map(augment)) %>% select(-.sigma,-.cooksd,-.std.resid,-.se.fit,-X.weights.)
+
+ggplot(aresid) +geom_hex(aes(x=theta,y=.resid))
+
+
+
+tlambda <- slice(lambda_cistrans_noi,1:4)
+tlambda
+
+
+
+ind_all_lambdas_cis <-group_by(ind_cis_res,fgeneid) %>% 
+  filter(n_distinct(theta)>3,n_distinct(beta)>3) %>% 
+  do(par=coef(summary(lm(beta~theta,data = .,weights = 1/.$serr))),
+     fgeneid=.$fgeneid[1],nsnp=nrow(.)) %>% 
+  do(data.frame(intercept=.$par[1,1],
+                lambda=.$par[2,1],
+                p=.$par[2,4],
+                fgeneid=.$fgeneid[1],
+                nsnp=.$nsnp[1],
+                t=par[2,3])) %>% ungroup()
+
+ggplot(cis_trans) +geom_histogram(aes(x=log(abs(theta))))
+
+
+
+comp_lambda <- select(ind_all_lambdas_cis_noi,ind_lambda=lambda,ind_p=p,ind_t=t,fgeneid,ind_n=n) %>% inner_join(all_lambdas_cis_noi)
+
+
+
+arrange(all_lambdas_cis,desc(abs(t))) %>% mutate(ensid=paste0("ENSG",sprintf("%011d",fgeneid))) %>% head
+
+```
+
+
+```{r}
+arrange(ind_all_lambdas_cis_noi,p) %>% mutate(ensid=paste0("ENSG",sprintf("%011d",fgeneid))) %>% head
+
+t.test(comp_lambda$ind_t,comp_lambda$t,paired = T)
+
+ggplot(comp_lambda)+geom_point(aes(x=,y=log10(ind_p)))
+
+
+
+ggplot(ind_all_lambdas_cis+geom_qq(aes()))
+ggplot(ind_all_lambdas_cis)+geom_histogram(aes(x=lambda),bins = 1000)
+
+
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).

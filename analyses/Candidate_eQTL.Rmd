@@ -1,0 +1,149 @@
+---
+title: "Candidate_eQTL"
+author: "Nicholas Knoblauch"
+date: "October 11, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Identifying candidate eQTL
+
+Our goal is to find a gene with strong (cis) eQTL signal and a gene with no (cis)eQTL signal.
+
+
+```{r}
+library(RColumbo)
+library(rhdf5)
+library(dplyr)
+library(ggplot2)
+
+
+
+
+
+res_eqtlhf <- "/media/nwknoblauch/Data/GTEx/all_Whole_Blood_eQTL.h5"
+cis_eqtlhf <- "~/Desktop/eQTL/Snake/WholeBlood.h5"
+rawh5 <- "/home/nwknoblauch/Desktop/eQTL/Snake/Whole_Blood_eQTL_v6p_raw_data.h5"
+dgnh5 <- "/media/nwknoblauch/Data/misc_h5/DGN.h5"
+dgnexpf <- "/media/nwknoblauch/Data/DGN/Lev/data_used_for_eqtl_study/cis_data.txt"
+
+expdat <- read_dmat_h5(rawh5,"EXPdata","expression",offset = 0,get_rownum_h5(rawh5,"EXPdata","expression"))
+sexpdat <- read_dmat_h5(rawh5,"EXPdata","orthoexpression",offset = 0,get_rownum_h5(rawh5,"EXPdata","orthoexpression"))
+exppc <- prcomp(expdat,center = T,scale. = T)
+sexppc <- prcomp(sexpdat,center=T,scale.=T)
+plot(exppc$rotation[,1],exppc$rotation[,2])
+plot(exppc$x[,1],exppc$x[,2])
+plot(sexppc$x[,1],sexppc$x[,2])
+
+sgenodat <- read_dmat_h5(rawh5,"SNPdata","orthogenotype",offset = 0,30000)
+genodat <- read_dmat_h5(rawh5,"SNPdata","genotype",offset = 0,30000)
+sgenodat <- genodat[,colSums(genodat)>0]
+genodat <- genodat[,colSums(genodat)>0]
+
+dgn_geno <- read_dmat_h5(dgnh5,"Genotype","genotype",offset=0,30000)
+dgn_exp <- read_delim(dgnexpf,delim="\t",col_names=T)
+dgnexp <- data.matrix(select(dgn_exp,-X1))
+rownames(dgnexp) <- dgn_exp$X1
+badexp <- c(colssd(dgnexp))
+dgnexp <- dgnexp[,!is.na(badexp)]
+dgn_exppc <- prcomp(dgnexp,center = T,scale. = T)
+plot(dgn_exppc$x[,1],dgn_exppc$x[,2])
+
+dgn_g <- prcomp(dgn_geno,center=T,scale.=T)
+plot(dgn_g$rotation[,1],dgn_g$rotation[,2])
+plot(dgn_g$x[,1],dgn_g$x[,2])
+
+summary(colSums(genodat))
+genopc <- prcomp(genodat,center = T,scale. = T)
+sgenopc <- prcomp(sgenodat,center=T,scale.=T)
+
+
+plot(sgenopc$x[,1],sexppc$x[,1])
+
+
+cis_res <- read_h5_df(cis_eqtlhf,"eQTL")
+
+
+
+
+```
+
+
+I want to find a gene with a good number of eQTL, that gene is `CRHR1`, or  `ENSG00000120088`
+```{r}
+sig_cis <- filter(cis_res,chrom!=6) %>% group_by(fgeneid) %>% summarise(nsig=sum(pval<0.05),ntot=n(),psig=nsig/ntot) %>% arrange(desc(psig)) %>% mutate(ensid=paste0("ENSG",sprintf("%011d",fgeneid)))
+pos_gene_id <- 120088
+
+```
+
+To find a negative gene, I first have to make sure that there is some variance in it's expression.  We also want there to be many SNPs, but no eQTLs.  As an additional check, I'll try limiting to genes that have significant eQTL for other genes. 
+
+The Gene I'm choosing is `UBC`, or  `ENSG00000150991`, which is also known as Ubiquitin C
+```{r}
+h5ls(eqtlhf)
+expleg <- read_h5_df()
+expleg <- as.data.frame(expleg)
+expleg <- rename(expleg,fgeneid=V1) %>% mutate(ensid=paste0("ENSG",sprintf("%011d",fgeneid)),exp_ind=1:n())
+expmat <- h5read(eqtlhf,"/EXPdata/orthoexpression")
+expleg <- mutate(expleg,expssd= percent_rank(c(colssd(expmat)))) %>% select(fgeneid,expssd,exp_ind)
+
+cis_res <- select(cis_res,-expssd) %>% inner_join(expleg)
+
+bad_cis <- filter(cis_res,chrom!=6) %>%group_by(fgeneid) %>% summarise(mt=mean(abs(tstat)),nt=n(),nsig=sum(pval<0.01),pcis=nsig/nt,pmean=mean(pval),pmed=median(pval),vp=var(pval)) %>% arrange(desc(abs(0.5-pmed))) %>%  mutate(ensid=paste0("ENSG",sprintf("%011d",fgeneid))) %>% inner_join(expleg)
+neg_gene_id <- 150991
+arrange(bad_cis,abs(0.0833355-vp)+abs(pmed-0.5)) %>% head
+```
+
+
+I'll now export these genes and their cis genotype (and the genotype)
+```{r}
+eqtlhf <- rawh5
+h5ls(eqtlhf)
+snpleg <- read_h5_df(eqtlhf,"SNPinfo") %>% select(-doFlip) %>% mutate(ind=1:n())
+expleg <- read_h5_df(eqtlhf,"EXPinfo")
+# expleg <- as.data.frame(expleg)
+# expleg <- rename(expleg,fgeneid=V1,chrom=V3,expstart=V4,expstop=V5) %>% mutate(ensid=paste0("ENSG",sprintf("%011d",fgeneid)),exp_ind=1:n())
+expmat <- h5read(eqtlhf,"/EXPdata/orthoexpression")
+expleg <- mutate(expleg,expssd= percent_rank(c(colssd(expmat))))
+
+tpos_snpdatf <- c("/home/nwknoblauch/Desktop/eQTL/GTEx_WB_pos_eQTL.h5",
+                 "/home/nwknoblauch/Desktop/eQTL/GTEx_WB_neg_eQTL.h5")
+tpos_gene_id <- c(120088,150991)
+
+for(i in 1:2){
+  pos_gene_id <- tpos_gene_id[i]
+  pos_snpdatf <- tpos_snpdatf[i]
+  if(file.exists(tpos_snpdatf[i])){
+    file.remove(tpos_snpdatf[i])
+  }
+  pos_cis_res <- filter(cis_res,fgeneid==pos_gene_id)
+  pos_expleg <- semi_join(expleg,pos_cis_res) %>% select(-ensid)
+  pos_snpleg <- semi_join(snpleg,pos_cis_res)
+  opos_snpdat <- read_dmat_ind_h5(eqtlhf,groupname = "SNPdata","orthogenotype",indexes = pos_snpleg$ind)
+  opos_expdat <- read_dmat_ind_h5(eqtlhf,groupname = "EXPdata","orthoexpression",indexes=pos_expleg$exp_ind)
+  pos_snpdat <- read_dmat_ind_h5(eqtlhf,groupname = "SNPdata","genotype",indexes = pos_snpleg$ind)
+  pos_expdat <- read_dmat_ind_h5(eqtlhf,groupname = "EXPdata","expression",indexes=pos_expleg$exp_ind)
+  
+  
+  
+  write_Rnumeric_h5(pos_snpdatf,groupname = "EXPdata",dataname = "orthoexpression",data=c(opos_expdat),deflate_level=-4)
+  write_dmatrix_h5(pos_snpdatf,groupname="SNPdata",dataname="orthogenotype",data=pos_snpdat,Nsnps = ncol(opos_snpdat),Nind = nrow(pos_snpdat),deflate_level = -4)
+  
+    write_Rnumeric_h5(pos_snpdatf,groupname = "EXPdata",dataname = "orthoexpression",data=c(pos_expdat),deflate_level=-4)
+  write_dmatrix_h5(pos_snpdatf,groupname="SNPdata",dataname="orthogenotype",data=pos_snpdat,Nsnps = ncol(pos_snpdat),Nind = nrow(pos_snpdat),deflate_level = -4)
+  
+  
+  write_h5_df(df = pos_snpleg,outfile = pos_snpdatf,group = "SNPinfo",deflate_level = -4)
+  write_h5_df(df = pos_expleg,outfile = pos_snpdatf,group = "EXPinfo",deflate_level = -4)
+}
+
+
+
+```
+
+
+
+

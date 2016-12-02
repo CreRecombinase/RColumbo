@@ -1,0 +1,33 @@
+---
+title: "IBD GWAS"
+output: html_notebook
+---
+
+Supplementary Table 2 was pulled from the paper, and the two tables were exported as CSVs.
+Starting with all the GWAS hits:
+
+```{r}
+library(readr)
+whole_gwasf <- "/media/nwknoblauch/Data/gwas_data/iibdgc-trans-ancestry-summary-stats/EUR.IBD.gwas.assoc.gz"
+whole_gwasd <- read_delim(whole_gwasf,delim="\t",col_names=T)
+head(whole_gwasd)
+```
+
+Next we'll read in the significant hits
+```{r}
+library(dplyr)
+sig_gwasf <- "/media/nwknoblauch/Data/gwas_data/iibdgc-trans-ancestry-summary-stats/Top_rsids.csv"
+nov_gwasf <- "/media/nwknoblauch/Data/gwas_data/iibdgc-trans-ancestry-summary-stats/Novel_rsid.csv"
+sig_gwas <- read_delim(sig_gwasf,delim=",",col_names=c("SNP")) %>% mutate(isNovel=F)
+nov_gwas <- read_delim(nov_gwasf,delim=",",col_names=c("SNP")) %>% mutate(isNovel=T)
+sub_gwas <- bind_rows(sig_gwas,nov_gwas)
+significant_data <- inner_join(whole_gwasd,sub_gwas,by=c("SNP"))
+significant_data <- mutate(significant_data,betahat=log(OR))
+write.table(significant_data,"~/Dropbox/RColumbo/analyses/eqtl_gwas_sample/sub_EUR_IBD_gwas_data.tsv",col.names = T,row.names = F,quote=F,sep="\t")
+
+```
+
+
+
+
+

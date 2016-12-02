@@ -1,0 +1,48 @@
+---
+title: "elasticnet vs VB"
+output: html_notebook
+---
+
+In this notebook we'll compare the results of elasticnet, varbvs and GCTA at explaining expression heritability
+
+
+We'll start with the VB data
+```{r}
+
+
+
+
+```
+
+
+Now the Elasticnet data
+
+```{r}
+library(rhdf5)
+library(ggplot2)
+library(dplyr)
+el_files <- dir("/media/nwknoblauch/Data/GTEx/cis_elasticnet/",full.names = T)
+h5ls(el_files[1])
+overall <- bind_rows(lapply(el_files,read_h5_df,groupname="overall"))
+lambda_min <- bind_rows(lapply(el_files,read_h5_df,groupname="lambda_min"))
+overall <- group_by(overall,fgeneid) %>% mutate(scaled_estimate=(estimate-mean(estimate))/var(estimate),
+                                                scaled_high=(conf.high-mean(conf.high))/var(conf.high),
+                                                scaled_low=(conf.low-mean(conf.low))/var(conf.low)) %>% 
+
+
+
+```
+```{r}
+filter(overall,estimate==max(abs(estimate)))
+```
+
+GCTA results
+```{r}
+gcta_estf <- "/media/nwknoblauch/Data/GTEx/GCTA_trans_ortho_estimates.RDS"
+gcta_est <- readRDS(gcta_estf)
+h_df <- filter(gcta_est,Source=="V(G)/Vp") %>% rename(h=Variance) %>% select(-Source)
+h_elnet <- inner_join(h_df,lambda_min,by="fgeneid")
+filter(h_elnet,h>1e-6) %>% ggplot(aes(x=h,y=lambda.min))+geom_point()+geom_smooth()
+
+```
+

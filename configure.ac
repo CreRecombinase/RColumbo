@@ -1,4 +1,4 @@
-AC_INIT([RColumbo], 0.9.2, [nwknoblauch@gmail.com])
+AC_INIT([RColumbo], 0.0.1, [nwknoblauch@gmail.com])
 
 dnl Now find the compiler and compiler flags to use
 : ${R_HOME=`R RHOME`}
@@ -36,7 +36,7 @@ if test -z "${LIBS}"; then
   ]
   
   dnl Fix for newer Debian versions
-  LIBS="${LIBS} -L. -lhdf5_cpp -lhdf5 -lz -lm -lblosc"
+  LIBS="${LIBS} -L. -lhdf5_cpp -lhdf5 -lz -lm -lblosc -lboost_iostreams"
 
 fi
 
@@ -58,10 +58,33 @@ if test -z "${CPPFLAGS}"; then
 
   [
   CPPFLAGS=`${H5CPP} -show -c myconftest.cpp | ${GREP} -o "\-I[^[:space:]]\+" | tr "\n" " "`
+  CPPFLAGS="${CPPFLAGS} -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_USE_CXX11 -DARMA_64BIT_WORD"
   ]
 
   rm -f myconftest.cpp
 fi
+
+
+# Checks for header files.
+dnl AC_CHECK_HEADERS([inttypes.h limits.h malloc.h stddef.h stdint.h stdlib.h string.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+dnl AC_CHECK_HEADER_STDBOOL
+dnl AC_C_INLINE
+dnl AC_TYPE_INT16_T
+dnl AC_TYPE_INT32_T
+dnl AC_TYPE_INT64_T
+dnl AC_TYPE_INT8_T
+dnl AC_TYPE_SIZE_T
+dnl AC_TYPE_UINT16_T
+dnl AC_TYPE_UINT32_T
+dnl AC_TYPE_UINT64_T
+dnl AC_TYPE_UINT8_T
+
+# Checks for library functions.
+dnl AC_FUNC_MALLOC
+dnl AC_CHECK_FUNCS([floor memset sqrt strdup strerror strtol])
+
 
 dnl substitute CPPFLAGS and LIBS
 AC_SUBST(CPPFLAGS)

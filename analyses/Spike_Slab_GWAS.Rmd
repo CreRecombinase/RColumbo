@@ -1,0 +1,248 @@
+---
+title: "Spike and Slab for GWAS"
+author: "Nicholas Knoblauch"
+date: "October 5, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries,echo=FALSE,message=FALSE,warnings=FALSE}
+library(RColumbo)
+library(dplyr)
+library(rhdf5)
+library(ggplot2)
+library(SQUAREM)
+```
+
+## Independent SNPs:
+
+The first model for GWAS effect size we'll look at is the one where $p(Z_i=1)=\pi$ is the probability that snp $i$ ($\in 1..N$) is causal:
+$$\beta_i|Z_i=1 \sim N(0,\sigma^2) \beta_i|Z_i=0 \sim \delta_0$$
+$$\hat{\beta}_i|Z_i=0 \sim(N,0,s_i^2)  \hat{\beta}_i|Z_i=1 \sim N(0,\sigma^2+s_i^2)$$
+
+The parameters of interest are $\pi$ and $\sigma^2$ (We don't care about the particular values of $Z_i$).  We can estimate these parameters via EM.
+
+### Derivation of EM:
+#### E step:
+Let $\mu_i=E[p(Z_i=1|\hat{\beta}_i,s_i^2,\pi,\sigma^2)]$, This means that:
+
+$$\mu_i=\frac{N(\hat{\beta}_i;0,(\sigma^2+s_i^2))\pi}{N(\hat{\beta}_i;0,\sigma^2+s_i^2)\pi+(1-\pi)N(\hat{\beta}_i;0,s_i^2)}$$
+
+#### M step:
+Our expected complete log-likelihood is:
+
+$$\sum_{i=1}^N \mu_i \log\left(N(\hat{\beta}_i;0,\sigma^2+s_i^2)\pi\right)+(1-\mu_i)\log\left(N(\hat{\beta}_i;0,s_i^2)(1-\pi)\right)$$
+
+The maximization of $\pi$ is:
+$$\pi=\frac{1}{N} \sum_{i=1}^N \mu_i$$
+
+The maximization of $\sigma^2$ is finding the $\sigma^2$ that satisfies:
+$$\sigma^2 \sum_{i=1}^N \mu_i\left(\frac{\hat{\beta}_i^2}{(s_i^2+\sigma^2)^2}-\frac{1}{s_i^2+\sigma^2}\right)=0$$
+
+
+$$\sigma^2=\frac{\sum_{i=1}^N \mu_i(\hat{\beta}_i^2-s_i^2)}{\sum_{i=1}^N \mu_i}$$
+
+
+
+## GWAS data
+
+I'll be using the GWAS data from the GIANT height study. Specifically I'll be using the results of the RSS analysis done by Xian using the BVSR model.  
+```{r RSSdata}
+height_raw_files <- paste0("/media/nwknoblauch/Data/rss/heighth/height2014.chr",1:22,".mat.h5")
+height_res_files <- paste0("/media/nwknoblauch/Data/rss/height/rssbvsr_height2014_chr",1:22,"_result.mat")
+genofiles <- paste0("/media/nwknoblauch/Data/DGN/EUR.chr",1:22,"_1kg_DGN_Height.h5")
+LDfiles <- paste0("/media/nwknoblauch/Data/DGN/LDmats/chr",1:22,"_1kg_DGN_Height_LD.h5")
+
+samdff <- "/media/nwknoblauch/Data/rss/rss_bvsr_height_est.RDS"
+posdff <- "/media/nwknoblauch/Data/rss/rss_bvsr_height_pos.RDS"
+bsamdff <- "/media/nwknoblauch/Data/rss/post_summ.RDS"
+colordff <- "/media/nwknoblauch/Data/rss/colordf.RDS"
+
+```
+
+```{r loadRSS,echo=FALSE}
+
+if(!file.exists(posdff)){
+posdf <- bind_rows(lapply(1:22,function(x,heightfiles){
+  # cat(x,"\n")
+  tdf <- data_frame(chrom=c(h5read(heightfiles[x],"chr")),
+                    pos=c(h5read(heightfiles[x],"pos19")),
+                    betahat=c(h5read(heightfiles[x],name="betahat")),
+                    se=c(h5read(heightfiles[x],name="se")),
+                    N=c(h5read(heightfiles[x],name="Nsnp"))) %>% mutate(chrom=x,s=sqrt(se^2+betahat^2/N))
+  return(tdf)
+},heightfiles=height_raw_files))
+saveRDS(posdf,posdff)
+}else{
+  posdf <- readRDS(posdff)
+}
+
+if(!file.exists(bsamdff)){
+bsamdf <- bind_rows(lapply(1:22,function(x,heightfiles){
+  cat(x,"\n")
+  tgamma <- h5read(heightfiles[x],name="gammasam")
+  gammasd <- colssd(tgamma)
+  gammamean=colMeans(tgamma)
+  rm(tgamma)
+  gc()
+  tbeta <- h5read(heightfiles[x],name="betasam")
+  betasd <- colssd(tbeta)
+  betamean <- colMeans(tbeta)
+  tdf <- data_frame(
+    gammam=c(gammamean),
+    gammasd=c(gammasd),
+    betamean=c(betamean),
+    betasd=c(betasd)) %>% mutate(chrom=x,ind=1:n())
+  return(tdf)
+},heightfiles=height_res_files))
+saveRDS(bsamdf,bsamdff)
+}else{
+  bsamdf <- readRDS(bsamdff)
+}
+
+
+posdf <-group_by(posdf,chrom) %>% mutate(iter=1:n()) %>% ungroup() %>% inner_join(bsamdf)
+sadf <- group_by(posdf,chrom) %>% summarise(osa=sd(betamean))
+
+
+if(!file.exists(samdff)){
+  nsamdf <- bind_rows(lapply(1:22,function(x,heightfiles){
+    # cat(x,"\n")
+    tdf <- data_frame(pi=exp(c(h5read(heightfiles[x],name="logpisam"))),
+                      h=c(h5read(heightfiles[x],name="hsam"))) %>% mutate(chrom=x,iter=1:n())
+    return(tdf)},heightfiles=height_res_files))
+  bsamdf <- bind_rows(lapply(1:22,function(x,heightfiles){
+    tdf <- data_frame(
+      gammam=rowMeans(h5read(heightfiles[x],name="gammasam")),
+      betam=rowMeans(h5read(heightfiles[x],name="betasam"))) %>% mutate(chrom=x,iter=1:n())
+  }))
+  samdf <- inner_join(bsamdf,nsamdf)
+  # samdf <- group_by(samdf,chrom) %>% mutate(iter=1:n()) %>% ungroup() %>% select(-pi,-h) %>% inner_join(nsamdf)
+  saveRDS(samdf,samdff)
+  rm(nsamdf,bsamdf)
+}else{
+  samdf <- readRDS(samdff)
+}
+samdf <- inner_join(samdf,sadf)
+
+if(!file.exists(colordff)){
+  colordf <- bind_rows(mapply(function(x,chro){
+    retdf <- read_h5_df(x,groupname = "Color") %>% select(-index) %>% mutate(chrom=chro)
+    return(retdf)
+  },LDfiles,1:22,SIMPLIFY = F))
+  saveRDS(colordf,colordff)
+}else{
+  colordf <- readRDS(colordff)
+}
+
+posdf <- rename(posdf,ind=iter)
+
+
+
+
+
+nsum <- group_by(posdf,chrom) %>% summarise(nsum=sum((N^(-1)*s^(-2))))
+samdf <- left_join(samdf,nsum)
+samdf <- group_by(samdf,chrom) %>% mutate(sa=sqrt(h*(pi*nsum)^(-1))) %>% ungroup()
+samsum <- group_by(samdf,chrom) %>% summarise(pi_mean=mean(pi),sa_mean=mean(sa))
+```
+
+```{r plot_RSS}
+ggplot(samdf,aes(log10(pi),..density..))+geom_histogram(bins=100)+facet_wrap(~chrom)+ggtitle("posterior sample of pi across chromosomes")
+ggplot(samdf,aes(sa^2,..density..))+geom_histogram(bins=100)+geom_vline(aes(xintercept=osa))+facet_wrap(~chrom)+ggtitle("posterior sample of sigma^2 across chromosomes")
+ggplot(samdf,aes(x=sa^2,y=pi))+geom_point()+facet_wrap(~chrom,scales="free")+ggtitle("pi vs sigma^2")
+ggplot(samdf,aes(h))+geom_histogram(bins=100)+facet_wrap(~chrom)+ggtitle("posterior sample of h across chromosomes")
+
+```
+
+### Estimating $pi$ and $sigma^2$
+
+For a first pass, we'll try to use the standard spike and slab, per chromosome, and compare that to what RSS.
+
+```{r Estimate}
+
+wgwasem <- group_by(posdf,chrom) %>% do(par=squarem(exp(c(runif(1,log(1/length(.$se)),0),runif(1))),
+                                     fixptfn = sslab_em,bh=.$betahat,
+                                     si=.$se)$par) %>% summarise(pi_em=par[1],sa_em=par[2],chrom=chrom[1])
+```
+
+```{r plot_EM}
+
+ggplot(wgwasem,aes(x=sa_em^2,y=pi_em))+geom_point()+ggtitle("EM estimate of pi vs EM estimate of sigma^2\n(Whole Chromosomes)")
+inner_join(wgwasem,samsum) %>% ggplot(aes(x=pi_mean,y=pi_em))+geom_point()+ggtitle("EM estimate of pi vs posterior mean from RSS\n (Whole Chromosmes)")
+inner_join(wgwasem,samsum) %>% ggplot(aes(x=sa_mean^2,y=sa_em^2))+geom_point()+ggtitle("EM estimate of sigma^2 vs posterior mean from RSS\n (Whole Chromosmes)")
+
+```
+
+### Estimation with an independent SNP set
+
+Next we'll try taking independent SNPs using graph coloring.  LD matrices were computed from 1kg EUR data for each chromosome, and SNPs with a correlation higher than 0.1 were considered linked. Using the Boost Graph Library, each graph was colored such that no two linked SNPs had the same color(trying to minimize the total number of colors used. All SNPs of one color were then used for EM. (a color had to have a minimum of 100 SNPs to be included in the model)
+
+```{r IndependentEstimate}
+ggplot(colordf)+geom_histogram(aes(x=color,..density..))+facet_wrap(~chrom,scales = "free")+ggtitle("Color assignment of SNPs")
+
+group_by(colordf,chrom) %>% summarise(tot=n(),pcolor=sum(color==0)/tot) %>% ggplot()+geom_point(aes(x=chrom,y=pcolor),col="red")+ggtitle("Percent of SNPs that are independent by chromosome")
+
+colordf <- group_by(colordf,chrom,color) %>% mutate(colorct=n()) %>% ungroup()
+ggplot(colordf)+geom_histogram(aes(x=colorct))+facet_wrap(~chrom)
+
+
+igwasem <- inner_join(posdf,colordf) %>% filter(colorct>300) %>% group_by(chrom,color) %>% do(par=fpiter(exp(c(runif(1,log(1/length(.$se)),0),runif(1))),
+                                     fixptfn = sslab_em,bh=.$betahat,objfn = sslab_lik,
+                                     si=.$se)$par,colorct=.$colorct[1]) %>% summarise(pi_em=par[1],sa_em=par[2],chrom=chrom[1],color=color[1],colorct=colorct[1])
+ggplot(igwasem,aes(x=sa_em^2,y=pi_em))+geom_point()+ggtitle("EM estimate of pi vs EM estimate of sigma^2\n(Whole Chromosomes)")
+ggplot(igwasem,aes(x=colorct,y=sa_em^2))+geom_point()+ggtitle("EM estimate of sigma^2 vs number of SNPs")
+ggplot(igwasem,aes(x=colorct,y=pi_em))+geom_point()+ggtitle("EM estimate of pi vs number of SNPs")
+inner_join(igwasem,samsum) %>% ggplot(aes(x=sa_mean^2,y=sa_em^2))+geom_point()+ggtitle("EM estimate of sigma^2 vs posterior mean from RSS\n (Whole Chromosmes)")
+inner_join(igwasem,samsum) %>% ggplot(aes(x=pi_mean,y=pi_em))+geom_point()+ggtitle("EM estimate of sigma^2 vs posterior mean from RSS\n (Whole Chromosmes)")
+
+```
+
+
+
+### Corrected Model
+
+The next step is to use a corrected model, whereby we account for the distortion of signal by nearby causal SNPs.
+
+```{r}
+
+sa <- filter(samsum,chrom==1)[["sa_mean"]]
+pi <- filter(samsum,chrom==1)[["pi_mean"]]
+tposdf <- read_h5_df(genofiles[1],"Legend")
+# ref_pos <- read_h5_df_l(LDfiles,group="LD_mat_ref")
+ LD_pos <- read_h5_df(LDfiles[1],group="LD_adj")
+ tLD_pos <- filter(LD_pos,colid==0|rowid==0) %>% mutate(colid=rank(colid)-1)
+ttposdf <-  filter(tposdf,ind %in% (tLD_pos$colid+1))
+tnlik <- adj_lik(rvec=tLD_pos$LD,rowv=tLD_pos$rowid,colv = tLD_pos$colid,
+                 betahat=ttposdf$beta,se=ttposdf$serr,sa=sa,pi=pi)
+  nlik <- adj_lik(rvec=nLD_pos$LD,rowv =  nLD_pos$rowid,
+                  colv=nLD_pos$colid,betahat = tposdf$beta,se = tposdf$serr,sa = sa,pi = pi)
+  head(nlik)
+  betavec <- tposdf$beta
+  sevec <- tposdf$serr
+  nLD_pos <- mutate(LD_pos,row_bh=betavec[rowid+1],col_bh=betavec[colid+1],
+                    row_se=sevec[rowid+1],col_se=sevec[colid+1])
+
+  tnLD_pos <- filter(nLD_pos,rowid==0|colid==0)
+    mutate(tnLD_pos,nlik=dnorm(row_bh,mean = 0,sd=sqrt(row_se^2*(1+LD^2/(col_se^2))*(sa^2)))) %>% summarise(slik=sum(nlik)/n(),num=n())
+  head(tnLD_pos)
+  rowposdf <- select(tposdf,rowid=ind,rowbetahat=beta,rowserr=serr)
+
+  head(tposdf)
+  
+# summary(LD_pos$LD)
+# ggplot(LD_pos)+geom_histogram(aes(x=LD))
+
+
+
+
+
+
+
+
+
+
+```

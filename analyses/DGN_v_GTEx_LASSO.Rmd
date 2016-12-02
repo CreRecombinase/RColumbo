@@ -1,0 +1,255 @@
+---
+title: "LASSO DGN vs GTEx"
+output: html_notebook
+---
+
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(feather)
+library(tidyr)
+library(broom)
+
+gtex_marg_h5 <- "/home/nwknoblauch/Desktop/eQTL/Snake/Whole_Blood_Analysis.v6p.all_snpgene_pairs.h5"
+dgntf <- "~/Downloads/PredictDB_Covariance/DGN-WB/DGN-WB_0.5.db"
+gtexf <- "~/Downloads/PredictDB_Covariance/TW_Whole_Blood/TW_Whole_Blood_0.5.db"
+ogtexf <- "~/Downloads/TW_Whole_Blood_0.5.db"
+gwasf2 <- "/media/nwknoblauch/Data/gwas_data/iibdgc-trans-ancestry-summary-stats/EUR.IBD.gwas.assoc_2.feather"
+gwas_dat <- read_feather(gwasf2)
+gwas_dat <- rename(gwas_dat,pvalg=p.value,se_betahat=serr.g)
+gwas_dat <- mutate(gwas_dat,betahat=ifelse(ref_allele<eff_allele,log(1/OR),log(OR))) %>% select(-eff_allele,-ref_allele)
+dgndb <- src_sqlite(dgntf,create=F)
+gtexdb <- src_sqlite(gtexf,create=F)
+ogtexdb <- src_sqlite(ogtexf,create=F)
+
+gtex_marg <- read_h5_df(gtex_marg_h5,groupname = "cis_eQTL",subcols = c("fgeneid","chrom","pos","weight"))
+
+
+# dgn_gene <- tbl(src=dgndb,"extra")
+# dgn_weights <- tbl(src=dgndb,"weights")
+# dgn_weights <- mutate(dgn_weights,weight=ifelse(ref_allele<eff_allele,-weight,weight)) %>% select(-eff_allele,-ref_allele)
+# dgn_var <- group_by(dgn_weights,gene) %>% summarise(weight_var=var(weight),weight_mean=mean(weight))
+# ndgn_weights <- inner_join(dgn_weights,gwas_dat,by=c("rsid"),copy = T)
+# ndgn_weights <- mutate(ndgn_weights,source="DGN")
+# ndgn_weights <- select(ndgn_weights,gene,chrom,pos,weight,beta,source,serr.g)
+
+gtex_gene <- tbl(src=gtexdb,"extra") %>% arrange(pred.perf.qval)
+
+
+
+gtex_weights <- tbl(src=gtexdb,"weights")
+gtex_weights <- mutate(gtex_weights,weight=ifelse(ref_allele<eff_allele,-weight,weight)) %>% select(-eff_allele,-ref_allele)
+ngtex_weights <- inner_join(gtex_weights,gwas_dat,by=c("rsid"),copy=T) %>% mutate(source="GTEx")
+ngtex_weights <- select(ngtex_weights,gene,chrom,pos,weight,betahat,source,se_betahat)
+ngtex_weights <- collect(ngtex_weights,n=Inf) %>%   %>% filter(!is.na(fgeneid))
+
+gtex_gene <- collect(gtex_gene,n=Inf) %>% mutate(fgeneid=as.integer(gsub("ENSG([0-9]+).+","\\1",gene)))  %>% filter(!is.na(fgeneid))
+gtex_gene <- group_by(ngtex_weights,fgeneid) %>% summarise(beta_var=var(beta),beta_mean=mean(beta)) %>% inner_join(gtex_gene)
+gtex_gene <- group_by(gtex_weights,gene) %>% summarise(weight_var=var(weight),weight_mean=mean(weight)) %>% inner_join(gtex_gene,copy = T)
+
+
+gtex_gene <- group_by(gtex_marg,fgeneid) %>% summarise(n.snps.total=n(),marginal_mean=mean(weight),marginal_var=var(weight)) %>% inner_join(gtex_gene,copy=T)
+gtex_gene <- select(gtex_gene,-fgeneid)
+write.table(gtex_gene,file = "~/Dropbox/eQTL/GTEx_WB_LASSO_MARGINAL.tsv",sep="\t",col.names=T,row.names=F,quote=F)
+
+
+
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to 
+preview the HTML file).
+
+
+
+
+
+```{r}
+
+
+
+
+
+
+ndgn_weights <- collect(ndgn_weights,n=Inf)
+ndgn_weights <- mutate(ndgn_weights,fgeneid=as.integer(gsub("ENSG([0-9]+).+","\\1",gene)))  %>% filter(!is.na(fgeneid))
+ndgn_weights <- semi_join(ndgn_weights,gtex_marg,by=c("fgeneid"))
+
+
+
+
+
+dgn_lambda <- group_by(ndgn_weights,fgeneid) %>% nest() %>% mutate(fit=purrr::map(data,~lm(beta~weight+0,data=.,weights=1/serr.g^2)))
+dgn_res <-  dgn_lambda %>% unnest(fit %>% purrr::map(broom::tidy))  %>% arrange(p.value)
+ggplot(dgn_res)+geom_histogram(aes(x=p.value))
+
+ngtex_weights <- collect(ngtex_weights,n=Inf)
+
+gtex_marg <- semi_join(gtex_marg,ndgn_weights,copy=T,by=c("fgeneid"))
+gtex_ct <- group_by(gtex_marg,fgeneid) %>% summarise(snp_total=n())
+
+
+gtex_lambda <- group_by(ngtex_weights,gene) %>% nest() %>% mutate(fit=purrr::map(data,~lm(beta~weight+0,data=.,weights=1/serr.g^2)))
+gtex_res <- gtex_lambda  %>% unnest(fit %>% purrr::map(broom::tidy))  %>% arrange(p.value)
+
+gtex_res <- select(gtex_res,gene,estimate,std.error,statistic,p.value) 
+dgn_res <- select(dgn_res,gene,estimate,std.error,statistic,p.value)
+
+dgn_gtex_w <- inner_join(dgn_weights,gtex_weights,copy=T,by=c("rsid","gene"),suffix=c(".DGN",".GTEx"))
+dgn_gtex_w <- collect(dgn_gtex_w,n=Inf)
+
+dgn_gtex <- inner_join(dgn_res,gtex_res,by="gene",suffix=c(".DGN",".GTEx"))
+
+ggplot(dgn_gtex_w,aes(x=weight.DGN,y=weight.GTEx))+geom_point()+geom_abline()+ggtitle(label="Elastic Net Weights")
+
+```
+
+
+
+
+
+```{r}
+
+ggplot(dgn_gtex,aes(x=estimate.DGN,y=estimate.GTEx))+geom_point()+geom_abline()+ggtitle(label="lambda_DGN vs lambda_GTEx (p<2e-16)")
+```
+
+```{r}
+dgn_gtex_g <- inner_join(dgn_gene,gtex_gene,copy=T,by=c("gene","genename"),suffix=c(".DGN",".GTEx"))
+
+dgn_gtex <- inner_join(dgn_gtex,dgn_gtex_g,copy=T,by="gene")
+
+dgn_res <- inner_join(dgn_res,dgn_gene,copy=T,by="gene") %>% mutate(source="DGN")
+dgn_res <- arrange(dgn_res,p.value)
+
+gtex_res <- inner_join(gtex_res,gtex_gene,copy=T,by="gene") %>% mutate(source="GTEx")
+gtex_res <- arrange(gtex_res,p.value)
+
+
+```
+
+
+Let's look at the feasability of doing elastic net genome-wide (in trans)
+
+```{r}
+library(RColumbo)
+library(glmnet)
+
+
+rawh5f <- "/home/nwknoblauch/Desktop/eQTL/Snake/Whole_Blood_eQTL_v6p_raw_data.h5"
+snpleg <- read_h5_df(rawh5f,"SNPinfo")
+expleg <- read_h5_df(rawh5f,"EXPinfo")
+cistf <- "/home/nwknoblauch/Desktop/eQTL/Snake/GTEx_cistrans.h5"
+cisleg <- read_h5_df(cistf,groupname = "cis")
+write_h5_df(df = cisleg,group = "cis",outfile = rawh5f,deflate_level = 4)
+cistfs <- paste0("/home/nwknoblauch/Desktop/eQTL/GTEx/GTEx_WB_cis_Chr",1:22,".h5")
+
+
+
+```
+
+
+
+```{r}
+library(glmnet)
+library(broom)
+library(RColumbo)
+library(BBmisc)
+nchunks <- 100
+mychunk <- as.integer(commandArgs(trailingOnly = F))
+rawh5 <- "/home/nwknoblauch/Desktop/eQTL/Snake/Whole_Blood_eQTL_v6p_raw_data.h5"
+cistf <- "/home/nwknoblauch/Desktop/eQTL/Snake/GTEx_cistrans.h5"
+cisleg <- read_h5_df(cistf,"cis")
+expleg <- distinct(cisleg,exp_ind,.keep_all = T)
+expdat <- read_fmat_chunk_ind(h5file = rawh5,groupname = "EXPdata","orthoexpression",expleg$exp_ind)
+colnames(expdat) <- as.character(expleg$fgeneid)
+ufgid <- expleg$fgeneid
+ensid <- paste0("ENSG",sprintf("%011d",ufgid))
+fgidchunk <- chunk(ufgid,n.chunks = nchunks)
+h5chunks <- paste0("/home/nwknoblauch/Desktop/eQTL/GTEx/cis_elasticnet/chunk_",1:length(fgidchunk),".h5")
+mh5 <- h5chunks[mychunk]
+mufgid <- fgidchunk[[mychunk]]
+ensid <- paste0("ENSG",sprintf("%011d",mufgid))
+
+overall_tl <- list()
+lambda_min_tl <- list()
+weights_tl <- list()
+bcisleg <- filter(cisleg,fgeneid %in% mufgid)
+rm(cisleg)
+gc()
+bsnpleg <- distinct(bcisleg,snp_ind,.keep_all = T) %>% mutate(snp_name=paste0("chr",chrom,"_",pos))
+bsnpdat <- read_fmat_chunk_ind(rawh5,"SNPdata","genotype",bsnpleg$snp_ind)
+colnames(bsnpdat) <- paste0("chr",bsnpleg$chrom,"_",bsnpleg$pos)
+bcisleg <- mutate(bcisleg,snp_name=paste0("chr",chrom,"_",bcisleg$pos))
+namel <- split(bcisleg$snp_name,bcisleg$fgeneid)
+for(i in 1:length(namel)){
+  cat(ensid[i],"_",i,"\n")
+  texp <- expdat[,as.character(mufgid[i])]
+  snp_data <- bsnpdat[,namel[[i]]]
+  pred_fit <- cv.glmnet(x = snp_data,y = texp,alpha=0.95,parallel = F)
+  overall_tl[[as.character(mufgid[i])]] <- tidy(pred_fit) %>% mutate(fgeneid=mufgid[i])
+  lambda_min_tl[[as.character(mufgid[i])]] <- glance(pred_fit) %>% mutate(fgeneid=mufgid[i])
+  weights_tl[[as.character(mufgid[i])]] <- tidy(pred_fit$glmnet.fit) %>% mutate(fgeneid=mufgid[i]) %>% filter(estimate!=0)
+}
+overall <- bind_rows(overall_tl)
+lambda_min <- bind_rows(lambda_min_tl)
+weights <- select(bsnpleg,chrom,pos,snp_name) %>% right_join(bind_rows(weights_tl))
+weights <- mutate(weights,chrom=ifelse(is.na(chrom),0,chrom),pos=ifelse(is.na(pos),0,pos)) %>% select(-snp_name)
+
+write_h5_df(weights,group = "weights",outfile = mh5,deflate_level = 4)
+write_h5_df(overall,group = "overall",outfile = mh5,deflate_level = 4)
+write_h5_df(lambda_min,group = "lambda_min",outfile = mh5,deflate_level = 4)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+
+snpleg <- read_h5_df(snplegf,groupname="SNPinfo") %>% mutate(snpind=1:n())
+expleg <- read_h5_df(snplegf,groupname="EXPinfo") %>% mutate(geneind=1:n(),start=pmax(start-1e6,0),end=end+1e6)
+
+cistrans <- inner_join(snpleg,expleg,by="chr") %>% filter(between(pos,start,end))
+
+
+subleg <- filter(expleg,fgeneid==107929)
+subexp <- read_fmat_chunk_ind(snplegf,"EXPdata","orthoexpression",indvec = subleg$geneind)
+
+sub_weights <- filter(ngtex_weights,fgeneid==107929)
+nsub_weights <- select(sub_weights,chrom,pos,weight)
+sub_gtex <- filter(gtex_marg,fgeneid==107929)
+sub_snpleg <- rename(snpleg,chrom=chr) %>% semi_join(sub_gtex,by=c("chrom","pos"))
+
+sub_geno <- read_fmat_chunk_ind(snplegf,"SNPdata","orthogenotype",indvec = sub_snpleg$snpind)
+set.seed(42)
+sub_genores <- cv.glmnet(sub_geno,c(subexp),alpha=0.95)
+sub_df <- tidy(sub_genores)
+sub_g <- glance(sub_genores)
+sub_b <- broom::augment(sub_genores)
+fit.df <- data.frame(sub_genores$cvm, sub_genores$lambda, 1:length(sub_genores$cvm))
+best.lam <- fit.df[which.min(fit.df[,1]),]
+cvm.best <- best.lam[,1]
+lambda.best <- best.lam[,2]
+# Position of best lambda in cv.glmnet output
+nrow.best <- best.lam[,3]
+# Get the betas from the best lambda value
+ret <- data_frame(weight=sub_genores$glmnet.fit$beta[,nrow.best])
+sub_snpleg <- bind_cols(sub_snpleg,ret)
+
+nsub_snpleg <- inner_join(sub_snpleg,nsub_weights,by=c("chrom","pos"),suffix=c(".mine",".predixcan"))
+
+```
+
+
