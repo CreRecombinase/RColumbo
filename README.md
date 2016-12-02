@@ -26,15 +26,33 @@ The module on RCC does not support C++
 `cd build`
 `cmake -DCMAKE_INSTALL_PREFIX=$HOME`
 
+
 ## 3. Install RColumbo
 
 from within R
 `#Install devools if necessary`
 `install.packages(devtools)`
 `library(devtools)`
+`#Install rhdf5 if necessary`
+`source("https://bioconductor.org/biocLite.R")`
+`biocLite("rhdf5")`
 `install_github("CreRecombinase/RColumbo",ref="release")`
 `library(RColumbo)`
 
 ## 4. Read compressed HDF5 files really fast
 
-cis eQTL
+The eQTL results are stored as dataframes in HDF5 (.h5) files. There is one file for each chromosome. Each h5 file
+has a `cis_eQTL` dataframe and a  `trans_eQTL` dataframe. The dataframes can be read using `RColumbo`'s `read_h5_df` function:
+
+`library(RColumbo)`
+`eqtl_file <- "WB_Chr2_v6p_ortho_flip.h5"`
+`cis_eqtl_df <- read_h5_df(eqtl_file,groupname="cis_eQTL")`
+`trans_eqtl_df <- read_h5_df(eqtl_file,groupname="trans_eQTL")`
+
+The columns of these dataframes are as follows
+* `chrom`: chromosome
+* `fgeneid`: a gene identifier (it's a basically the ensembl gene ID)
+* `pos`: chromosome coordinate as given by GTEx
+* `theta`:estimated eQTL regression coefficient (no intercept)
+* `serr`: standard error of eQTL regression coefficient
+
