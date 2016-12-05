@@ -89,59 +89,11 @@ write_Rnumeric_h5 <- function(h5file, groupname, dataname, data, deflate_level) 
     .Call('RColumbo_write_Rnumeric_h5', PACKAGE = 'RColumbo', h5file, groupname, dataname, data, deflate_level)
 }
 
-convertTSparse <- function(mat) {
-    .Call('RColumbo_convertTSparse', PACKAGE = 'RColumbo', mat)
+lineno_gz <- function(filename) {
+    .Call('RColumbo_lineno_gz', PACKAGE = 'RColumbo', filename)
 }
 
-findbandwidth <- function(i, j, x, cutoff) {
-    .Call('RColumbo_findbandwidth', PACKAGE = 'RColumbo', i, j, x, cutoff)
-}
-
-make_long <- function(vchrom, vpos, posmap) {
-    .Call('RColumbo_make_long', PACKAGE = 'RColumbo', vchrom, vpos, posmap)
-}
-
-findcutoff <- function(i, j, x, bandwidth) {
-    .Call('RColumbo_findcutoff', PACKAGE = 'RColumbo', i, j, x, bandwidth)
-}
-
-read_fmat_gz <- function(gzfile, chunksize, nrows, keeprow, ncols) {
-    .Call('RColumbo_read_fmat_gz', PACKAGE = 'RColumbo', gzfile, chunksize, nrows, keeprow, ncols)
-}
-
-write_haplotype_h5 <- function(hap_gzfile, hap_h5file, nrows, ncols, chunksize, deflate_level) {
-    .Call('RColumbo_write_haplotype_h5', PACKAGE = 'RColumbo', hap_gzfile, hap_h5file, nrows, ncols, chunksize, deflate_level)
-}
-
-read_flip <- function(hap_h5file, indexes) {
-    .Call('RColumbo_read_flip', PACKAGE = 'RColumbo', hap_h5file, indexes)
-}
-
-read_haplotype_ind_h5 <- function(hap_h5file, indexes) {
-    .Call('RColumbo_read_haplotype_ind_h5', PACKAGE = 'RColumbo', hap_h5file, indexes)
-}
-
-read_dmat_ind_h5 <- function(hap_h5file, groupname, dataname, indexes) {
-    .Call('RColumbo_read_dmat_ind_h5', PACKAGE = 'RColumbo', hap_h5file, groupname, dataname, indexes)
-}
-
-read_dmat_rowname <- function(h5file, annogroupname, annocolname, datagroupname, datacolname, queryvec) {
-    .Call('RColumbo_read_dmat_rowname', PACKAGE = 'RColumbo', h5file, annogroupname, annocolname, datagroupname, datacolname, queryvec)
-}
-
-read_fmat_rowname <- function(h5file, annogroupname, annocolname, datagroupname, datacolname, queryvec) {
-    .Call('RColumbo_read_fmat_rowname', PACKAGE = 'RColumbo', h5file, annogroupname, annocolname, datagroupname, datacolname, queryvec)
-}
-
-ip_cov <- function(Hpanela, Hpanelb, isDiag) {
-    .Call('RColumbo_ip_cov', PACKAGE = 'RColumbo', Hpanela, Hpanelb, isDiag)
-}
-
-flip_hap <- function(hap_h5file, index, chunk, chunksize, nSNPs) {
-    .Call('RColumbo_flip_hap', PACKAGE = 'RColumbo', hap_h5file, index, chunk, chunksize, nSNPs)
-}
-
-read_haplotype_h5 <- function(hap_h5file, readSNPs, skipSNPs) {
-    .Call('RColumbo_read_haplotype_h5', PACKAGE = 'RColumbo', hap_h5file, readSNPs, skipSNPs)
+write_genotype_h5 <- function(snpdatmat, Nind, chunksize, h5file, doFlip, deflate_level) {
+    .Call('RColumbo_write_genotype_h5', PACKAGE = 'RColumbo', snpdatmat, Nind, chunksize, h5file, doFlip, deflate_level)
 }
 

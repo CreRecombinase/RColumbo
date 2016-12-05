@@ -321,197 +321,30 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// convertTSparse
-arma::mat convertTSparse(Rcpp::S4& mat);
-RcppExport SEXP RColumbo_convertTSparse(SEXP matSEXP) {
+// lineno_gz
+size_t lineno_gz(const char* filename);
+RcppExport SEXP RColumbo_lineno_gz(SEXP filenameSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::S4& >::type mat(matSEXP);
-    rcpp_result_gen = Rcpp::wrap(convertTSparse(mat));
+    Rcpp::traits::input_parameter< const char* >::type filename(filenameSEXP);
+    rcpp_result_gen = Rcpp::wrap(lineno_gz(filename));
     return rcpp_result_gen;
 END_RCPP
 }
-// findbandwidth
-int findbandwidth(Rcpp::IntegerVector& i, Rcpp::IntegerVector& j, Rcpp::NumericVector& x, double cutoff);
-RcppExport SEXP RColumbo_findbandwidth(SEXP iSEXP, SEXP jSEXP, SEXP xSEXP, SEXP cutoffSEXP) {
+// write_genotype_h5
+int write_genotype_h5(const char* snpdatmat, size_t Nind, size_t chunksize, const std::string h5file, bool doFlip, const unsigned int deflate_level);
+RcppExport SEXP RColumbo_write_genotype_h5(SEXP snpdatmatSEXP, SEXP NindSEXP, SEXP chunksizeSEXP, SEXP h5fileSEXP, SEXP doFlipSEXP, SEXP deflate_levelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type i(iSEXP);
-    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type j(jSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< double >::type cutoff(cutoffSEXP);
-    rcpp_result_gen = Rcpp::wrap(findbandwidth(i, j, x, cutoff));
-    return rcpp_result_gen;
-END_RCPP
-}
-// make_long
-arma::uvec make_long(arma::uvec& vchrom, arma::uvec& vpos, arma::uvec& posmap);
-RcppExport SEXP RColumbo_make_long(SEXP vchromSEXP, SEXP vposSEXP, SEXP posmapSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::uvec& >::type vchrom(vchromSEXP);
-    Rcpp::traits::input_parameter< arma::uvec& >::type vpos(vposSEXP);
-    Rcpp::traits::input_parameter< arma::uvec& >::type posmap(posmapSEXP);
-    rcpp_result_gen = Rcpp::wrap(make_long(vchrom, vpos, posmap));
-    return rcpp_result_gen;
-END_RCPP
-}
-// findcutoff
-int findcutoff(Rcpp::IntegerVector& i, Rcpp::IntegerVector& j, Rcpp::NumericVector& x, int bandwidth);
-RcppExport SEXP RColumbo_findcutoff(SEXP iSEXP, SEXP jSEXP, SEXP xSEXP, SEXP bandwidthSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type i(iSEXP);
-    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type j(jSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< int >::type bandwidth(bandwidthSEXP);
-    rcpp_result_gen = Rcpp::wrap(findcutoff(i, j, x, bandwidth));
-    return rcpp_result_gen;
-END_RCPP
-}
-// read_fmat_gz
-arma::fmat read_fmat_gz(const std::string gzfile, const size_t chunksize, const size_t nrows, const arma::uvec keeprow, const size_t ncols);
-RcppExport SEXP RColumbo_read_fmat_gz(SEXP gzfileSEXP, SEXP chunksizeSEXP, SEXP nrowsSEXP, SEXP keeprowSEXP, SEXP ncolsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::string >::type gzfile(gzfileSEXP);
-    Rcpp::traits::input_parameter< const size_t >::type chunksize(chunksizeSEXP);
-    Rcpp::traits::input_parameter< const size_t >::type nrows(nrowsSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec >::type keeprow(keeprowSEXP);
-    Rcpp::traits::input_parameter< const size_t >::type ncols(ncolsSEXP);
-    rcpp_result_gen = Rcpp::wrap(read_fmat_gz(gzfile, chunksize, nrows, keeprow, ncols));
-    return rcpp_result_gen;
-END_RCPP
-}
-// write_haplotype_h5
-size_t write_haplotype_h5(const std::string hap_gzfile, const std::string hap_h5file, const size_t nrows, const size_t ncols, size_t chunksize, const unsigned int deflate_level);
-RcppExport SEXP RColumbo_write_haplotype_h5(SEXP hap_gzfileSEXP, SEXP hap_h5fileSEXP, SEXP nrowsSEXP, SEXP ncolsSEXP, SEXP chunksizeSEXP, SEXP deflate_levelSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::string >::type hap_gzfile(hap_gzfileSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
-    Rcpp::traits::input_parameter< const size_t >::type nrows(nrowsSEXP);
-    Rcpp::traits::input_parameter< const size_t >::type ncols(ncolsSEXP);
+    Rcpp::traits::input_parameter< const char* >::type snpdatmat(snpdatmatSEXP);
+    Rcpp::traits::input_parameter< size_t >::type Nind(NindSEXP);
     Rcpp::traits::input_parameter< size_t >::type chunksize(chunksizeSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type h5file(h5fileSEXP);
+    Rcpp::traits::input_parameter< bool >::type doFlip(doFlipSEXP);
     Rcpp::traits::input_parameter< const unsigned int >::type deflate_level(deflate_levelSEXP);
-    rcpp_result_gen = Rcpp::wrap(write_haplotype_h5(hap_gzfile, hap_h5file, nrows, ncols, chunksize, deflate_level));
-    return rcpp_result_gen;
-END_RCPP
-}
-// read_flip
-arma::uvec read_flip(const std::string hap_h5file, arma::uvec indexes);
-RcppExport SEXP RColumbo_read_flip(SEXP hap_h5fileSEXP, SEXP indexesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
-    Rcpp::traits::input_parameter< arma::uvec >::type indexes(indexesSEXP);
-    rcpp_result_gen = Rcpp::wrap(read_flip(hap_h5file, indexes));
-    return rcpp_result_gen;
-END_RCPP
-}
-// read_haplotype_ind_h5
-arma::Mat<int> read_haplotype_ind_h5(const std::string hap_h5file, arma::uvec indexes);
-RcppExport SEXP RColumbo_read_haplotype_ind_h5(SEXP hap_h5fileSEXP, SEXP indexesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
-    Rcpp::traits::input_parameter< arma::uvec >::type indexes(indexesSEXP);
-    rcpp_result_gen = Rcpp::wrap(read_haplotype_ind_h5(hap_h5file, indexes));
-    return rcpp_result_gen;
-END_RCPP
-}
-// read_dmat_ind_h5
-arma::mat read_dmat_ind_h5(const std::string hap_h5file, const std::string groupname, const std::string dataname, arma::uvec indexes);
-RcppExport SEXP RColumbo_read_dmat_ind_h5(SEXP hap_h5fileSEXP, SEXP groupnameSEXP, SEXP datanameSEXP, SEXP indexesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type groupname(groupnameSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type dataname(datanameSEXP);
-    Rcpp::traits::input_parameter< arma::uvec >::type indexes(indexesSEXP);
-    rcpp_result_gen = Rcpp::wrap(read_dmat_ind_h5(hap_h5file, groupname, dataname, indexes));
-    return rcpp_result_gen;
-END_RCPP
-}
-// read_dmat_rowname
-arma::mat read_dmat_rowname(const std::string h5file, const std::string annogroupname, const std::string annocolname, const std::string datagroupname, const std::string datacolname, arma::uvec queryvec);
-RcppExport SEXP RColumbo_read_dmat_rowname(SEXP h5fileSEXP, SEXP annogroupnameSEXP, SEXP annocolnameSEXP, SEXP datagroupnameSEXP, SEXP datacolnameSEXP, SEXP queryvecSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::string >::type h5file(h5fileSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type annogroupname(annogroupnameSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type annocolname(annocolnameSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type datagroupname(datagroupnameSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type datacolname(datacolnameSEXP);
-    Rcpp::traits::input_parameter< arma::uvec >::type queryvec(queryvecSEXP);
-    rcpp_result_gen = Rcpp::wrap(read_dmat_rowname(h5file, annogroupname, annocolname, datagroupname, datacolname, queryvec));
-    return rcpp_result_gen;
-END_RCPP
-}
-// read_fmat_rowname
-arma::fmat read_fmat_rowname(const std::string h5file, const std::string annogroupname, const std::string annocolname, const std::string datagroupname, const std::string datacolname, arma::uvec queryvec);
-RcppExport SEXP RColumbo_read_fmat_rowname(SEXP h5fileSEXP, SEXP annogroupnameSEXP, SEXP annocolnameSEXP, SEXP datagroupnameSEXP, SEXP datacolnameSEXP, SEXP queryvecSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::string >::type h5file(h5fileSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type annogroupname(annogroupnameSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type annocolname(annocolnameSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type datagroupname(datagroupnameSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type datacolname(datacolnameSEXP);
-    Rcpp::traits::input_parameter< arma::uvec >::type queryvec(queryvecSEXP);
-    rcpp_result_gen = Rcpp::wrap(read_fmat_rowname(h5file, annogroupname, annocolname, datagroupname, datacolname, queryvec));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ip_cov
-arma::fmat ip_cov(const arma::fmat& Hpanela, const arma::fmat& Hpanelb, bool isDiag);
-RcppExport SEXP RColumbo_ip_cov(SEXP HpanelaSEXP, SEXP HpanelbSEXP, SEXP isDiagSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::fmat& >::type Hpanela(HpanelaSEXP);
-    Rcpp::traits::input_parameter< const arma::fmat& >::type Hpanelb(HpanelbSEXP);
-    Rcpp::traits::input_parameter< bool >::type isDiag(isDiagSEXP);
-    rcpp_result_gen = Rcpp::wrap(ip_cov(Hpanela, Hpanelb, isDiag));
-    return rcpp_result_gen;
-END_RCPP
-}
-// flip_hap
-arma::mat flip_hap(const std::string hap_h5file, arma::uvec index, const ::arma::uword chunk, const arma::uword chunksize, const arma::uword nSNPs);
-RcppExport SEXP RColumbo_flip_hap(SEXP hap_h5fileSEXP, SEXP indexSEXP, SEXP chunkSEXP, SEXP chunksizeSEXP, SEXP nSNPsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
-    Rcpp::traits::input_parameter< arma::uvec >::type index(indexSEXP);
-    Rcpp::traits::input_parameter< const ::arma::uword >::type chunk(chunkSEXP);
-    Rcpp::traits::input_parameter< const arma::uword >::type chunksize(chunksizeSEXP);
-    Rcpp::traits::input_parameter< const arma::uword >::type nSNPs(nSNPsSEXP);
-    rcpp_result_gen = Rcpp::wrap(flip_hap(hap_h5file, index, chunk, chunksize, nSNPs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// read_haplotype_h5
-arma::Mat<int> read_haplotype_h5(const std::string hap_h5file, const size_t readSNPs, const size_t skipSNPs);
-RcppExport SEXP RColumbo_read_haplotype_h5(SEXP hap_h5fileSEXP, SEXP readSNPsSEXP, SEXP skipSNPsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::string >::type hap_h5file(hap_h5fileSEXP);
-    Rcpp::traits::input_parameter< const size_t >::type readSNPs(readSNPsSEXP);
-    Rcpp::traits::input_parameter< const size_t >::type skipSNPs(skipSNPsSEXP);
-    rcpp_result_gen = Rcpp::wrap(read_haplotype_h5(hap_h5file, readSNPs, skipSNPs));
+    rcpp_result_gen = Rcpp::wrap(write_genotype_h5(snpdatmat, Nind, chunksize, h5file, doFlip, deflate_level));
     return rcpp_result_gen;
 END_RCPP
 }
