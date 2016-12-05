@@ -11,38 +11,6 @@
 
 
 
-sub_cistrans <- function(tsnp,texp,cisdist=1e6){
-  length_snps <-length(tsnp)
-  length_exps <- length(texp)
-  dfl <- list()
-  for(i in 1:length_snps){
-    cat(i,"\n")
-    for(j in 1:length_exps){
-      cat(j,"\n")
-      dfl[[paste0(i,"_",j)]] <- full_join(tsnp[[i]],texp[[j]],by="chrom") %>% filter((pos>pmax(start-cisdist,0)),(pos<start+cisdist))
-    }
-  }
-  retdf <- bind_rows(dfl)
-  return(retdf)
-}
-
-
-map_cistrans <- function(snpleg,expleg,maxsize=10000,cisdist=1e6,outh5file=NULL,write=T){
-  ##Assumes that snps are ordered by chrom, then by pos
-  ##Assumes that genes are ordered by chrom then start, then stop
-  snp_list <- split(snpleg,snpleg$chrom)
-  exp_list <- split(expleg,expleg$chrom)
-  snp_list <- lapply(snp_list,chunk_df,chunk.size=maxsize)
-  exp_list <- lapply(exp_list,chunk_df,chunk.size=maxsize)
-  cis_transdf <- bind_rows(mapply(sub_cistrans,snp_list,exp_list,SIMPLIFY = F))
-  if(write==T){
-    stopifnot(!is.null(outh5file))
-    write_h5_df(df=cis_transdf,group="cis",outfile = outh5file,deflate_level = 4)
-  }else{
-  return(cis_transdf)
-  }
-}
-
 flipmat <- function(hapd,doFlip){
   nhapd <- rbind(doFlip,hapd)
   rhapd <- apply(nhapd,2,function(x){
@@ -554,6 +522,7 @@ fhLD <- function(haph5,readind,doFlip,cummap,m,Ne,cutoff,i,j,chunksize){
 
 chunk_df <- function(df,chunk.size=NULL,n.chunks=NULL){
   require(BBmisc)
+  require(dplyr)
   stopifnot(xor(!is.null(chunk.size),!is.null(n.chunks)))
 
   ind <-1:nrow(df)
@@ -574,7 +543,7 @@ chunk_df <- function(df,chunk.size=NULL,n.chunks=NULL){
   }
   dfl <- list()
   for(i in 1:length(ichunk)){
-    dfl[[i]] <- slice(df,ichunk[[i]])
+    dfl[[i]] <- dplyr::slice(df,ichunk[[i]])
   }
   return(dfl)
 }
