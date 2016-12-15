@@ -2,11 +2,19 @@
 
 Installing RColumbo (without root privelages) (on RCC) 
 
-## 0. Load required modules
+## 0. Load required modules and edit  `.bash_profile`
 
 `module load cmake`
 
 `module load R`
+
+Add this line to the end of `~/.bash_profile`:
+
+`export LD_LIBRARY_PATH=$HOME/lib:$LD_LIBRARY_PATH`
+
+then run 
+`source ~/.bash_profile`
+
 
 ## 1. Download and install HDF5
 
