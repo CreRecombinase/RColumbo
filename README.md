@@ -35,6 +35,7 @@ The module on RCC does not support C++
 `cmake -DCMAKE_INSTALL_PREFIX=$HOME ..`
 
 `make`
+
 `make install`
 
 
