@@ -37,7 +37,7 @@ write_gtex_gdsn <- function(geno_txt,geno_gdsn,chunksize=1e5){
   wbdf <- read_delim_chunked(geno_txt,delim = "\t",
                              col_names=T,
                              callback = SideEffectChunkCallback$new(gtex_cbf),
-                             chunk_size = chunksize,)
+                             chunk_size = chunksize)
   readmode.gdsn(var.pos)
   readmode.gdsn(var.chrom)
   readmode.gdsn(var.allele)
@@ -52,25 +52,46 @@ gdsn_to_h5 <- function(geno_gdsn,geno_h5,chunksize=1e6,doFlip=F){
   require(dplyr)
   require(tidyr)
   require(BBmisc)
+  require(h5)
   geno_gds <- openfn.gds(geno_gdsn)
   snp_leg <- data_frame(chrom=read.gdsn(index.gdsn(geno_gds,"snp.chromosome")),
                         pos = read.gdsn(index.gdsn(geno_gds,"snp.position")),
                         allele=read.gdsn(index.gdsn(geno_gds,"snp.allele")))
   snp_leg <- separate(snp_leg,allele,into = c("ref","alt"),convert = T)
-  snp_leg <- mutate(snp_leg,doFlip =as.integer(ref<alt)) %>% select(-ref,-alt)
-  write_h5_df(df = snp_leg,group = "SNPinfo",outfile = geno_h5,deflate_level = 4)
+  snp_leg <- mutate(snp_leg,doFlip =as.integer(ref<alt))
 
+  write_df_h5(df = snp_leg,group = "SNPinfo",outfile = geno_h5,deflate_level = 4,chunksize = as.integer(nrow(snp_leg)/2))
+  sample_id <-read.gdsn(index.gdsn(geno_gds,"sample.id"))
   snpnum <-nrow(snp_leg)
-  for(i in 1:ceiling(snpnum/chunksize)){
-    genodat <- read.gdsn(index.gdsn(geno_gds,"genotype"),start=c(1,(i-1)*chunksize+1),count=c(-1,min(chunksize,(snpnum-(i-1)*chunksize))))
-    write_dmatrix_h5(h5file = geno_h5,groupname="SNPdata",dataname = "genotype",
-                     Nsnps = snpnum,Nind = nrow(genodat),data = genodat,deflate_level = 4)
-    rm(genodat)
+  indnum <-length(sample_id)
+  chunknum <- ceiling(snpnum/chunksize)
+
+  hf <- h5file(geno_h5,mode = 'a')
+  # group <- hf['/SNPdata']
+   group <- createGroup(hf,"SNPdata")
+  gdset <- createDataSet(.Object = group,
+                         datasetname = "genotype",
+                         type = "double",
+                         dimensions = c(indnum,snpnum),
+                         chunksize =as.integer(c(indnum,250000L)),
+                         maxdimensions = as.integer(c(indnum,snpnum)),
+                         compression = 4L)
+  colc <- chunk(1:snpnum,chunk.size = chunksize)
+  chunknum <- length(colc)
+  for(i in 1:chunknum){
+    cat(i,"of ",chunknum,"\n")
+    gdset[1:indnum,colc[[i]]] <- read.gdsn(index.gdsn(geno_gds,"genotype"),start=c(1,colc[[i]][1]),count=c(-1,length(colc[[i]])))
     gc()
   }
   closefn.gds(geno_gds)
   return(T)
+
+
 }
+
+
+
+
 
 
 

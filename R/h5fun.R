@@ -1,5 +1,17 @@
+chunk_h5file <- function(in_h5file,out_h5dir,chunksize=NULL){
+  require(h5)
+  stopifnot(file.exists(in_h5file))
 
+}
 
+chunk_h5d <- function(in_h5file,in_groupname,in_dataname,out_h5dir,out_fname,out_groupname,out_dataname,chunksize=NULL){
+  require(h5)
+  stopifnot(!is.null(chunksize))
+  df <- h5file(in_h5file,'r')
+  dpath <- df[paste0('/',in_groupname,'/',in_dataname)]
+  ddim <- dim(dpath)
+
+}
 
 
 
@@ -111,6 +123,62 @@ write_covar_h5 <- function(covarf,h5file,chunksize=1,deflate_level=9){
  }
 
 
+ write_df_h5 <- function(df,groupname,outfile,deflate_level=4L,chunksize=1000L){
+   if(nrow(df)<chunksize){
+     chunksize <- nrow(df)
+   }
+   deflate_level <- as.integer(deflate_level)
+   require(h5)
+   dataname <- colnames(df)
+   f <-h5file(outfile,mode = 'w')
+   if(existsGroup(f,groupname)){
+     h5close(f)
+     res <- append_df_h5(df,groupname,outfile,deflate_level)
+     return(res)
+   }
+   group <- createGroup(f,groupname)
+   for(i in 1:length(dataname)){
+     dsn <- dataname[i]
+     td <- df[[dsn]]
+     tdata <- createDataSet(.Object = group,
+                            datasetname = dsn,
+                            type = typeof(td),
+                            dimensions = length(td),
+                            chunksize =chunksize,
+                            maxdimensions = NA_integer_,
+                            compression = deflate_level)
+     tdata[] <- td
+   }
+   h5close(f)
+   return(T)
+ }
+
+append_df_h5 <- function(df,groupname,outfile,deflate_level=4){
+  if(nrow(df)<=chunksize){
+    chunksize <- nrow(df)/2
+  }
+  require(h5)
+  dataname <- colnames(df)
+  f <-h5file(outfile,mode = 'a')
+  group <- openGroup(f,groupname)
+  for(i in 1:length(dataname)){
+    dsn <- dataname[i]
+    td <- df[[dsn]]
+    if(existsDataSet(group,dsn)){
+      tdata <- openDataSet(group,dsn)
+      odim <- dim(tdata)
+      extendDataSet(tdata,odim+length(td))
+      tdata[(odim+1):(odim+length(td))] <- td
+    }else{
+      h5close(f)
+      stop(paste0(dsn," does not exist in ",outfile))
+    }
+  }
+  h5close(f)
+  return(T)
+}
+
+
 
 
 write_h5_df <- function(df,group,outfile,deflate_level=4){
@@ -145,6 +213,31 @@ write_h5_df <- function(df,group,outfile,deflate_level=4){
   }
 }
 
+
+read_df_h5 <- function(h5filepath,groupname,subcols=NULL,filtervec=NULL){
+  require(h5)
+  require(dplyr)
+  require(lazyeval)
+  stopifnot(file.exists(h5filepath))
+  f <- h5file(h5filepath,mode = 'r')
+  stopifnot(existsGroup(f,groupname))
+  group <- openGroup(f,groupname)
+  dsets <- list.datasets(group)
+  if(!is.null(subcols)){
+    subcols <- paste0("/",groupname,"/",subcols)
+    dsets <- dsets[dsets %in% subcols]
+  }
+  stopifnot(length(dsets)>0)
+  dsnames <- gsub(pattern = paste0("/",groupname,"/"),"",dsets)
+  return(as_data_frame(setNames(lapply(dsets,function(x,file,fvec){
+    if(is.null(fvec)){
+      return(x=file[x][])
+    }else{
+      return(file[x][filtervec])
+    }
+  },file=f,fvec=filtervec),dsnames)
+  ))
+}
 
 
 read_h5_df <- function(h5file,groupname,subcols=NULL,filtervec=NULL){

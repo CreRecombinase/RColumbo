@@ -348,3 +348,181 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// orthogonalize_covar
+arma::fmat orthogonalize_covar(const arma::fmat& Covariates);
+RcppExport SEXP RColumbo_orthogonalize_covar(SEXP CovariatesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Covariates(CovariatesSEXP);
+    rcpp_result_gen = Rcpp::wrap(orthogonalize_covar(Covariates));
+    return rcpp_result_gen;
+END_RCPP
+}
+// orthogonalize_data
+arma::fmat orthogonalize_data(const arma::fmat& Data, const arma::fmat& covariates);
+RcppExport SEXP RColumbo_orthogonalize_data(SEXP DataSEXP, SEXP covariatesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Data(DataSEXP);
+    Rcpp::traits::input_parameter< const arma::fmat& >::type covariates(covariatesSEXP);
+    rcpp_result_gen = Rcpp::wrap(orthogonalize_data(Data, covariates));
+    return rcpp_result_gen;
+END_RCPP
+}
+// betaMatrix
+arma::fmat betaMatrix(const arma::fmat& Genotype, const arma::fmat& Expression);
+RcppExport SEXP RColumbo_betaMatrix(SEXP GenotypeSEXP, SEXP ExpressionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Genotype(GenotypeSEXP);
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Expression(ExpressionSEXP);
+    rcpp_result_gen = Rcpp::wrap(betaMatrix(Genotype, Expression));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cor_h5
+Rcpp::DataFrame cor_h5(const std::string h5file, const std::string groupname, const std::string dataname, const arma::uvec indvec, const float LDcutoff, const bool cutBelow);
+RcppExport SEXP RColumbo_cor_h5(SEXP h5fileSEXP, SEXP groupnameSEXP, SEXP datanameSEXP, SEXP indvecSEXP, SEXP LDcutoffSEXP, SEXP cutBelowSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::string >::type h5file(h5fileSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type groupname(groupnameSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type dataname(datanameSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec >::type indvec(indvecSEXP);
+    Rcpp::traits::input_parameter< const float >::type LDcutoff(LDcutoffSEXP);
+    Rcpp::traits::input_parameter< const bool >::type cutBelow(cutBelowSEXP);
+    rcpp_result_gen = Rcpp::wrap(cor_h5(h5file, groupname, dataname, indvec, LDcutoff, cutBelow));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rMatrix
+arma::fmat rMatrix(const arma::fmat& Genotype, const arma::fmat& Expression);
+RcppExport SEXP RColumbo_rMatrix(SEXP GenotypeSEXP, SEXP ExpressionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Genotype(GenotypeSEXP);
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Expression(ExpressionSEXP);
+    rcpp_result_gen = Rcpp::wrap(rMatrix(Genotype, Expression));
+    return rcpp_result_gen;
+END_RCPP
+}
+// isCis_mat
+arma::uvec isCis_mat(const arma::ivec snp_chrom, const arma::ivec snp_pos, const arma::ivec exp_chrom, const arma::ivec exp_start, const arma::ivec exp_stop, const arma::uword cisdist_cutoff);
+RcppExport SEXP RColumbo_isCis_mat(SEXP snp_chromSEXP, SEXP snp_posSEXP, SEXP exp_chromSEXP, SEXP exp_startSEXP, SEXP exp_stopSEXP, SEXP cisdist_cutoffSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::ivec >::type snp_chrom(snp_chromSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec >::type snp_pos(snp_posSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec >::type exp_chrom(exp_chromSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec >::type exp_start(exp_startSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec >::type exp_stop(exp_stopSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type cisdist_cutoff(cisdist_cutoffSEXP);
+    rcpp_result_gen = Rcpp::wrap(isCis_mat(snp_chrom, snp_pos, exp_chrom, exp_start, exp_stop, cisdist_cutoff));
+    return rcpp_result_gen;
+END_RCPP
+}
+// isCis
+arma::uvec isCis(const arma::ivec snp_chrom, const arma::ivec snp_pos, const arma::sword exp_chrom, const arma::sword exp_start, const arma::sword exp_stop, const arma::uword cisdist_cutoff);
+RcppExport SEXP RColumbo_isCis(SEXP snp_chromSEXP, SEXP snp_posSEXP, SEXP exp_chromSEXP, SEXP exp_startSEXP, SEXP exp_stopSEXP, SEXP cisdist_cutoffSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::ivec >::type snp_chrom(snp_chromSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec >::type snp_pos(snp_posSEXP);
+    Rcpp::traits::input_parameter< const arma::sword >::type exp_chrom(exp_chromSEXP);
+    Rcpp::traits::input_parameter< const arma::sword >::type exp_start(exp_startSEXP);
+    Rcpp::traits::input_parameter< const arma::sword >::type exp_stop(exp_stopSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type cisdist_cutoff(cisdist_cutoffSEXP);
+    rcpp_result_gen = Rcpp::wrap(isCis(snp_chrom, snp_pos, exp_chrom, exp_start, exp_stop, cisdist_cutoff));
+    return rcpp_result_gen;
+END_RCPP
+}
+// addLD
+arma::uvec addLD(const arma::uvec& snpind, const arma::fmat& LDmat, const float LDcutoff);
+RcppExport SEXP RColumbo_addLD(SEXP snpindSEXP, SEXP LDmatSEXP, SEXP LDcutoffSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::uvec& >::type snpind(snpindSEXP);
+    Rcpp::traits::input_parameter< const arma::fmat& >::type LDmat(LDmatSEXP);
+    Rcpp::traits::input_parameter< const float >::type LDcutoff(LDcutoffSEXP);
+    rcpp_result_gen = Rcpp::wrap(addLD(snpind, LDmat, LDcutoff));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fast_eQTL
+Rcpp::DataFrame fast_eQTL(const arma::fmat& Genotype, const Rcpp::DataFrame snpanno, const arma::fmat& Expression, const Rcpp::DataFrame expanno, const double cis_tcutoff, const double trans_tcutoff, const arma::uword cisdist, const bool doTrans, const bool doCis);
+RcppExport SEXP RColumbo_fast_eQTL(SEXP GenotypeSEXP, SEXP snpannoSEXP, SEXP ExpressionSEXP, SEXP expannoSEXP, SEXP cis_tcutoffSEXP, SEXP trans_tcutoffSEXP, SEXP cisdistSEXP, SEXP doTransSEXP, SEXP doCisSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Genotype(GenotypeSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::DataFrame >::type snpanno(snpannoSEXP);
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Expression(ExpressionSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::DataFrame >::type expanno(expannoSEXP);
+    Rcpp::traits::input_parameter< const double >::type cis_tcutoff(cis_tcutoffSEXP);
+    Rcpp::traits::input_parameter< const double >::type trans_tcutoff(trans_tcutoffSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type cisdist(cisdistSEXP);
+    Rcpp::traits::input_parameter< const bool >::type doTrans(doTransSEXP);
+    Rcpp::traits::input_parameter< const bool >::type doCis(doCisSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_eQTL(Genotype, snpanno, Expression, expanno, cis_tcutoff, trans_tcutoff, cisdist, doTrans, doCis));
+    return rcpp_result_gen;
+END_RCPP
+}
+// extract_stats
+Rcpp::DataFrame extract_stats(const arma::fmat& Genotype, const Rcpp::DataFrame snpanno, const arma::fmat& Expression, const Rcpp::DataFrame expanno, const arma::fmat& LDmat, const arma::fmat& rmat, const double tcutoff, const double LDcutoff, const arma::uword cisdist, const bool display_progress, bool doCis);
+RcppExport SEXP RColumbo_extract_stats(SEXP GenotypeSEXP, SEXP snpannoSEXP, SEXP ExpressionSEXP, SEXP expannoSEXP, SEXP LDmatSEXP, SEXP rmatSEXP, SEXP tcutoffSEXP, SEXP LDcutoffSEXP, SEXP cisdistSEXP, SEXP display_progressSEXP, SEXP doCisSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Genotype(GenotypeSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::DataFrame >::type snpanno(snpannoSEXP);
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Expression(ExpressionSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::DataFrame >::type expanno(expannoSEXP);
+    Rcpp::traits::input_parameter< const arma::fmat& >::type LDmat(LDmatSEXP);
+    Rcpp::traits::input_parameter< const arma::fmat& >::type rmat(rmatSEXP);
+    Rcpp::traits::input_parameter< const double >::type tcutoff(tcutoffSEXP);
+    Rcpp::traits::input_parameter< const double >::type LDcutoff(LDcutoffSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type cisdist(cisdistSEXP);
+    Rcpp::traits::input_parameter< const bool >::type display_progress(display_progressSEXP);
+    Rcpp::traits::input_parameter< bool >::type doCis(doCisSEXP);
+    rcpp_result_gen = Rcpp::wrap(extract_stats(Genotype, snpanno, Expression, expanno, LDmat, rmat, tcutoff, LDcutoff, cisdist, display_progress, doCis));
+    return rcpp_result_gen;
+END_RCPP
+}
+// serrMatrix
+arma::mat serrMatrix(const arma::mat& Genotype, const arma::mat& Expression, const arma::mat& Betas);
+RcppExport SEXP RColumbo_serrMatrix(SEXP GenotypeSEXP, SEXP ExpressionSEXP, SEXP BetasSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type Genotype(GenotypeSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Expression(ExpressionSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Betas(BetasSEXP);
+    rcpp_result_gen = Rcpp::wrap(serrMatrix(Genotype, Expression, Betas));
+    return rcpp_result_gen;
+END_RCPP
+}
+// orthogonalize_dataset
+void orthogonalize_dataset(std::string h5filename, std::string newh5filename, std::string covar_h5file, std::string datagroup, std::string datasetname, std::string newdatasetname, size_t chunksize, const unsigned int deflate_level);
+RcppExport SEXP RColumbo_orthogonalize_dataset(SEXP h5filenameSEXP, SEXP newh5filenameSEXP, SEXP covar_h5fileSEXP, SEXP datagroupSEXP, SEXP datasetnameSEXP, SEXP newdatasetnameSEXP, SEXP chunksizeSEXP, SEXP deflate_levelSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type h5filename(h5filenameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type newh5filename(newh5filenameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type covar_h5file(covar_h5fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type datagroup(datagroupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type datasetname(datasetnameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type newdatasetname(newdatasetnameSEXP);
+    Rcpp::traits::input_parameter< size_t >::type chunksize(chunksizeSEXP);
+    Rcpp::traits::input_parameter< const unsigned int >::type deflate_level(deflate_levelSEXP);
+    orthogonalize_dataset(h5filename, newh5filename, covar_h5file, datagroup, datasetname, newdatasetname, chunksize, deflate_level);
+    return R_NilValue;
+END_RCPP
+}

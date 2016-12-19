@@ -97,3 +97,51 @@ write_genotype_h5 <- function(snpdatmat, Nind, chunksize, h5file, doFlip, deflat
     .Call('RColumbo_write_genotype_h5', PACKAGE = 'RColumbo', snpdatmat, Nind, chunksize, h5file, doFlip, deflate_level)
 }
 
+orthogonalize_covar <- function(Covariates) {
+    .Call('RColumbo_orthogonalize_covar', PACKAGE = 'RColumbo', Covariates)
+}
+
+orthogonalize_data <- function(Data, covariates) {
+    .Call('RColumbo_orthogonalize_data', PACKAGE = 'RColumbo', Data, covariates)
+}
+
+betaMatrix <- function(Genotype, Expression) {
+    .Call('RColumbo_betaMatrix', PACKAGE = 'RColumbo', Genotype, Expression)
+}
+
+cor_h5 <- function(h5file, groupname, dataname, indvec, LDcutoff, cutBelow) {
+    .Call('RColumbo_cor_h5', PACKAGE = 'RColumbo', h5file, groupname, dataname, indvec, LDcutoff, cutBelow)
+}
+
+rMatrix <- function(Genotype, Expression) {
+    .Call('RColumbo_rMatrix', PACKAGE = 'RColumbo', Genotype, Expression)
+}
+
+isCis_mat <- function(snp_chrom, snp_pos, exp_chrom, exp_start, exp_stop, cisdist_cutoff) {
+    .Call('RColumbo_isCis_mat', PACKAGE = 'RColumbo', snp_chrom, snp_pos, exp_chrom, exp_start, exp_stop, cisdist_cutoff)
+}
+
+isCis <- function(snp_chrom, snp_pos, exp_chrom, exp_start, exp_stop, cisdist_cutoff) {
+    .Call('RColumbo_isCis', PACKAGE = 'RColumbo', snp_chrom, snp_pos, exp_chrom, exp_start, exp_stop, cisdist_cutoff)
+}
+
+addLD <- function(snpind, LDmat, LDcutoff) {
+    .Call('RColumbo_addLD', PACKAGE = 'RColumbo', snpind, LDmat, LDcutoff)
+}
+
+fast_eQTL <- function(Genotype, snpanno, Expression, expanno, cis_tcutoff, trans_tcutoff, cisdist, doTrans, doCis) {
+    .Call('RColumbo_fast_eQTL', PACKAGE = 'RColumbo', Genotype, snpanno, Expression, expanno, cis_tcutoff, trans_tcutoff, cisdist, doTrans, doCis)
+}
+
+extract_stats <- function(Genotype, snpanno, Expression, expanno, LDmat, rmat, tcutoff, LDcutoff, cisdist, display_progress, doCis) {
+    .Call('RColumbo_extract_stats', PACKAGE = 'RColumbo', Genotype, snpanno, Expression, expanno, LDmat, rmat, tcutoff, LDcutoff, cisdist, display_progress, doCis)
+}
+
+serrMatrix <- function(Genotype, Expression, Betas) {
+    .Call('RColumbo_serrMatrix', PACKAGE = 'RColumbo', Genotype, Expression, Betas)
+}
+
+orthogonalize_dataset <- function(h5filename, newh5filename, covar_h5file, datagroup, datasetname, newdatasetname, chunksize, deflate_level) {
+    invisible(.Call('RColumbo_orthogonalize_dataset', PACKAGE = 'RColumbo', h5filename, newh5filename, covar_h5file, datagroup, datasetname, newdatasetname, chunksize, deflate_level))
+}
+
