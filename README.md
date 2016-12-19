@@ -2,14 +2,23 @@
 
 Installing RColumbo (without root privelages) (on RCC) 
 
-## 0. Load required modules
+## 0. Load required modules and edit  `.bash_profile`
 
 `module load cmake`
+
 `module load R`
+
+Add this line to the end of `~/.bash_profile`:
+
+`export LD_LIBRARY_PATH=$HOME/lib:$LD_LIBRARY_PATH`
+
+then run 
+`source ~/.bash_profile`
+
 
 ## 1. Download and install HDF5
 
-The module on RCC does not support C++
+The HDF5 module on RCC does not support C++
 
 `wget https://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.10/hdf5-1.10.0-patch1/src/hdf5-1.10.0-patch1.tar.gz`
 
@@ -35,6 +44,7 @@ The module on RCC does not support C++
 `cmake -DCMAKE_INSTALL_PREFIX=$HOME ..`
 
 `make`
+
 `make install`
 
 
