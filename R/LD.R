@@ -725,6 +725,29 @@ stat_extract <- function(rawh5,haph5,gwash5,outh5,chromosome,chunksize,cis_pcuto
   cat("Done!\n")
 }
 
+chunk_eQTL <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL,cisdist_cutoff=1e6){
+  require(dplyr)
+  require(tidyr)
+  require(BBmisc)
+  snpleg <-read_df_h5(snph5,"SNPinfo",filtervec=snpinter)
+  expleg <- read_df_h5(exph5,"EXPinfo",filtervec=expinter)
+  expdat <- read_dmat_chunk_ind(exph5,"EXPdata","expression",expinter)
+  snpdat <- read_dmat_chunk_ind(snph5,"SNPdata","genotype",snpinter)
+  eqtl <- fast_eQTL(Genotype=snpdat,snpanno=snpleg,Expression=expdat,
+                    expanno=expleg,cis_tcutoff = 0,trans_tcutoff = 0,cisdist = 1e6,doTrans = T,doCis = T)
+  cis_eqtl <-filter(eqtl,cistrans==1) %>% select(-cistrans) %>% mutate(tstat=theta/serr)
+  trans_eqtl <- filter(eqtl,cistrans==0) %>% select(-cistrans) %>% mutate(tstat=theta/serr)
+  if(nrow(cis_eqtl)>0){
+    write_h5_df(cis_eqtl,"cis_eQTL",outfile = outh5)
+  }
+  if(nrow(trans_eqtl)>0){
+    write_h5_df(trans_eqtl,"trans_eQTL",outfile = outh5)
+  }
+  gc()
+  cat("Done!\n")
+  return(nrow(eqtl))
+}
+
 run_eqtl<- function(rawh5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcutoff=1e-3,cisdist_cutoff=1e6,append=F,useortho=F){
   require(dplyr)
   require(tidyr)
@@ -744,6 +767,8 @@ run_eqtl<- function(rawh5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcut
     bexpdat <- read_dmat_ind_h5(rawh5,"EXPdata","expression",c(1:get_rownum_h5(rawh5,"EXPdata","expression")))
     bexpdat <- scale(bexpdat,center = T,scale=T)
   }
+
+
 
 
   cis_tcutoff <- abs(qt(cis_pcutoff,df = nrow(bexpdat)-2,lower.tail = F))
@@ -771,7 +796,7 @@ run_eqtl<- function(rawh5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcut
     }
     # betas <- betaMatrix(osnpdat,bexpdat)
     eqtl <- fast_eQTL(Genotype=osnpdat,snpanno=query_df,Expression=bexpdat,
-                          expanno=expleg,cis_tcutoff = cis_tcutoff,trans_tcutoff = trans_tcutoff,cisdist = 1e6,doTrans = T,doCis = T)
+                      expanno=expleg,cis_tcutoff = cis_tcutoff,trans_tcutoff = trans_tcutoff,cisdist = 1e6,doTrans = T,doCis = T)
     cis_eqtl <-filter(eqtl,cistrans==1) %>% select(-cistrans) %>% mutate(tstat=theta/serr)
     trans_eqtl <- filter(eqtl,cistrans==0) %>% select(-cistrans)
     if(nrow(cis_eqtl)>0){
