@@ -456,6 +456,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// really_fast_eQTL
+Rcpp::DataFrame really_fast_eQTL(const arma::fmat& Genotype, const Rcpp::DataFrame& snpanno, const arma::fmat& Expression, const Rcpp::DataFrame expanno);
+RcppExport SEXP RColumbo_really_fast_eQTL(SEXP GenotypeSEXP, SEXP snpannoSEXP, SEXP ExpressionSEXP, SEXP expannoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Genotype(GenotypeSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::DataFrame& >::type snpanno(snpannoSEXP);
+    Rcpp::traits::input_parameter< const arma::fmat& >::type Expression(ExpressionSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::DataFrame >::type expanno(expannoSEXP);
+    rcpp_result_gen = Rcpp::wrap(really_fast_eQTL(Genotype, snpanno, Expression, expanno));
+    return rcpp_result_gen;
+END_RCPP
+}
 // fast_eQTL
 Rcpp::DataFrame fast_eQTL(const arma::fmat& Genotype, const Rcpp::DataFrame snpanno, const arma::fmat& Expression, const Rcpp::DataFrame expanno, const double cis_tcutoff, const double trans_tcutoff, const arma::uword cisdist, const bool doTrans, const bool doCis);
 RcppExport SEXP RColumbo_fast_eQTL(SEXP GenotypeSEXP, SEXP snpannoSEXP, SEXP ExpressionSEXP, SEXP expannoSEXP, SEXP cis_tcutoffSEXP, SEXP trans_tcutoffSEXP, SEXP cisdistSEXP, SEXP doTransSEXP, SEXP doCisSEXP) {

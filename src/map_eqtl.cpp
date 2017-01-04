@@ -122,6 +122,35 @@ arma::uvec chunk_index(const arma::uvec indexvec, const size_t chunksize,size_t 
 }
 
 //[[Rcpp::export]]
+Rcpp::DataFrame really_fast_eQTL(const arma::fmat &Genotype, const Rcpp::DataFrame &snpanno, const arma::fmat &Expression, const Rcpp::DataFrame expanno){
+  //This function doesn't compute any cis-trans relationships,and doesn't check for cutoffs
+  using namespace Rcpp;
+  double n =Genotype.n_rows;
+  Rcpp::Rcout<<"Computing correlation"<<std::endl;
+  arma::fvec rmat =arma::vectorise(arma::cor(Genotype,Expression));
+  arma::fvec Betas;
+  arma::fvec serrv;
+  arma::uvec cid;
+  Rcpp::Rcout<<"Computing std error and Betas"<<std::endl;
+  Betas=arma::vectorise(betaMatrix(Genotype,Expression));
+  Rcpp::Rcout<<"Computing t-statistic"<<std::endl;
+  arma::fvec tv= sqrt(n-2)*(rmat/arma::sqrt(1-arma::pow(rmat,2)));
+  Rcpp::Rcout<<"Computing std error!"<<std::endl;
+  serrv=Betas/tv;
+  int nexp=Expression.n_cols;
+  int nsnp= Genotype.n_cols;
+  IntegerVector tchrom = snpanno["chrom"];
+  IntegerVector tpos = snpanno["pos"];
+  IntegerVector tfgid =expanno["fgeneid"];
+Rcpp::Rcout<<"Returing dataframe"<<std::endl;
+  return(DataFrame::create(_["theta"]= NumericVector(Betas.begin(),Betas.end()),
+                           _["serr"]= NumericVector(serrv.begin(),serrv.end()),
+                           _["chrom"]=Rcpp::rep(tchrom,nexp),
+                           _["pos"]=Rcpp::rep(tpos,nexp),
+                           _["fgeneid"]=Rcpp::rep_each(tfgid,nsnp)));
+
+}
+//[[Rcpp::export]]
 Rcpp::DataFrame fast_eQTL(const arma::fmat &Genotype, const Rcpp::DataFrame snpanno, const arma::fmat &Expression, const Rcpp::DataFrame expanno, const double cis_tcutoff, const double trans_tcutoff,const arma::uword cisdist, const bool doTrans,const bool doCis){
   using namespace Rcpp;
   double n =Genotype.n_rows;

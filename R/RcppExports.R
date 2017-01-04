@@ -129,6 +129,10 @@ addLD <- function(snpind, LDmat, LDcutoff) {
     .Call('RColumbo_addLD', PACKAGE = 'RColumbo', snpind, LDmat, LDcutoff)
 }
 
+really_fast_eQTL <- function(Genotype, snpanno, Expression, expanno) {
+    .Call('RColumbo_really_fast_eQTL', PACKAGE = 'RColumbo', Genotype, snpanno, Expression, expanno)
+}
+
 fast_eQTL <- function(Genotype, snpanno, Expression, expanno, cis_tcutoff, trans_tcutoff, cisdist, doTrans, doCis) {
     .Call('RColumbo_fast_eQTL', PACKAGE = 'RColumbo', Genotype, snpanno, Expression, expanno, cis_tcutoff, trans_tcutoff, cisdist, doTrans, doCis)
 }

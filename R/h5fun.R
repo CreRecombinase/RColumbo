@@ -219,6 +219,7 @@ read_df_h5 <- function(h5filepath,groupname,subcols=NULL,filtervec=NULL){
   require(dplyr)
   require(lazyeval)
   stopifnot(file.exists(h5filepath))
+
   f <- h5file(h5filepath,mode = 'r')
   stopifnot(existsGroup(f,groupname))
   group <- openGroup(f,groupname)
