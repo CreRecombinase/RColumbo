@@ -246,12 +246,14 @@ Rcpp::DataFrame fast_eQTL(const arma::fmat &Genotype, const Rcpp::DataFrame snpa
       snp_chrom=snp_chrom.elem(snpind);
       fgeneids=fgeneids.elem(geneind);
     }
-    arma::uvec sizes={Betas.n_elem,serrv.n_elem,snp_pos.n_elem,fgeneids.n_elem,cid.n_elem};
+
+    /*arma::uvec sizes={Betas.n_elem,serrv.n_elem,snp_pos.n_elem,fgeneids.n_elem,cid.n_elem};
     if(arma::any(sizes!=Betas.n_elem)){
       Rcerr<<"sizes not equal"<<std::endl;
       sizes.print();
       stop("Error: cannot create dataframe from vectors of unequal size");
     }
+     */
   }
   NumericVector theta(Betas.begin(),Betas.end());
   NumericVector serr(serrv.begin(),serrv.end());
