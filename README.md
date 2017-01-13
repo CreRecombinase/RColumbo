@@ -63,6 +63,8 @@ from within R
 
 `biocLite("rhdf5")`
 
+`devtools::install_github("CreRecombinase/h5")`
+
 `devtools::install_github("CreRecombinase/RColumbo",ref="release")`
 
 `library(RColumbo)`
