@@ -58,7 +58,7 @@ if test -z "${CPPFLAGS}"; then
 
   [
   CPPFLAGS=`${H5CPP} -show -c myconftest.cpp | ${GREP} -o "\-I[^[:space:]]\+" | tr "\n" " "`
-  CPPFLAGS="${CPPFLAGS} -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_USE_CXX11 -DARMA_64BIT_WORD -I${HOME}/include"
+  CPPFLAGS="${CPPFLAGS} -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_64BIT_WORD -I${HOME}/include"
   ]
 
   rm -f myconftest.cpp
