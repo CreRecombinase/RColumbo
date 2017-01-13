@@ -344,7 +344,13 @@ Rcpp::DataFrame extract_stats(const arma::fmat &Genotype,const Rcpp::DataFrame s
         }
       }
     }
-    arma::uvec sizes={betavec.size(),serrvec.size(),snpvec.size(),genevec.size(),cistransvec.size()};
+    arma::uvec sizes(5);
+    sizes[0]=betavec.size();
+    sizes[1]=serrvec.size();
+    sizes[2]=snpvec.size();
+    sizes[3]=genevec.size();
+    sizes[4]=cistransvec.size();
+//    arma::uvec sizes={betavec.size(),serrvec.size(),snpvec.size(),genevec.size(),cistransvec.size()};
     if(arma::any(sizes!=betavec.size())){
       Rcerr<<"sizes not equal"<<std::endl;
       sizes.print();
