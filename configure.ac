@@ -36,7 +36,7 @@ if test -z "${LIBS}"; then
   ]
   
   dnl Fix for newer Debian versions
-  LIBS="${LIBS} -L. -lhdf5_cpp -lhdf5 -lz -lm -lblosc -lboost_iostreams"
+  LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -lhdf5_cpp -lhdf5 -lz -lm -lblosc -lboost_iostreams"
 
 fi
 
@@ -58,7 +58,7 @@ if test -z "${CPPFLAGS}"; then
 
   [
   CPPFLAGS=`${H5CPP} -show -c myconftest.cpp | ${GREP} -o "\-I[^[:space:]]\+" | tr "\n" " "`
-  CPPFLAGS="${CPPFLAGS} -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_USE_CXX11 -DARMA_64BIT_WORD"
+  CPPFLAGS="${CPPFLAGS} -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_USE_CXX11 -DARMA_64BIT_WORD -I${HOME}/include"
   ]
 
   rm -f myconftest.cpp
