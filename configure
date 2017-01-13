@@ -1788,7 +1788,7 @@ $as_echo "no" >&6; }
   LIBS=`${H5CPP} -show | ${GREP} -o "\-L[^[:space:]]\+" | tr "\n" " "`
 
 
-    LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -lhdf5_cpp -lhdf5 -lz -lm -lblosc"
+    LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -lhdf5_cpp -lhdf5 -lz -lblosc"
 
 fi
 
