@@ -89,14 +89,6 @@ write_Rnumeric_h5 <- function(h5file, groupname, dataname, data, deflate_level) 
     .Call('RColumbo_write_Rnumeric_h5', PACKAGE = 'RColumbo', h5file, groupname, dataname, data, deflate_level)
 }
 
-lineno_gz <- function(filename) {
-    .Call('RColumbo_lineno_gz', PACKAGE = 'RColumbo', filename)
-}
-
-write_genotype_h5 <- function(snpdatmat, Nind, chunksize, h5file, doFlip, deflate_level) {
-    .Call('RColumbo_write_genotype_h5', PACKAGE = 'RColumbo', snpdatmat, Nind, chunksize, h5file, doFlip, deflate_level)
-}
-
 orthogonalize_covar <- function(Covariates) {
     .Call('RColumbo_orthogonalize_covar', PACKAGE = 'RColumbo', Covariates)
 }

@@ -321,33 +321,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// lineno_gz
-size_t lineno_gz(const char* filename);
-RcppExport SEXP RColumbo_lineno_gz(SEXP filenameSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const char* >::type filename(filenameSEXP);
-    rcpp_result_gen = Rcpp::wrap(lineno_gz(filename));
-    return rcpp_result_gen;
-END_RCPP
-}
-// write_genotype_h5
-int write_genotype_h5(const char* snpdatmat, size_t Nind, size_t chunksize, const std::string h5file, bool doFlip, const unsigned int deflate_level);
-RcppExport SEXP RColumbo_write_genotype_h5(SEXP snpdatmatSEXP, SEXP NindSEXP, SEXP chunksizeSEXP, SEXP h5fileSEXP, SEXP doFlipSEXP, SEXP deflate_levelSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const char* >::type snpdatmat(snpdatmatSEXP);
-    Rcpp::traits::input_parameter< size_t >::type Nind(NindSEXP);
-    Rcpp::traits::input_parameter< size_t >::type chunksize(chunksizeSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type h5file(h5fileSEXP);
-    Rcpp::traits::input_parameter< bool >::type doFlip(doFlipSEXP);
-    Rcpp::traits::input_parameter< const unsigned int >::type deflate_level(deflate_levelSEXP);
-    rcpp_result_gen = Rcpp::wrap(write_genotype_h5(snpdatmat, Nind, chunksize, h5file, doFlip, deflate_level));
-    return rcpp_result_gen;
-END_RCPP
-}
 // orthogonalize_covar
 arma::fmat orthogonalize_covar(const arma::fmat& Covariates);
 RcppExport SEXP RColumbo_orthogonalize_covar(SEXP CovariatesSEXP) {

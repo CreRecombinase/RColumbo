@@ -1,10 +1,10 @@
 #include "RcppArmadillo.h"
 //[[Rcpp::depends(BH,RcppArmadillo)]]
 #include <boost/algorithm/string.hpp>
-#include <boost/iostreams/filtering_stream.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/copy.hpp>
-#include <boost/iostreams/device/mapped_file.hpp>
+//#include <boost/iostreams/filtering_stream.hpp>
+//#include <boost/iostreams/filter/gzip.hpp>
+//#include <boost/iostreams/copy.hpp>
+//#include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/qi_match.hpp>
 #include <boost/spirit/include/qi_uint.hpp>
@@ -59,7 +59,7 @@ arma::uvec isFlip(std::vector<std::string> &ref,std::vector<std::string> &alt){
 
 
 
-
+/*
 size_t read_genotype_gz(boost::iostreams::filtering_istream &fs, const size_t Nsnps, const size_t Nind,const size_t chunksize,arma::uvec &mchroms,arma::uvec &mposs, std::vector<std::string> &refs, std::vector<std::string> &alts,arma::fmat &mgenotypes){
   using namespace Rcpp;
   using namespace boost::spirit::qi;
@@ -107,8 +107,8 @@ size_t read_genotype_gz(boost::iostreams::filtering_istream &fs, const size_t Ns
 
   return(ct);
 }
-
-// [[Rcpp::export]]
+ */
+/*
 size_t lineno_gz(const char* filename){
   using namespace Rcpp;
   Rcout<<"Counting line number"<<std::endl;
@@ -128,9 +128,9 @@ size_t lineno_gz(const char* filename){
   }
   return(ln-1);
 }
+*/
 
-
-// [[Rcpp::export]]
+/*
 int write_genotype_h5(const char* snpdatmat,size_t Nind,size_t chunksize, const std::string h5file, bool doFlip,const unsigned int deflate_level){
   using namespace Rcpp;
   size_t Nsnps = lineno_gz(snpdatmat);
@@ -185,4 +185,4 @@ int write_genotype_h5(const char* snpdatmat,size_t Nind,size_t chunksize, const 
   return(count);
 }
 
-
+*/
