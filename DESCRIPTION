@@ -9,4 +9,5 @@ License: What license is it under?
 LazyData: TRUE
 LinkingTo:Rcpp,RcppArmadillo
 Imports: rhdf5,Matrix,dplyr,future,Rcpp (>= 0.12.5),tidyr,BBmisc,glmnet,broom,gdsfmt,SNPRelate
+Remotes: biocc:release/rhdf5, CreRecombinase/h5, zhengxwen/gdsfmt@1.5.7, biocc::zhengxwen/SNPRelate
 Suggests: testthat
