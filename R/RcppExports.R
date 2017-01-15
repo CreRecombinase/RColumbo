@@ -121,6 +121,10 @@ addLD <- function(snpind, LDmat, LDcutoff) {
     .Call('RColumbo_addLD', PACKAGE = 'RColumbo', snpind, LDmat, LDcutoff)
 }
 
+fastest_eQTL <- function(genotypef, snpinter, expressionf, expinter) {
+    .Call('RColumbo_fastest_eQTL', PACKAGE = 'RColumbo', genotypef, snpinter, expressionf, expinter)
+}
+
 really_fast_eQTL <- function(Genotype, snpanno, Expression, expanno) {
     .Call('RColumbo_really_fast_eQTL', PACKAGE = 'RColumbo', Genotype, snpanno, Expression, expanno)
 }

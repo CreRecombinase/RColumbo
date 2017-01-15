@@ -429,6 +429,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fastest_eQTL
+arma::fcube fastest_eQTL(const std::string genotypef, const arma::uvec& snpinter, const std::string expressionf, const arma::uvec expinter);
+RcppExport SEXP RColumbo_fastest_eQTL(SEXP genotypefSEXP, SEXP snpinterSEXP, SEXP expressionfSEXP, SEXP expinterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::string >::type genotypef(genotypefSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type snpinter(snpinterSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type expressionf(expressionfSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec >::type expinter(expinterSEXP);
+    rcpp_result_gen = Rcpp::wrap(fastest_eQTL(genotypef, snpinter, expressionf, expinter));
+    return rcpp_result_gen;
+END_RCPP
+}
 // really_fast_eQTL
 Rcpp::DataFrame really_fast_eQTL(const arma::fmat& Genotype, const Rcpp::DataFrame& snpanno, const arma::fmat& Expression, const Rcpp::DataFrame expanno);
 RcppExport SEXP RColumbo_really_fast_eQTL(SEXP GenotypeSEXP, SEXP snpannoSEXP, SEXP ExpressionSEXP, SEXP expannoSEXP) {

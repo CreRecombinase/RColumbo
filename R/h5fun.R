@@ -95,6 +95,19 @@ write_covar_h5 <- function(covarf,h5file,chunksize=1,deflate_level=9){
 
 }
 
+write_2dmat_h5 <- function(h5f,groupn,datan,chunksize=c(5000,5000),deflate_level=4,data=NULL){
+  require(h5)
+  stopifnot(!is.null(data))
+  if(any(chunksize)>dim(data)){
+    chunksize[which(chunksize)>=dim(data)] <-dim(data)[which(chinksize)>=dim(data)]/2
+  }
+  hf <- h5file(h5f,mode='a')
+  grp <- createGroup(hf,groupname = groupn)
+  wdata <- createDataSet(grp,datasetname = datan,data=data,chunksize=chunksize,compression=deflate_level)
+  h5close(hf)
+  return(T)
+}
+
 
 
 

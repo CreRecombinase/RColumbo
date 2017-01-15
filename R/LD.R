@@ -752,6 +752,30 @@ chunk_eQTL <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL,cisdist_cut
   return(nrow(eqtl))
 }
 
+
+chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL,cisdist_cutoff=1e6){
+  require(dplyr)
+  require(tidyr)
+  require(BBmisc)
+  require(h5)
+  #cat("Starting to read snph5:",snph5)
+  #snpleg <-read_df_h5(snph5,"SNPinfo",filtervec=snpinter)
+  #cat("Starting to read exph5:",exph5)
+  #expleg <- read_df_h5(exph5,"EXPinfo",filtervec=expinter)
+  #expdat <- read_dmat_chunk_ind(exph5,"EXPdata","expression",expinter)
+  #snpdat <- read_dmat_chunk_ind(snph5,"SNPdata","genotype",snpinter)
+  #  feqtl <- really_fast_eQTL(Genotype = snpdat,snpanno = snpleg,Expression = expdat,expanno = expleg)
+  eqtl <- fastest_eQTL(genotypef=snph5,snpinter=snpinter,
+                       expressionf=exph5,expinter=expinter)
+  gc()
+  write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "beta_mat",chunksize = c(length(snpinter)/2,length(expinter)/2),deflate_level = 4,data = eqtl[1,,])
+  write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "t_mat",chunksize = c(length(snpinter)/2,length(expinter)/2),deflate_level = 4,data = eqtl[2,,])
+
+  cat("Done!\n")
+  return(dim(eqtl))
+}
+
+
 run_eqtl<- function(rawh5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcutoff=1e-3,cisdist_cutoff=1e6,append=F,useortho=F){
   require(dplyr)
   require(tidyr)

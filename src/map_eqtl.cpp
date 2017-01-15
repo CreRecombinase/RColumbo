@@ -121,6 +121,25 @@ arma::uvec chunk_index(const arma::uvec indexvec, const size_t chunksize,size_t 
    return(indexvec(arma::span(istart,istop)));
 }
 
+
+//[[Rcpp::export]]
+arma::fcube fastest_eQTL(const std::string genotypef, const arma::uvec &snpinter, const std::string expressionf, const arma::uvec expinter){
+  using namespace Rcpp;
+
+  arma::fmat Genotype = read_fmat_chunk_ind(genotypef,"SNPdata","genotype",snpinter);
+  arma::fmat Expression = read_fmat_chunk_ind(expressionf,"EXPdata","expression",expinter);
+
+  double n =Genotype.n_rows;
+  Rcpp::Rcout<<"Computing correlation"<<std::endl;
+  arma::fmat rmat = arma::cor(Genotype,Expression);
+  arma::fmat Betas= betaMatrix(Genotype,Expression);
+  arma::fmat tstat = sqrt(n-2)*(rmat/arma::sqrt(1-arma::pow(rmat,2)));
+  return(arma::join_slices(Betas,tstat));
+}
+
+
+
+
 //[[Rcpp::export]]
 Rcpp::DataFrame really_fast_eQTL(const arma::fmat &Genotype, const Rcpp::DataFrame &snpanno, const arma::fmat &Expression, const Rcpp::DataFrame expanno){
   //This function doesn't compute any cis-trans relationships,and doesn't check for cutoffs
