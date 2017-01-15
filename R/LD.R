@@ -753,10 +753,7 @@ chunk_eQTL <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL,cisdist_cut
 }
 
 
-chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL,cisdist_cutoff=1e6){
-  require(dplyr)
-  require(tidyr)
-  require(BBmisc)
+chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL){
   require(h5)
   #cat("Starting to read snph5:",snph5)
   #snpleg <-read_df_h5(snph5,"SNPinfo",filtervec=snpinter)
@@ -767,7 +764,6 @@ chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL,cisdist
   #  feqtl <- really_fast_eQTL(Genotype = snpdat,snpanno = snpleg,Expression = expdat,expanno = expleg)
   eqtl <- fastest_eQTL(genotypef=snph5,snpinter=snpinter,
                        expressionf=exph5,expinter=expinter)
-  gc()
   write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "beta_mat",chunksize = c(length(snpinter)/2,length(expinter)/2),deflate_level = 4,data = eqtl[1,,])
   write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "t_mat",chunksize = c(length(snpinter)/2,length(expinter)/2),deflate_level = 4,data = eqtl[2,,])
 
