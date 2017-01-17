@@ -1,4 +1,5 @@
 #include "RcppArmadillo.h"
+//[[Rcpp::depends(RcppArmadillo)]]
 #include <vector>
 #include <memory>
 #include <H5Cpp.h>
