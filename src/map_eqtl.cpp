@@ -48,8 +48,8 @@ arma::mat betaMatrix(const arma::mat &Genotype,const arma::mat &Expression) {
 arma::cube fastest_eQTL(const std::string genotypef, const arma::uvec &snpinter, const std::string expressionf, const arma::uvec expinter){
   using namespace Rcpp;
 
-  arma::mat Genotype = arma::conv_to<arma::mat>::from(read_fmat_chunk_ind(genotypef,"SNPdata","genotype",snpinter));
-  arma::mat Expression = arma::conv_to<arma::mat>::from(read_fmat_chunk_ind(expressionf,"EXPdata","expression",expinter));
+  arma::mat Genotype = read_dmat_chunk_ind(genotypef,"SNPdata","genotype",snpinter);
+  arma::mat Expression = read_dmat_chunk_ind(expressionf,"EXPdata","expression",expinter);
 
   double n =Genotype.n_rows;
   Rcpp::Rcout<<"Computing correlation"<<std::endl;
