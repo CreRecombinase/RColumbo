@@ -764,8 +764,8 @@ chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL){
   #  feqtl <- really_fast_eQTL(Genotype = snpdat,snpanno = snpleg,Expression = expdat,expanno = expleg)
   eqtl <- fastest_eQTL(genotypef=snph5,snpinter=snpinter,
                        expressionf=exph5,expinter=expinter)
-  write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "beta_mat",chunksize = c(length(snpinter)/2,length(expinter)/2),deflate_level = 4,data = eqtl[1,,])
-  write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "t_mat",chunksize = c(length(snpinter)/2,length(expinter)/2),deflate_level = 4,data = eqtl[2,,])
+  write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "beta_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[1,,])
+  write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "t_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[2,,])
 
   cat("Done!\n")
   return(dim(eqtl))
