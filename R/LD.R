@@ -742,10 +742,10 @@ chunk_eQTL <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL,cisdist_cut
   cis_eqtl <-filter(eqtl,cistrans==1) %>% select(-cistrans) %>% mutate(tstat=theta/serr)
   trans_eqtl <- filter(eqtl,cistrans==0) %>% select(-cistrans) %>% mutate(tstat=theta/serr)
   if(nrow(cis_eqtl)>0){
-    write_h5_df(cis_eqtl,"cis_eQTL",outfile = outh5)
+    write_df_h5(cis_eqtl,"cis_eQTL",outfile = outh5)
   }
   if(nrow(trans_eqtl)>0){
-    write_h5_df(trans_eqtl,"trans_eQTL",outfile = outh5)
+    write_df_h5(trans_eqtl,"trans_eQTL",outfile = outh5)
   }
   gc()
   cat("Done!\n")
@@ -766,14 +766,14 @@ chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL){
   eqtl <- fastest_eQTL(genotypef=snph5,snpinter=snpinter,
                        expressionf=exph5,expinter=expinter)
   cat("Reading legfiles\n")
-  sub_expleg <- read_h5_df(exph5,"EXPinfo",filtervec=expinter)
-  sub_snpleg <- read_h5_df(snph5,"SNPinfo",filtervec=snpinter)
+  sub_expleg <- read_df_h5(exph5,"EXPinfo",filtervec=expinter)
+  sub_snpleg <- read_df_h5(snph5,"SNPinfo",filtervec=snpinter)
   cat("Writing eQTLmats\n")
   write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "beta_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,1])
   write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "t_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,2])
   cat("Writing legends\n")
-  write_h5_df(df = sub_snpleg,group = "SNPinfo",outfile = outh5,deflate_level = 4)
-  write_h5_df(df = sub_expleg,group = "EXPinfo",outfile = outh5,deflate_level = 4)
+  write_df_h5(df = sub_snpleg,group = "SNPinfo",outfile = outh5,deflate_level = 4)
+  write_df_h5(df = sub_expleg,group = "EXPinfo",outfile = outh5,deflate_level = 4)
   cat("Done!\n")
   return(dim(eqtl))
 }
@@ -831,10 +831,10 @@ run_eqtl<- function(rawh5,outh5,chromosome,chunksize,cis_pcutoff=0.01,trans_pcut
     cis_eqtl <-filter(eqtl,cistrans==1) %>% select(-cistrans) %>% mutate(tstat=theta/serr)
     trans_eqtl <- filter(eqtl,cistrans==0) %>% select(-cistrans)
     if(nrow(cis_eqtl)>0){
-      write_h5_df(cis_eqtl,"cis_eQTL",outfile = outh5)
+      write_df_h5(cis_eqtl,"cis_eQTL",outfile = outh5)
     }
     if(nrow(trans_eqtl)>0){
-      write_h5_df(trans_eqtl,"trans_eQTL",outfile = outh5)
+      write_df_h5(trans_eqtl,"trans_eQTL",outfile = outh5)
     }
     gc()
   }

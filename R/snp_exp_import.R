@@ -65,7 +65,7 @@ read_gtex_expression <- function(gzfile,h5filename){
     mutate(chrom=ifelse(chrom=="X",23,chrom)) %>%
     mutate(chrom=as.integer(chrom))
   wbexp <- t(data.matrix(select(wbdf,-one_of(annocols))))
-  write_h5_df(wbanno,group = "EXPinfo",outfile = h5filename,deflate_level = 4)
+  write_df_h5(wbanno,group = "EXPinfo",outfile = h5filename,deflate_level = 4)
 
   write_dmatrix_h5(h5file = h5filename,groupname = "EXPdata",dataname = "expression",Nsnps = ncol(wbexp),Nind = nrow(wbexp),data = wbexp,deflate_level = 4)
 
@@ -90,7 +90,7 @@ read_gtex_expression_2d <- function(gzfile,h5filename){
     mutate(chrom=ifelse(chrom=="X",23,chrom)) %>%
     mutate(chrom=as.integer(chrom))
   wbexp <- t(data.matrix(select(wbdf,-one_of(annocols))))
-  write_h5_df(wbanno,group = "EXPinfo",outfile = h5filename,deflate_level = 4)
+  write_df_h5(wbanno,group = "EXPinfo",outfile = h5filename,deflate_level = 4)
 
   write_2dmat_h5(h5f = h5filename,groupn = "EXPdata",datan = "expression",data = wbexp,deflate_level = 4,append=T)
 
@@ -120,7 +120,7 @@ read_gtex_snp <- function(ngzfile,h5file,chunksize=100000,FlipAllele=T){
     mutate(chrom=ifelse(chrom=="X",23,chrom)) %>%
     mutate(chrom=as.integer(chrom),pos=as.integer(pos))
 
-  write_h5_df(df = annodf,group = "SNPinfo",outfile = h5file)
+  write_df_h5(df = annodf,group = "SNPinfo",outfile = h5file)
   rm(annodf)
   gc()
   all_genodata <-data.matrix(select(all_genodata,-one_of(annocols),-doFlip))
