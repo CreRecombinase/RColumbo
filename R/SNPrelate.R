@@ -59,7 +59,7 @@ gdsn_to_h5 <- function(geno_gdsn,geno_h5,chunksize=1e6,doFlip=F){
                         allele=read.gdsn(index.gdsn(geno_gds,"snp.allele")))
   snp_leg <- separate(snp_leg,allele,into = c("ref","alt"),convert = T)
 
-  write_df_h5(df = snp_leg,group = "SNPinfo",outfile = geno_h5,deflate_level = 4,chunksize = as.integer(nrow(snp_leg)/2))
+  write_df_h5(df = snp_leg,groupname = "SNPinfo",outfile = geno_h5,deflate_level = 4,chunksize = as.integer(nrow(snp_leg)/2))
   sample_id <-read.gdsn(index.gdsn(geno_gds,"sample.id"))
   snpnum <-nrow(snp_leg)
   indnum <-length(sample_id)

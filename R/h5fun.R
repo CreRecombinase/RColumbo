@@ -213,7 +213,7 @@ write_covar_2d <- function(covarf,h5filename,chunksize=1,deflate_level=9){
               weight=ifelse(doFlip==1,-weight,weight))
      rmna <- is.na(annodf$chrom)|is.na(annodf$pos)
      annodf <- filter(annodf,!rmna)
-     write_df_h5(df = annodf,group = "cis_eQTL",outfile = th5file,deflate_level = 4)
+     write_df_h5(df = annodf,groupname = "cis_eQTL",outfile = th5file,deflate_level = 4)
    }
    wbdf <- read_delim_chunked(txtfile,delim = "\t",col_names=T,callback = SideEffectChunkCallback$new(gtex_cbf),chunk_size = chunksize)
    gc()

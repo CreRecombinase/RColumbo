@@ -772,8 +772,8 @@ chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL){
   write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "beta_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,1])
   write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "t_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,2])
   cat("Writing legends\n")
-  write_df_h5(df = sub_snpleg,group = "SNPinfo",outfile = outh5,deflate_level = 4)
-  write_df_h5(df = sub_expleg,group = "EXPinfo",outfile = outh5,deflate_level = 4)
+  write_df_h5(df = sub_snpleg,groupname = "SNPinfo",outfile = outh5,deflate_level = 4)
+  write_df_h5(df = sub_expleg,groupname = "EXPinfo",outfile = outh5,deflate_level = 4)
   cat("Done!\n")
   return(dim(eqtl))
 }
