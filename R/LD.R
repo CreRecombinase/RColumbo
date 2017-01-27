@@ -762,11 +762,18 @@ chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL){
   #expdat <- read_dmat_chunk_ind(exph5,"EXPdata","expression",expinter)
   #snpdat <- read_dmat_chunk_ind(snph5,"SNPdata","genotype",snpinter)
   #  feqtl <- really_fast_eQTL(Genotype = snpdat,snpanno = snpleg,Expression = expdat,expanno = expleg)
+  cat("Mapping eQTL\n")
   eqtl <- fastest_eQTL(genotypef=snph5,snpinter=snpinter,
                        expressionf=exph5,expinter=expinter)
+  cat("Reading legfiles\n")
+  sub_expleg <- read_h5_df(exph5,"EXPinfo",filtervec=expinter)
+  sub_snpleg <- read_h5_df(snph5,"SNPinfo",filtervec=snpinter)
+  cat("Writing eQTLmats\n")
   write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "beta_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,1])
   write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "t_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,2])
-
+  cat("Writing legends\n")
+  write_h5_df(df = sub_snpleg,group = "SNPinfo",outfile = outh5,deflate_level = 4)
+  write_h5_df(df = sub_expleg,group = "EXPinfo",outfile = outh5,deflate_level = 4)
   cat("Done!\n")
   return(dim(eqtl))
 }

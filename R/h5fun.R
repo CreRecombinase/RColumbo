@@ -95,7 +95,57 @@ write_covar_h5 <- function(covarf,h5file,chunksize=1,deflate_level=9){
 
 }
 
-write_2dmat_h5 <- function(h5f,groupn,datan,chunksize=c(5000,5000),deflate_level=4,data=NULL){
+
+read_ind_h5 <- function(h5filename,groupname,dataname,index){
+  require(h5)
+  minind <- min(index)
+  maxind <- max(index)
+  hf <- h5file(h5filename,'r')
+  hd <- hf[paste0('/',groupname,'/',dataname)]
+  dimd <- dim(hd)
+  subd <- hd[,minind:maxind][,(index-minind)+1]
+  h5close(hf)
+  return(subd)
+}
+
+
+
+read_subset_h5 <- function(h5filename,groupname,dataname,index,chunk_size=NULL,chunk_num=NULL){
+  stopifnot(!is.null(chunk_size)||!is.null(chunk_num))
+  require(BBmisc)
+  if(!is.null(chunk_size)){
+    chunkind <-chunk(x = index,chunk.size = chunk_size)
+  }else{
+    chunkind <-chunk(x = index,n.chunks = chunk_num)
+  }
+  fdata <- do.call("cbind",
+                   lapply(chunkind,read_ind_h5,h5filename=h5filename,groupname=groupname,dataname=dataname))
+  stopifnot(length(index)==ncol(fdata))
+  return(fdata)
+}
+
+copy_subset_h5 <-function(h5filename,groupname,dataname,index,chunk_size=NULL,chunk_num=NULL,newh5filename){
+  stopifnot(!is.null(chunk_size)||!is.null(chunk_num))
+  require(BBmisc)
+  if(!is.null(chunk_size)){
+    chunkind <-chunk(x = index,chunk.size = chunk_size)
+  }else{
+    chunkind <-chunk(x = index,n.chunks = chunk_num)
+  }
+  for(i in 1:length(chunkind)){
+    tdata <- read_ind_h5(h5filename,groupname,dataname,chunkind[[i]])
+    write_2dmat_h5(newh5filename,groupname,dataname,deflate_level=4,data=tdata,append=T)
+  }
+  nf <- h5file(newh5filename,mode='r')
+  nd <- nf[paste0('/',groupname,'/',dataname)]
+  stopifnot(ncol(nd)==length(index))
+  h5close(nf)
+  return(T)
+}
+
+
+
+write_2dmat_h5 <- function(h5f,groupn,datan,chunksize=c(5000,5000),deflate_level=4,data=NULL,append=F){
   require(h5)
   stopifnot(!is.null(data))
   if(any(chunksize>dim(data))){
@@ -107,12 +157,43 @@ write_2dmat_h5 <- function(h5f,groupn,datan,chunksize=c(5000,5000),deflate_level
   }else{
     grp <- openGroup(hf,groupname = paste0("/",groupn))
   }
+  if(existsDataSet(grp,datan)){
+    if(append){
+      ds <- openDataSet(grp,datan)
+      current_row <- nrow(ds)
+      current_col <- ncol(ds)
+
+      data_row <- nrow(data)
+      data_col <- ncol(data)
+      stopifnot(current_row==data_row)
+      new_dim <- c(current_row,current_col+data_col)
+      nds <-extendDataSet(ds,dims = new_dim)
+      nds[,(current_col+1):new_dim[2]] <- data
+    }
+    else{stop("Dataset already exists!")}
+  }else{
   wdata <- createDataSet(grp,datasetname = datan,data=data,chunksize=chunksize,compression=deflate_level)
+stopifnot(all(dim(wdata)==dim(data)))
+  }
   h5close(hf)
   return(T)
 }
 
 
+write_covar_2d <- function(covarf,h5filename,chunksize=1,deflate_level=9){
+  require(h5)
+  covardat <- read.table(covarf,header=T,stringsAsFactors = F)
+  matdat <-t(data.matrix(select(covardat,-ID)))
+  ncovar <- ncol(matdat)
+  nid <- nrow(matdat)
+  write_2dmat_h5(h5f = h5filename,groupn = "Covardat",datan = "covariates",data=matdat,append=F)
+  h5createGroup(file = h5file,group = "Covarinfo")
+  h5createDataset(h5file,"/Covarinfo/id",
+                  dims=c(nrow(covardat)),
+                  storage.mode="character",size=max(nchar(covardat$ID))+1,
+                  chunk=chunksize,level=deflate_level)
+  h5write(covardat$ID,file=h5file,name="/Covarinfo/id")
+}
 
 
  write_gtex_eqtl_h5 <- function(txtfile,eqtlh5file,chunksize=500000){
@@ -147,7 +228,7 @@ write_2dmat_h5 <- function(h5f,groupn,datan,chunksize=c(5000,5000),deflate_level
    deflate_level <- as.integer(deflate_level)
    require(h5)
    dataname <- colnames(df)
-   f <-h5file(outfile,mode = 'w')
+   f <-h5file(outfile,mode = 'a')
    if(existsGroup(f,groupname)){
      h5close(f)
      res <- append_df_h5(df,groupname,outfile,deflate_level)
@@ -171,9 +252,6 @@ write_2dmat_h5 <- function(h5f,groupn,datan,chunksize=c(5000,5000),deflate_level
  }
 
 append_df_h5 <- function(df,groupname,outfile,deflate_level=4){
-  if(nrow(df)<=chunksize){
-    chunksize <- nrow(df)/2
-  }
   require(h5)
   dataname <- colnames(df)
   f <-h5file(outfile,mode = 'a')
@@ -184,8 +262,8 @@ append_df_h5 <- function(df,groupname,outfile,deflate_level=4){
     if(existsDataSet(group,dsn)){
       tdata <- openDataSet(group,dsn)
       odim <- dim(tdata)
-      extendDataSet(tdata,odim+length(td))
-      tdata[(odim+1):(odim+length(td))] <- td
+      ntdata <- extendDataSet(tdata,odim+length(td))
+      ntdata[(odim+1):(odim+length(td))] <- td
     }else{
       h5close(f)
       stop(paste0(dsn," does not exist in ",outfile))

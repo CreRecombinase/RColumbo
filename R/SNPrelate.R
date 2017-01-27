@@ -58,7 +58,6 @@ gdsn_to_h5 <- function(geno_gdsn,geno_h5,chunksize=1e6,doFlip=F){
                         pos = read.gdsn(index.gdsn(geno_gds,"snp.position")),
                         allele=read.gdsn(index.gdsn(geno_gds,"snp.allele")))
   snp_leg <- separate(snp_leg,allele,into = c("ref","alt"),convert = T)
-  snp_leg <- mutate(snp_leg,doFlip =as.integer(ref<alt))
 
   write_df_h5(df = snp_leg,group = "SNPinfo",outfile = geno_h5,deflate_level = 4,chunksize = as.integer(nrow(snp_leg)/2))
   sample_id <-read.gdsn(index.gdsn(geno_gds,"sample.id"))
@@ -80,10 +79,11 @@ gdsn_to_h5 <- function(geno_gdsn,geno_h5,chunksize=1e6,doFlip=F){
   chunknum <- length(colc)
   for(i in 1:chunknum){
     cat(i,"of ",chunknum,"\n")
-    gdset[1:indnum,colc[[i]]] <- read.gdsn(index.gdsn(geno_gds,"genotype"),start=c(1,colc[[i]][1]),count=c(-1,length(colc[[i]])))
+    gdset[1:indnum,colc[[i]]] <-  read.gdsn(index.gdsn(geno_gds,"genotype"),start=c(1,colc[[i]][1]),count=c(-1,length(colc[[i]])))
     gc()
   }
   closefn.gds(geno_gds)
+  h5close(hf)
   return(T)
 
 
