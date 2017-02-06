@@ -38,7 +38,7 @@ if test -z "${LIBS}"; then
   
   dnl Fix for newer Debian versions
   LIBS="${LIBS} ${R_BLAS}"	
-  LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -lhdf5_cpp -lhdf5 -lz -lblosc -mkl"
+  LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -lhdf5_cpp -lhdf5 -lz -lblosc"
 
 fi
 

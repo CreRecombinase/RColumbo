@@ -1790,7 +1790,7 @@ $as_echo "no" >&6; }
 : ${R_BLAS=`R CMD config BLAS_LIBS`}
 
     LIBS="${LIBS} ${R_BLAS}"
-  LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -lhdf5_cpp -lhdf5 -lz -lblosc -mkl"
+  LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -lhdf5_cpp -lhdf5 -lz -lblosc"
 
 fi
 

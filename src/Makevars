@@ -1,3 +1,3 @@
-PKG_LIBS = -L/usr/local/Cellar/hdf5/1.8.16_1/lib -L/usr/lib -L/usr/local/opt/szip/lib  -L. -lhdf5_cpp -lhdf5 -lz -lm -lblosc -lboost_iostreams
-PKG_CPPFLAGS = -I/usr/local/Cellar/hdf5/1.8.16_1/include -I/usr/include -I/usr/local/opt/szip/include  -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_USE_CXX11 -DARMA_64BIT_WORD
+PKG_LIBS = -L/usr/local/lib  -L/usr/local/lib/R/lib -lRblas -L. -L/home/nwknoblauch/lib -L/home/nwknoblauch/lib64 -lhdf5_cpp -lhdf5 -lz -lblosc -mkl
+PKG_CPPFLAGS = -I/usr/local/include  -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_64BIT_WORD -I/home/nwknoblauch/include
 CXX_STD = CXX11
