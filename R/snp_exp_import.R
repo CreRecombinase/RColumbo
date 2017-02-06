@@ -1,50 +1,23 @@
 
 read_1kg_gz <- function(data_gzfile,leg_gzfile,map_gzfile,h5filename){
-  require(readr)
+
   require(dplyr)
+  require(readr)
   require(h5)
   require(iotools)
+  # data_gzfile <- "/media/nwknoblauch/Data/1kg/haplotypes/EUR.chr5_1kg_geno.hap.gz"
+  # leg_gzfile <- "/media/nwknoblauch/Data/1kg/haplotypes/EUR.chr5_1kg_geno.legend.gz"
+  # map_gzfile <- "/media/nwknoblauch/Data/1kg/1000-genomes-genetic-maps/interpolated_from_hapmap/chr5.interpolated_genetic_map.gz"
+  # h5filename <- "/media/nwknoblauch/Data/GTEx/1kg_SNP_H5/EUR.chr5_1kg.h5"
   chr <- as.integer(gsub(".+EUR.chr([0-9]+)_1kg.+","\\1",data_gzfile))
-  leg_data <- read_delim(leg_gzfile,delim=" ",col_names = c("rsid","pos","ref","alt"),skip = 1) %>%
+  leg_data <- readr::read_delim(leg_gzfile,delim=" ",col_names = c("rsid","pos","ref","alt"),skip = 1) %>%
     mutate(snp_id=1:n(),chrom=chr)
-  map_data <- read_delim(map_gzfile,delim=" ",col_names = c("rsid","pos","map")) %>% mutate(chrom=chr,map_id=1:n())
+  map_data <- readr::read_delim(map_gzfile,delim=" ",col_names = c("rsid","pos","map")) %>% mutate(chrom=chr,map_id=1:n())
   leg_map <- inner_join(leg_data,map_data) %>% distinct(snp_id,.keep_all=T) %>% distinct(map_id,.keep_all=T) %>% distinct(chrom,pos,.keep_all=T)
   w_leg_map <- select(leg_map,rsid,chrom,pos,ref,alt,map)
   write_df_h5(df = w_leg_map,outfile = h5filename,groupname = "SNPinfo",deflate_level = 4)
-  gzf <- gzfile(data_gzfile,open = 'rt')
-  chunk_mat <- chunk.reader(gzf,sep=" ")
-  chunkr <- 0
-  i <- 0
-  mchunk <- mstrsplit(read.chunk(chunk_mat,max.size = 335544320L),sep=" ",type="numeric")
-  while(nrow(mchunk)>0){
-    cat("chunk:",i,"\n")
-    sub_chunk <- leg_map$snp_id[leg_map$snp_id>chunkr&leg_map$snp_id<=(chunkr+nrow(mchunk))]-chunkr
-    tchunk <- t(mchunk[sub_chunk,])
-    cat("dim:",dim(tchunk))
-    if(ncol(tchunk)>0){
-      write_2dmat_h5(h5filename,groupn="SNPdata",datan="genotype",data=tchunk,append=T)
-    }
-    if(i==0){
-      nid <- nrow(tchunk)
-    }
-    i <- i+1
-    chunkr <- chunkr+nrow(mchunk)
-    mchunk <- mstrsplit(read.chunk(chunk_mat,max.size = 335544320L),sep=" ",type="numeric")
-  }
-  return(T)
+  write_rows_gzfile_h5(data_gzfile,leg_map$snp_id,h5filename,"SNPdata","genotype",max.size=335544320L)
 }
-
-subset_map_gz <- function(map_gzfile,h5filename,newh5filename){
-  require(readr)
-  require(dplyr)
-  chr <- as.integer(gsub(".+chr([0-9]+).interpolated_genetic.+","\\1",map_gzfile))
-
-  snp_leg <- read_df_h5(h5filename,groupname = "SNPinfo")
-  new_snp_leg <- inner_join(snp_leg,map_data)
-  copy_subset_h5(h5filename = h5filename,groupname = "SNPdata",dataname = "genotype",index = new_snp_leg$snp_id,chunk_num = 5,newh5filename = newh5filename)
-  new_snp_leg <- select(new_snp_leg,chrom,pos,ref,alt,map)
-}
-
 
 
 
@@ -79,7 +52,6 @@ read_gtex_expression_2d <- function(gzfile,h5filename){
   require(readr)
   require(dplyr)
   require(h5)
-  gzfile <- "/media/nwknoblauch/Data/GTEx/GTEx_Analysis_v6p_eQTL_expression_matrices/Muscle_Skeletal_Analysis.v6p.normalized.expression.bed.gz"
   wbrows <- as.integer(strsplit(system(paste0("wc -l ",gzfile),intern = T),split = " ")[[1]][1])
   wbdf <- read_delim(gzfile,delim="\t",col_names = T)
   colnames(wbdf)[1] <- c("chrom")
@@ -111,7 +83,7 @@ read_gtex_snp <- function(ngzfile,h5file,chunksize=100000,FlipAllele=T){
   require(data.table)
   cat("Counting number of rows\n")
 
-  all_genodata <- fread(input = paste0("zcat ",ngzfile),sep = "\t",header = T,data.table = F)
+  all_genodata <- data.table::fread(input = paste0("zcat ",ngzfile),sep = "\t",header = T,data.table = F)
   flipA=FlipAllele
   annocols <-c("chrom","pos","ref","alt","b37")
   all_genodata <-separate(all_genodata,Id,into = annocols,sep="_") %>% mutate(doFlip=as.integer(ref<alt))

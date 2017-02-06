@@ -34,9 +34,11 @@ if test -z "${LIBS}"; then
   [
   LIBS=`${H5CPP} -show | ${GREP} -o "\-L[^[:space:]]\+" | tr "\n" " "` 
   ]
+: ${R_BLAS=`R CMD config BLAS_LIBS`}
   
   dnl Fix for newer Debian versions
-  LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -lhdf5_cpp -lhdf5 -lz -lblosc"
+  LIBS="${LIBS} ${R_BLAS}"	
+  LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -lhdf5_cpp -lhdf5 -lz -lblosc -mkl"
 
 fi
 

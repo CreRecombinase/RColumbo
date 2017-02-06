@@ -321,6 +321,81 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// ip_cov
+arma::mat ip_cov(const arma::mat& Hpanela, const arma::mat& Hpanelb, bool isDiag);
+RcppExport SEXP RColumbo_ip_cov(SEXP HpanelaSEXP, SEXP HpanelbSEXP, SEXP isDiagSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type Hpanela(HpanelaSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Hpanelb(HpanelbSEXP);
+    Rcpp::traits::input_parameter< bool >::type isDiag(isDiagSEXP);
+    rcpp_result_gen = Rcpp::wrap(ip_cov(Hpanela, Hpanelb, isDiag));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cov_2_cor
+void cov_2_cor(arma::mat& covmat, arma::mat& rowvara, arma::mat& colvarb, const bool isDiag);
+RcppExport SEXP RColumbo_cov_2_cor(SEXP covmatSEXP, SEXP rowvaraSEXP, SEXP colvarbSEXP, SEXP isDiagSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat& >::type covmat(covmatSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type rowvara(rowvaraSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type colvarb(colvarbSEXP);
+    Rcpp::traits::input_parameter< const bool >::type isDiag(isDiagSEXP);
+    cov_2_cor(covmat, rowvara, colvarb, isDiag);
+    return R_NilValue;
+END_RCPP
+}
+// compute_shrinkage
+void compute_shrinkage(arma::mat& distmat, arma::mat& S, const arma::mat& hmata, const double theta, const double m, const double Ne, const double cutoff, const bool isDiag);
+RcppExport SEXP RColumbo_compute_shrinkage(SEXP distmatSEXP, SEXP SSEXP, SEXP hmataSEXP, SEXP thetaSEXP, SEXP mSEXP, SEXP NeSEXP, SEXP cutoffSEXP, SEXP isDiagSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat& >::type distmat(distmatSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type S(SSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type hmata(hmataSEXP);
+    Rcpp::traits::input_parameter< const double >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< const double >::type m(mSEXP);
+    Rcpp::traits::input_parameter< const double >::type Ne(NeSEXP);
+    Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);
+    Rcpp::traits::input_parameter< const bool >::type isDiag(isDiagSEXP);
+    compute_shrinkage(distmat, S, hmata, theta, m, Ne, cutoff, isDiag);
+    return R_NilValue;
+END_RCPP
+}
+// gen_sparsemat
+arma::sp_mat gen_sparsemat(arma::mat ldmat, const arma::uword istart, const arma::uword jstart, const arma::uword nSNPs);
+RcppExport SEXP RColumbo_gen_sparsemat(SEXP ldmatSEXP, SEXP istartSEXP, SEXP jstartSEXP, SEXP nSNPsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type ldmat(ldmatSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type istart(istartSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type jstart(jstartSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type nSNPs(nSNPsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gen_sparsemat(ldmat, istart, jstart, nSNPs));
+    return rcpp_result_gen;
+END_RCPP
+}
+// calcLD
+arma::mat calcLD(const arma::mat hmata, const arma::mat hmatb, const arma::rowvec mapa, const arma::rowvec mapb, const double m, const double Ne, const double cutoff, const Rcpp::LogicalVector isDiag);
+RcppExport SEXP RColumbo_calcLD(SEXP hmataSEXP, SEXP hmatbSEXP, SEXP mapaSEXP, SEXP mapbSEXP, SEXP mSEXP, SEXP NeSEXP, SEXP cutoffSEXP, SEXP isDiagSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat >::type hmata(hmataSEXP);
+    Rcpp::traits::input_parameter< const arma::mat >::type hmatb(hmatbSEXP);
+    Rcpp::traits::input_parameter< const arma::rowvec >::type mapa(mapaSEXP);
+    Rcpp::traits::input_parameter< const arma::rowvec >::type mapb(mapbSEXP);
+    Rcpp::traits::input_parameter< const double >::type m(mSEXP);
+    Rcpp::traits::input_parameter< const double >::type Ne(NeSEXP);
+    Rcpp::traits::input_parameter< const double >::type cutoff(cutoffSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::LogicalVector >::type isDiag(isDiagSEXP);
+    rcpp_result_gen = Rcpp::wrap(calcLD(hmata, hmatb, mapa, mapb, m, Ne, cutoff, isDiag));
+    return rcpp_result_gen;
+END_RCPP
+}
 // orthogonalize_covar
 arma::mat orthogonalize_covar(const arma::mat& Covariates);
 RcppExport SEXP RColumbo_orthogonalize_covar(SEXP CovariatesSEXP) {
@@ -357,16 +432,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // fastest_eQTL
-arma::cube fastest_eQTL(const std::string genotypef, const arma::uvec& snpinter, const std::string expressionf, const arma::uvec expinter);
-RcppExport SEXP RColumbo_fastest_eQTL(SEXP genotypefSEXP, SEXP snpinterSEXP, SEXP expressionfSEXP, SEXP expinterSEXP) {
+arma::cube fastest_eQTL(const arma::mat& Genotype, const arma::mat& Expression);
+RcppExport SEXP RColumbo_fastest_eQTL(SEXP GenotypeSEXP, SEXP ExpressionSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::string >::type genotypef(genotypefSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type snpinter(snpinterSEXP);
-    Rcpp::traits::input_parameter< const std::string >::type expressionf(expressionfSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec >::type expinter(expinterSEXP);
-    rcpp_result_gen = Rcpp::wrap(fastest_eQTL(genotypef, snpinter, expressionf, expinter));
+    Rcpp::traits::input_parameter< const arma::mat& >::type Genotype(GenotypeSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Expression(ExpressionSEXP);
+    rcpp_result_gen = Rcpp::wrap(fastest_eQTL(Genotype, Expression));
     return rcpp_result_gen;
 END_RCPP
 }

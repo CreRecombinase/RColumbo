@@ -7,6 +7,7 @@ Maintainer: Who to complain to <yourfault@somewhere.net>
 Description: More about what it does (maybe more than one line)
 License: What license is it under?
 LazyData: TRUE
-LinkingTo:Rcpp,RcppArmadillo (>= 0.7.200.2.0),BH,h5
-Imports: rhdf5,Matrix,dplyr,future,Rcpp (>= 0.12.5),tidyr,BBmisc,purrr
+LinkingTo:Rcpp,RcppArmadillo (>= 0.7.200.2.0),BH
+Imports: Matrix,dplyr,future,Rcpp (>= 0.12.5),tidyr,BBmisc,purrr
+Remotes: bioc::rhdf5,CreRecombinase/h5
 Suggests: testthat

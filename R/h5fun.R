@@ -80,12 +80,7 @@ write_covar_h5 <- function(covarf,h5file,chunksize=1,deflate_level=9){
   library(dplyr)
   covardat <- read.table(covarf,header=T,stringsAsFactors = F)
   matdat <-t(data.matrix(select(covardat,-ID)))
-  ncovar <- ncol(matdat)
-  nid <- nrow(matdat)
-  tmatdat <-matdat[,1:ceiling(ncovar/2)]
-  write_dmatrix_h5(h5file,"Covardat", "covariates",ncovar, nid, tmatdat,deflate_level = deflate_level)
-  tmatdat <-matdat[,(ceiling(ncovar/2)+1):ncol(matdat)]
-  write_dmatrix_h5(h5file,"Covardat", "covariates",ncovar, nid, tmatdat,deflate_level = deflate_level)
+  write_2dmat_h5(h5file,"Covardat","covariates",data = matdat)
   h5createGroup(file = h5file,group = "Covarinfo")
   h5createDataset(h5file,"/Covarinfo/id",
                   dims=c(nrow(covardat)),
@@ -144,6 +139,27 @@ copy_subset_h5 <-function(h5filename,groupname,dataname,index,chunk_size=NULL,ch
 }
 
 
+read_2d_mat_h5 <- function(h5f,groupn,datan,rows=NULL,cols=NULL){
+  require(h5)
+  stopifnot(file.exists(h5f))
+  h5ff <- h5file(h5f,'r')
+  h5g <- h5ff[groupn]
+
+  if(is.null(rows)&is.null(cols)){
+    data <- h5g[datan][,]
+  }else{
+    if(is.null(cols)){
+      data <- h5g[datan][rows,]
+    }else{
+      if(is.null(rows)){
+        data <- h5g[datan][,cols]
+      }else{
+        data <- h5g[datan][rows,cols]
+      }
+    }
+  }
+  return(data)
+}
 
 write_2dmat_h5 <- function(h5f,groupn,datan,chunksize=c(5000,5000),deflate_level=4,data=NULL,append=F){
   require(h5)
@@ -193,6 +209,35 @@ write_covar_2d <- function(covarf,h5filename,chunksize=1,deflate_level=9){
                   storage.mode="character",size=max(nchar(covardat$ID))+1,
                   chunk=chunksize,level=deflate_level)
   h5write(covardat$ID,file=h5file,name="/Covarinfo/id")
+}
+
+write_rows_gzfile_h5 <- function(gzfilename,subset_rows,h5filename,groupname,dataname,max.size=335544320L){
+  gzf <- gzfile(gzfilename,open = 'rt')
+  chunk_mat <- iotools::chunk.reader(gzf,sep=" ")
+  i <- 1
+  mchunk <- iotools::mstrsplit(iotools::read.chunk(chunk_mat,max.size = max.size),sep=" ",type="numeric")
+  while(nrow(mchunk)>0){
+    cat("chunk:",i,"\n")
+    file_rows <- i:(i+nrow(mchunk)-1)
+    stopifnot(length(file_rows)==nrow(mchunk))
+    mat_rows <- 1:nrow(mchunk)
+    sub_chunk <- mat_rows[which(file_rows %in% subset_rows)]
+    tchunk <- t(mchunk[sub_chunk,,drop=F])
+    cat("dim:",dim(tchunk))
+    if(ncol(tchunk)>0){
+      write_2dmat_h5(h5filename,groupn=groupname,datan=dataname,data=tchunk,append=T)
+    }
+    if(i==1){
+      nid <- nrow(tchunk)
+    }
+    i <- file_rows[length(file_rows)]+1
+    mchunk <- iotools::mstrsplit(iotools::read.chunk(chunk_mat,max.size = max.size),sep=" ",type="numeric")
+  }
+  h5f <- h5file(h5filename,'r')
+  h5d <- h5f[paste0("/",groupname,"/",dataname)]
+  stopifnot(ncol(h5d)==length(subset_rows))
+  h5close(h5f)
+  return(T)
 }
 
 

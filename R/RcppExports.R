@@ -89,6 +89,26 @@ write_Rnumeric_h5 <- function(h5file, groupname, dataname, data, deflate_level) 
     .Call('RColumbo_write_Rnumeric_h5', PACKAGE = 'RColumbo', h5file, groupname, dataname, data, deflate_level)
 }
 
+ip_cov <- function(Hpanela, Hpanelb, isDiag) {
+    .Call('RColumbo_ip_cov', PACKAGE = 'RColumbo', Hpanela, Hpanelb, isDiag)
+}
+
+cov_2_cor <- function(covmat, rowvara, colvarb, isDiag) {
+    invisible(.Call('RColumbo_cov_2_cor', PACKAGE = 'RColumbo', covmat, rowvara, colvarb, isDiag))
+}
+
+compute_shrinkage <- function(distmat, S, hmata, theta, m, Ne, cutoff, isDiag) {
+    invisible(.Call('RColumbo_compute_shrinkage', PACKAGE = 'RColumbo', distmat, S, hmata, theta, m, Ne, cutoff, isDiag))
+}
+
+gen_sparsemat <- function(ldmat, istart, jstart, nSNPs) {
+    .Call('RColumbo_gen_sparsemat', PACKAGE = 'RColumbo', ldmat, istart, jstart, nSNPs)
+}
+
+calcLD <- function(hmata, hmatb, mapa, mapb, m, Ne, cutoff, isDiag) {
+    .Call('RColumbo_calcLD', PACKAGE = 'RColumbo', hmata, hmatb, mapa, mapb, m, Ne, cutoff, isDiag)
+}
+
 orthogonalize_covar <- function(Covariates) {
     .Call('RColumbo_orthogonalize_covar', PACKAGE = 'RColumbo', Covariates)
 }
@@ -101,8 +121,8 @@ betaMatrix <- function(Genotype, Expression) {
     .Call('RColumbo_betaMatrix', PACKAGE = 'RColumbo', Genotype, Expression)
 }
 
-fastest_eQTL <- function(genotypef, snpinter, expressionf, expinter) {
-    .Call('RColumbo_fastest_eQTL', PACKAGE = 'RColumbo', genotypef, snpinter, expressionf, expinter)
+fastest_eQTL <- function(Genotype, Expression) {
+    .Call('RColumbo_fastest_eQTL', PACKAGE = 'RColumbo', Genotype, Expression)
 }
 
 orthogonalize_dataset <- function(h5filename, newh5filename, covar_h5file, datagroup, datasetname, newdatasetname, chunksize, deflate_level) {

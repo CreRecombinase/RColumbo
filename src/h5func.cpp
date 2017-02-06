@@ -726,41 +726,40 @@ arma::fmat read_fmat_h5(const std::string hap_h5file,const std::string groupname
   H5DataSetPtr dataset=open_blosc_dataset(group,dataname);
   // std::cout<<"opened dataset"<<std::endl;
   // std::cout<<"Getting array type"<<std::endl;
-  ArrayType mem_arraytype=read_arraytype(dataset,PredType::NATIVE_FLOAT);
-
-
-  // std::cout<<"Getting Array dimensions"<<std::endl;
-  // std::cout<<"Getting Dataspace"<<std::endl;
   DataSpace fspace =dataset->getSpace();
+    ArrayType mem_arraytype=read_arraytype(dataset,PredType::NATIVE_FLOAT);
+    // std::cout<<"Getting Array dimensions"<<std::endl;
+    // std::cout<<"Getting Dataspace"<<std::endl;
 
-//  std::cout<<"Getting Data dimensions"<<std::endl;
-  hsize_t datadim[1];
-  fspace.getSimpleExtentDims(datadim,NULL);
-  size_t matrix_dims[2];
-  if(offset+chunksize>datadim[0]){
-    chunksize=datadim[0]-offset;
-  }
-  datadim[0]=chunksize;
-  matrix_dims[0]=get_arraysize(mem_arraytype);
-  matrix_dims[1]=chunksize;
+    //  std::cout<<"Getting Data dimensions"<<std::endl;
+    hsize_t datadim[1];
+    fspace.getSimpleExtentDims(datadim,NULL);
+    size_t matrix_dims[2];
+    if(offset+chunksize>datadim[0]){
+      chunksize=datadim[0]-offset;
+    }
+    datadim[0]=chunksize;
+    matrix_dims[0]=get_arraysize(mem_arraytype);
+    matrix_dims[1]=chunksize;
 
 
-  //   std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
-  hsize_t offseta[1];
-  offseta[0]=offset;
-  fspace.selectHyperslab(H5S_SELECT_SET,datadim,offseta);
-  //  std::cout<<"Allocating matrix of size:"<<matrix_dims[0]<<"x"<<matrix_dims[1]<<std::endl;
-  arma::fmat retmat(matrix_dims[0],matrix_dims[1]);
-  DataSpace memspace(1,datadim);
-  //    std::cout<<"Reading data"<<std::endl;
-  dataset->read(retmat.memptr(),mem_arraytype,memspace,fspace);
-  mem_arraytype.close();
-  memspace.close();
-  fspace.close();
-  group->close();
-  dataset->close();
-  file->close();
-  return(retmat);
+    //   std::cout<<"Full data is of size "<<datadim[0]<<std::endl;
+    hsize_t offseta[1];
+    offseta[0]=offset;
+    fspace.selectHyperslab(H5S_SELECT_SET,datadim,offseta);
+    //  std::cout<<"Allocating matrix of size:"<<matrix_dims[0]<<"x"<<matrix_dims[1]<<std::endl;
+    arma::fmat retmat(matrix_dims[0],matrix_dims[1]);
+    DataSpace memspace(1,datadim);
+    //    std::cout<<"Reading data"<<std::endl;
+    dataset->read(retmat.memptr(),mem_arraytype,memspace,fspace);
+    mem_arraytype.close();
+    memspace.close();
+    fspace.close();
+    group->close();
+    dataset->close();
+    file->close();
+    return(retmat);
+
 }
 
 //[[Rcpp::export]]
@@ -1352,13 +1351,13 @@ arma::fmat read_2dfmat_h5(const std::string h5file, const std::string groupname,
   offseta[0]=col_offset;
   offseta[1]=row_offset;
   fspace.selectHyperslab(H5S_SELECT_SET,datadims,offseta);
-//  std::cout<<"Allocating matrix of size:"<<matrix_dims[0]<<"x"<<matrix_dims[1]<<std::endl;
-//  std::cout<<"Matrix starts at"<<row_offset<<"x"<<col_offset<<std::endl;
+  //  std::cout<<"Allocating matrix of size:"<<matrix_dims[0]<<"x"<<matrix_dims[1]<<std::endl;
+  //  std::cout<<"Matrix starts at"<<row_offset<<"x"<<col_offset<<std::endl;
   arma::fmat retmat(matrix_dims[0],matrix_dims[1]);
   DataSpace memspace(2,matrix_dims);
-//  std::cout<<"Reading data"<<std::endl;
+  //  std::cout<<"Reading data"<<std::endl;
   dataset->read(retmat.memptr(),dt,memspace,fspace);
-//  std::cout<<"Read complete!"<<std::endl;
+  //  std::cout<<"Read complete!"<<std::endl;
   dt.close();
   memspace.close();
   fspace.close();
