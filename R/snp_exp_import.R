@@ -1,6 +1,5 @@
 
-read_1kg_gz <- function(data_gzfile,leg_gzfile,map_gzfile,h5filename){
-
+read_1kg_gz <- function(data_gzfile,leg_gzfile,map_gzfile,h5filename,subset_h5=NULL){
   require(dplyr)
   require(readr)
   require(h5)
@@ -9,14 +8,20 @@ read_1kg_gz <- function(data_gzfile,leg_gzfile,map_gzfile,h5filename){
   # leg_gzfile <- "/media/nwknoblauch/Data/1kg/haplotypes/EUR.chr5_1kg_geno.legend.gz"
   # map_gzfile <- "/media/nwknoblauch/Data/1kg/1000-genomes-genetic-maps/interpolated_from_hapmap/chr5.interpolated_genetic_map.gz"
   # h5filename <- "/media/nwknoblauch/Data/GTEx/1kg_SNP_H5/EUR.chr5_1kg.h5"
+  # subset_h5 <- "/media/nwknoblauch/Data/GTEx/GTEx_SNP_h5/Adipose_Subcutaneous.h5"
   chr <- as.integer(gsub(".+EUR.chr([0-9]+)_1kg.+","\\1",data_gzfile))
   leg_data <- readr::read_delim(leg_gzfile,delim=" ",col_names = c("rsid","pos","ref","alt"),skip = 1) %>%
     mutate(snp_id=1:n(),chrom=chr)
   map_data <- readr::read_delim(map_gzfile,delim=" ",col_names = c("rsid","pos","map")) %>% mutate(chrom=chr,map_id=1:n())
   leg_map <- inner_join(leg_data,map_data) %>% distinct(snp_id,.keep_all=T) %>% distinct(map_id,.keep_all=T) %>% distinct(chrom,pos,.keep_all=T)
-  w_leg_map <- select(leg_map,rsid,chrom,pos,ref,alt,map)
+  w_leg_map <- select(leg_map,rsid,chrom,pos,ref,alt,map,snp_id)
+  if(!is.null(subset_h5)){
+    subset_leg <-read_df_h5(subset_h5,"SNPinfo") %>% filter(chrom==chr)
+    w_leg_map <-  inner_join(w_leg_map,subset_leg,by=c("pos","chrom","ref","alt"))
+  }
+  w_leg_map <- distinct(w_leg_map,snp_id,.keep_all = T) %>% arrange(snp_id)
   write_df_h5(df = w_leg_map,outfile = h5filename,groupname = "SNPinfo",deflate_level = 4)
-  write_rows_gzfile_h5(data_gzfile,leg_map$snp_id,h5filename,"SNPdata","genotype",max.size=335544320L)
+  write_rows_gzfile_h5(data_gzfile,w_leg_map$snp_id,h5filename,"SNPdata","genotype",max.size=335544320L)
 }
 
 

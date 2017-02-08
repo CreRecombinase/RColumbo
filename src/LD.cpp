@@ -97,13 +97,15 @@ void compute_shrinkage(arma::mat &distmat,arma::mat &S, const arma::mat &hmata ,
 
 //[[Rcpp::export]]
 arma::sp_mat gen_sparsemat(arma::mat ldmat,const arma::uword istart,const arma::uword jstart,const arma::uword nSNPs){
-  arma::umat indmat=arma::ind2sub(size(ldmat),arma::find(ldmat!=0));
+  arma::uvec nz=arma::find(ldmat!=0);
+  arma::umat indmat=arma::ind2sub(size(ldmat),nz);
   if(indmat.n_cols>0){
     //    std::cout<<"size of tmat:"<<size(tmat)<<std::endl;
-    indmat.row(0)+=istart;
-    indmat.row(1)+=jstart;
+    indmat.row(0)+=istart-1;
+    indmat.row(1)+=jstart-1;
     std::cout<<"Allocating sparse matrix"<<std::endl;
-    arma::sp_mat retS(indmat,ldmat.elem(arma::find(ldmat!=0)),nSNPs,nSNPs);
+    arma::sp_mat retS(indmat,ldmat.elem(nz),nSNPs,nSNPs);
+    std::cout<<"Returning sparse matrix"<<std::endl;
     return(retS);
   }
   else{

@@ -323,25 +323,37 @@ append_df_h5 <- function(df,groupname,outfile,deflate_level=4){
 
 
 
-read_df_h5 <- function(h5filepath,groupname,subcols=NULL,filtervec=NULL){
+read_df_h5 <- function(h5filepath,groupname=NULL,subcols=NULL,filtervec=NULL){
   require(h5)
   require(dplyr)
   require(lazyeval)
   stopifnot(file.exists(h5filepath))
 
   f <- h5file(h5filepath,mode = 'r')
-  stopifnot(existsGroup(f,groupname))
-  group <- openGroup(f,groupname)
-  dsets <- list.datasets(group)
+  if(!is.null(groupname)){
+    stopifnot(existsGroup(f,groupname))
+    group <- openGroup(f,groupname)
+    dsets <- list.datasets(group)
+  }else{
+    dsets <- list.datasets(f)
+  }
   if(!is.null(subcols)){
-    subcols <- paste0("/",groupname,"/",subcols)
+    if(!is.null(groupname)){
+      subcols <- paste0("/",groupname,"/",subcols)
+    }else{
+      subcols <- paste0("/",subcols)
+    }
     dsets <- dsets[dsets %in% subcols]
   }
   stopifnot(length(dsets)>0)
-  dsnames <- gsub(pattern = paste0("/",groupname,"/"),"",dsets)
+  if(!is.null(groupname)){
+    dsnames <- gsub(pattern = paste0("/",groupname,"/"),"",dsets)
+  }else{
+    dsnames <-gsub("/","",dsets)
+  }
   return(as_data_frame(setNames(lapply(dsets,function(x,file,fvec){
     if(is.null(fvec)){
-      return(x=file[x][])
+      return(x=c(file[x][]))
     }else{
       return(file[x][filtervec])
     }
@@ -350,20 +362,6 @@ read_df_h5 <- function(h5filepath,groupname,subcols=NULL,filtervec=NULL){
 }
 
 
-read_h5_df <- function(h5file,groupname,subcols=NULL,filtervec=NULL){
-  require(rhdf5)
-  require(dplyr)
-  require(purrr)
-  stopifnot(file.exists(h5file))
-  h5file <- system(paste0("echo ",h5file),intern = T)
-  datarows <- h5ls(h5file) %>% filter(group==paste0("/",groupname)) %>% mutate(h5file=h5file,dim=as.integer(dim)) %>%
-    filter(dclass %in% c("INTEGER","FLOAT","DOUBLE"))
-  if(!is.null(subcols)){
-    datarows <- filter(datarows,name %in% subcols)
-  }
-  retdf <- datarows %>% split(.$name) %>% map(~read_h5_type(h5file=h5file,groupname=groupname,name=.$name,dclass=.$dclass,filtervec=filtervec)) %>% bind_cols()
-  return(retdf)
-}
 
 
 
@@ -406,13 +404,174 @@ gigsize <- function(rows,cols,size=8){
 
 
 
-#
-# mapfilt <- function(mapfile){
-#   mapdf <- read.table(mapfile,header=F,stringsAsFactors = F)
-#   mapdf <- rename(mapdf,rsid=V1,pos=V2,map=V3)
-#   mapdf <- filter(mapdf,substr(rsid,1,2)=="rs")
-#   mapdf <- mutate(mapdf,nrsid=as.numeric(substring(rsid,3)))
-# }
+
+#' read a sparse matrix from HDF5
+#' read a sparse matrix from HDF5 stored in Compressed Column Storage (CCS) format
+#' @template h5fun
+#' @export
+read_ccs_h5 <- function(h5filename,groupname,dataname="data",iname="ir",pname="jc"){
+  requireNamespace("h5")
+  requireNamespace("Matrix")
+  h5f <- h5::h5file(h5filename,mode = 'r')
+  h5g <- h5f[groupname]
+  data <- h5g[dataname][]
+  i <- h5g[iname][]
+  p <- h5g[pname][]
+  h5::h5close(h5f)
+  return(Matrix::sparseMatrix(i=i+1,p=p,x=data))
+}
+
+read_coo_h5 <- function(h5filename,groupname,dataname="data",iname="i",jname="j",giveCsparse=F){
+  require(h5)
+  require(Matrix)
+  h5f <- h5::h5file(h5filename,mode = 'r')
+  h5g <- h5f[paste0("/",groupname)]
+  data_dim <- h5attr(h5g,'Dimensions')
+  data <- h5g[dataname][]
+  i <- h5g[iname][]
+  j <- h5g[jname][]
+  h5::h5close(h5f)
+  return(Matrix::sparseMatrix(i=i+1,j=j+1,x=data,dims = data_dim,giveCsparse = giveCsparse))
+}
+
+
+append_h5_h5 <- function(input_h5,input_groupname,input_dataname,output_h5,output_groupname,output_dataname){
+  library(h5)
+  require(Matrix)
+  stopifnot(file.exists(input_h5))
+  cat("Opening input file\n",input_h5,"\n")
+  ih5f <- h5file(name = input_h5,mode = 'r')
+  cat("Opening input group\n")
+  ih5g <- ih5f[input_groupname]
+
+  ih5d <- ih5g[input_dataname]
+
+  oh5f <- h5file(output_h5,mode='a')
+  if(!existsGroup(oh5f,output_groupname)){
+    oh5g <- createGroup(oh5f,output_groupname)
+  }
+  oh5g <- oh5f[output_groupname]
+  if(!existsDataSet(.Object = oh5g,datasetname = output_dataname)){
+    h5::createDataSet(.Object = oh5g,
+                            datasetname = output_dataname,
+                            data=ih5d[],
+                            chunksize=as.integer(dim(ih5d)/10),
+                            maxdimensions = NA_integer_,
+                            compression=as.integer(4))
+  }else{
+    oh5d <- oh5g[output_dataname]
+    noh5d <- c(oh5d,ih5d[])
+  }
+  h5close(ih5f)
+  h5close(oh5f)
+  gc()
+  return(T)
+}
+
+write_coo_h5 <- function(h5filename,spmat,groupname,dataname="data",iname="i",jname="j",compression_level=4){
+  require(h5)
+  spmat <- as(spmat,"dgTMatrix")
+  i <- spmat@i
+  j <- spmat@j
+  data <- spmat@x
+  h5f <- h5::h5file(h5filename,'a')
+  if(existsGroup(h5f,groupname)){
+    h5g <- h5f[groupname]
+
+    tid <- h5g[iname]
+    oli <- dim(tid)
+    ntidata <- extendDataSet(tid,oli+length(i))
+    ntidata[(oli+1):(oli+length(i))] <- i
+
+    tjd <- h5g[jname]
+    olj <- dim(tjd)
+    ntjdata <- extendDataSet(tjd,olj+length(j))
+    ntjdata[(olj+1):(olj+length(j))] <- j
+
+    txd <- h5g[dataname]
+    olx <- dim(txd)
+    ntxdata <- extendDataSet(txd,olx+length(data))
+    ntxdata[(olx+1):(olx+length(data))] <- data
+  }else{
+    h5g <- createGroup(h5f,groupname)
+    #Matrix::sparseMatrix(i=i+1,p=p,x=data))
+
+    h5::createAttribute(.Object = h5g,attributename = "Layout",data="COO")
+    h5::createAttribute(.Object = h5g,attributename = "Dimensions",data=dim(spmat))
+    id <- h5::createDataSet(.Object = h5g,
+                            datasetname = iname,
+                            data=i,
+                            chunksize=as.integer(length(i)/10),
+                            maxdimensions = NA_integer_,
+                            compression=as.integer(compression_level))
+    pd <- h5::createDataSet(.Object = h5g,
+                            datasetname = jname,
+                            data=j,
+                            chunksize=as.integer(length(j)/10),
+                            maxdimensions = NA_integer_,
+                            compression=as.integer(compression_level))
+
+    dd <- h5::createDataSet(.Object = h5g,
+                            datasetname = dataname,
+                            data=data,
+                            chunksize=as.integer(length(data)/10),
+                            maxdimensions = NA_integer_,
+                            compression=as.integer(compression_level))
+  }
+  h5close(h5f)
+  return(T)
+
+
+}
+write_ccs_h5 <- function(h5filename,spmat,groupname,dataname="data",iname="ir",pname="jc",compression_level=8){
+  require(h5)
+  h5f <- h5::h5file(h5filename,'a')
+  h5g <- createGroup(h5f,groupname)
+  #Matrix::sparseMatrix(i=i+1,p=p,x=data))
+  i <- spmat@i
+  p <- spmat@p
+  data <- spmat@x
+  h5::createAttribute(.Object = h5g,attributename = "Layout",data="CCS")
+  h5::createAttribute(.Object = h5g,attributename = "Dimensions",data=dim(spmat))
+  id <- h5::createDataSet(.Object = h5g,
+                          datasetname = iname,
+                          data=i,
+                          chunksize=as.integer(length(i)/10),
+                          maxdimensions = NA_integer_,
+                          compression=as.integer(compression_level))
+  pd <- h5::createDataSet(.Object = h5g,
+                          datasetname = pname,
+                          data=p,
+                          chunksize=as.integer(length(p)/10),
+                          maxdimensions = NA_integer_,
+                          compression=as.integer(compression_level))
+
+  dd <- h5::createDataSet(.Object = h5g,
+                          datasetname = dataname,
+                          data=data,
+                          chunksize=as.integer(length(data)/10),
+                          maxdimensions = NA_integer_,
+                          compression=as.integer(compression_level))
+
+  h5close(h5f)
+  return(T)
+}
+
+read_vec <- function(h5filename,datapath){
+  requireNamespace("h5")
+  h5f <- h5::h5file(h5filename,'r')
+  data <- h5f[datapath][]
+  h5::h5close(h5f)
+  return(data)
+}
+
+write_vec <- function(h5filename,vec,datapath){
+  requireNamespace("h5")
+  h5f <- h5::h5file(h5filename,'a')
+  data <- h5f[datapath] <- vec
+  h5::h5close(h5f)
+  return(data)
+}
 
 
 

@@ -25,7 +25,19 @@ flipmat <- function(hapd,doFlip){
 
 
 
+gtex_gwas_intersect <- function(gtex_h5,gwas_h5s,output_h5){
+  require(h5)
+#  gtex_h5 <- "/media/nwknoblauch/Data/GTEx/GTEx_SNP_h5/Adipose_Subcutaneous.h5"
+#  gwas_h5s <- paste0("/media/nwknoblauch/Data/1kg/1kg_",1:22,".mat")
+  gtex_df <- read_df_h5(gtex_h5,"SNPinfo") %>% mutate(gtex_ind=1:n())
 
+  gwas_df <- bind_rows(lapply(gwas_h5s,read_df_h5,subcols = c("chr","pos")))
+  gtex_gwas_df <- inner_join(gtex_df,gwas_df,by=c("chrom"="chr","pos"))
+
+  write_df_h5(gtex_gwas_df,groupname = "SNPinfo",outfile = output_h5)
+
+
+}
 
 
 chunk_df <- function(df,chunk.size=NULL,n.chunks=NULL){
@@ -94,21 +106,23 @@ chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL){
 
 
 block_LD <- function(input_h5file,output_h5file,m=85,Ne=11490.672741,cutoff=1e-3,rowchunk,chunksize){
+  library(Matrix)
+  # input_h5file <- "/media/nwknoblauch/Data/GTEx/1kg_SNP_H5/EUR.chr19_1kg.h5"
+  # m=85
+  # Ne=11490.672741
+  # cutoff=1e-3
+  # rowchunk <- 1
+  # output_h5file <- paste0("/media/nwknoblauch/Data/GTEx/1kg_LD/EUR.chr19_",rowchunk,"_1kg.h5")
+  # chunksize <- 25000
 
-  input_h5file <- "/media/nwknoblauch/Data/GTEx/1kg_SNP_H5/EUR.chr19_1kg_map.h5"
-  output_h5file <- "/media/nwknoblauch/Data/GTEx/1kg_LD/EUR.chr19_1kg.h5"
-  m=85
-  Ne=11490.672741
-  cutoff=1e-3
-  rowchunk <- 1
-  chunksize <- 25000
   stopifnot(file.exists(input_h5file))
   library(h5)
   inf <- h5file(input_h5file,'r')
   geno_d <- inf['/SNPdata/genotype']
   map_d <- inf['/SNPinfo/map']
   n_snps <- ncol(geno_d)
-  stopifnot(dim(map_d)==n_snps)
+  rowchunk_tot <-ceiling(n_snps/chunksize)
+  stopifnot(dim(map_d)==n_snps,rowchunk<=rowchunk_tot)
   snpAsnps <- ((rowchunk-1)*chunksize+1):min(n_snps,chunksize*rowchunk)
   stopifnot(length(snpAsnps)<=chunksize)
 
@@ -116,13 +130,61 @@ block_LD <- function(input_h5file,output_h5file,m=85,Ne=11490.672741,cutoff=1e-3
   Asnps <- ncol(snpA)
   mapa <- map_d[snpAsnps]
   stopifnot(length(mapa)==ncol(snpA))
-  distmat_0 <- matrix(0,nrow = Asnps,ncol = Asnps)
   ctime <- system.time(ldA <-calcLD(hmata = snpA,hmatb = snpA,mapa = mapa,mapb = mapa,m = m,Ne = Ne,cutoff = cutoff,isDiag = T))
-  ldsp <- gen_sparsemat(ldmat = ldA,istart = 0,jstart = 0,nSNPs = ncol(ldA))
+  ld_sp <- gen_sparsemat(ldmat = ldA,istart = snpAsnps[1],jstart = snpAsnps[1],nSNPs = n_snps)
 
-
+  rm(ldA)
+  gc()
+  if(snpAsnps[length(snpAsnps)]<n_snps){
+    snpBsnps <- (snpAsnps[length(snpAsnps)]+1):min(n_snps,chunksize*(rowchunk+1))
+    stopifnot(length(snpBsnps)<=chunksize)
+    snpB <- geno_d[,snpBsnps]
+    mapb <- map_d[snpBsnps]
+    stopifnot(length(mapb)==ncol(snpB))
+    ldB <- calcLD(hmata=snpA,hmatb=snpB,mapa=mapa,mapb=mapb,m=m,Ne=Ne,cutoff=cutoff,isDiag=F)
+    rm(snpA,snpB)
+    gc()
+    ldB_sp <- gen_sparsemat(ldmat = ldB,istart = snpAsnps[1],jstart = snpBsnps[1],nSNPs = n_snps)
+    rm(ldB)
+    gc()
+    ld_sp <- ld_sp+ldB_sp
+  }
+  h5close(inf)
+  write_coo_h5(h5filename = output_h5file,spmat = ld_sp,groupname = "R")
+  gc()
 }
 
+
+concat_LD <- function(h5filenames,output_h5filename,groupname="R"){
+  # output_h5filename <- "/media/nwknoblauch/Data/GTEx/1kg_LD/EUR.chr19_1kg.h5"
+  tot_chunks <- length(h5filenames)
+  for(i in 1:tot_chunks){
+    cat(i,"\n")
+    cat(h5filenames[i],"\n")
+    cat("i,")
+    append_h5_h5(h5filenames[i],
+                 input_groupname = "R",
+                 input_dataname = "i",
+                 output_h5 = output_h5filename,
+                 output_groupname = "R",
+                 output_dataname = "i")
+    cat("j,")
+    append_h5_h5(h5filenames[i],
+                 input_groupname = "R",
+                 input_dataname = "j",
+                 output_h5 = output_h5filename,
+                 output_groupname = "R",
+                 output_dataname = "j")
+    cat("data\n")
+    append_h5_h5(h5filenames[i],
+                 input_groupname = "R",
+                 input_dataname = "data",
+                 output_h5 = output_h5filename,
+                 output_groupname = "R",
+                 output_dataname = "data")
+    gc()
+  }
+}
 
 
 

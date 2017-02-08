@@ -8,6 +8,6 @@ Description: More about what it does (maybe more than one line)
 License: What license is it under?
 LazyData: TRUE
 LinkingTo:Rcpp,RcppArmadillo (>= 0.7.200.2.0),BH
-Imports: Matrix,dplyr,future,Rcpp (>= 0.12.5),tidyr,BBmisc,purrr
-Remotes: bioc::rhdf5,CreRecombinase/h5
+Imports: Matrix,dplyr,Rcpp (>= 0.12.5),tidyr,BBmisc,purrr,iotools,
+Remotes: bioc::rhdf5,CreRecombinase/h5,tidyverse/readr
 Suggests: testthat
