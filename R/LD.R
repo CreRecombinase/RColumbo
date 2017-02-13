@@ -107,13 +107,14 @@ chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL){
 
 block_LD <- function(input_h5file,output_h5file,m=85,Ne=11490.672741,cutoff=1e-3,rowchunk,chunksize){
   library(Matrix)
-  # input_h5file <- "/media/nwknoblauch/Data/GTEx/1kg_SNP_H5/EUR.chr19_1kg.h5"
+   # input_h5file <- "/media/nwknoblauch/Data/GTEx/1kg_SNP_H5/EUR.chr1_1kg.h5"
   # m=85
   # Ne=11490.672741
   # cutoff=1e-3
   # rowchunk <- 1
-  # output_h5file <- paste0("/media/nwknoblauch/Data/GTEx/1kg_LD/EUR.chr19_",rowchunk,"_1kg.h5")
+  # output_h5file <- paste0("/media/nwknoblauch/Data/GTEx/1kg_LD/EUR.chr1_",rowchunk,"_1kg.h5")
   # chunksize <- 25000
+
 
   stopifnot(file.exists(input_h5file))
   library(h5)
@@ -122,6 +123,8 @@ block_LD <- function(input_h5file,output_h5file,m=85,Ne=11490.672741,cutoff=1e-3
   map_d <- inf['/SNPinfo/map']
   n_snps <- ncol(geno_d)
   rowchunk_tot <-ceiling(n_snps/chunksize)
+  stopifnot(as.integer(chunksize/2)==chunksize/2)
+  chunksize <- as.integer(chunksize/2)
   stopifnot(dim(map_d)==n_snps,rowchunk<=rowchunk_tot)
   snpAsnps <- ((rowchunk-1)*chunksize+1):min(n_snps,chunksize*rowchunk)
   stopifnot(length(snpAsnps)<=chunksize)
@@ -141,23 +144,29 @@ block_LD <- function(input_h5file,output_h5file,m=85,Ne=11490.672741,cutoff=1e-3
     snpB <- geno_d[,snpBsnps]
     mapb <- map_d[snpBsnps]
     stopifnot(length(mapb)==ncol(snpB))
-    ldB <- calcLD(hmata=snpA,hmatb=snpB,mapa=mapa,mapb=mapb,m=m,Ne=Ne,cutoff=cutoff,isDiag=F)
-    rm(snpA,snpB)
-    gc()
-    ldB_sp <- gen_sparsemat(ldmat = ldB,istart = snpAsnps[1],jstart = snpBsnps[1],nSNPs = n_snps)
+    ldB <- calcLD(hmata=snpB,hmatb=snpB,mapa=mapb,mapb=mapb,m=m,Ne=Ne,cutoff=cutoff,isDiag=T)
+    ldB_sp <- gen_sparsemat(ldmat = ldB,istart = snpBsnps[1],jstart = snpBsnps[1],nSNPs = n_snps)
     rm(ldB)
     gc()
     ld_sp <- ld_sp+ldB_sp
+    ldAB <- calcLD(hmata=snpA,hmatb=snpB,mapa=mapa,mapb=mapb,m=m,Ne=Ne,cutoff=cutoff,isDiag=F)
+    rm(snpA,snpB)
+    gc()
+    ldAB_sp <- gen_sparsemat(ldmat = ldAB,istart = snpAsnps[1],jstart = snpBsnps[1],nSNPs = n_snps)
+    ld_sp <- ld_sp+ldAB_sp
+    snpAsnps <- c(snpAsnps,snpBsnps)
   }
   h5close(inf)
-  write_coo_h5(h5filename = output_h5file,spmat = ld_sp,groupname = "R")
+  write_ccs_h5(h5filename = output_h5file,spmat = ld_sp,groupname = "R",symmetric = T)
   gc()
+  return(snpAsnps)
 }
 
 
 concat_LD <- function(h5filenames,output_h5filename,groupname="R"){
   # output_h5filename <- "/media/nwknoblauch/Data/GTEx/1kg_LD/EUR.chr19_1kg.h5"
   tot_chunks <- length(h5filenames)
+  library(h5)
   for(i in 1:tot_chunks){
     cat(i,"\n")
     cat(h5filenames[i],"\n")
@@ -166,24 +175,34 @@ concat_LD <- function(h5filenames,output_h5filename,groupname="R"){
                  input_groupname = "R",
                  input_dataname = "i",
                  output_h5 = output_h5filename,
-                 output_groupname = "R",
+                 output_groupname = groupname,
                  output_dataname = "i")
     cat("j,")
     append_h5_h5(h5filenames[i],
                  input_groupname = "R",
                  input_dataname = "j",
                  output_h5 = output_h5filename,
-                 output_groupname = "R",
+                 output_groupname = groupname,
                  output_dataname = "j")
     cat("data\n")
     append_h5_h5(h5filenames[i],
                  input_groupname = "R",
                  input_dataname = "data",
                  output_h5 = output_h5filename,
-                 output_groupname = "R",
+                 output_groupname = groupname,
                  output_dataname = "data")
     gc()
   }
+  inf <- h5file(h5filenames[1],'r')
+  ing <- inf[groupname]
+  data_dim <- h5attr(ing,"Dimensions")
+  layout <- h5attr(ing,"Layout")
+  h5close(inf)
+  of <-h5file(output_h5filename,'a')
+  ofg <- of[groupname]
+  h5::createAttribute(.Object = ofg,attributename = "Layout",data="COO")
+  h5::createAttribute(.Object = ofg,attributename = "Dimensions",data=  data_dim)
+  h5close(of)
 }
 
 

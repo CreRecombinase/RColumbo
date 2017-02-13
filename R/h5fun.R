@@ -355,7 +355,11 @@ read_df_h5 <- function(h5filepath,groupname=NULL,subcols=NULL,filtervec=NULL){
     if(is.null(fvec)){
       return(x=c(file[x][]))
     }else{
+      if(fvec[length(fvec)]==(fvec[1]+length(fvec)-1)){
       return(file[x][filtervec])
+      }else{
+        return(file[x][][filtervec])
+      }
     }
   },file=f,fvec=filtervec),dsnames)
   ))
@@ -414,11 +418,13 @@ read_ccs_h5 <- function(h5filename,groupname,dataname="data",iname="ir",pname="j
   requireNamespace("Matrix")
   h5f <- h5::h5file(h5filename,mode = 'r')
   h5g <- h5f[groupname]
+  h5attr(h5g,"Layout")
+  isSymmetric <- h5attr(h5g,"isSymmetric")=="TRUE"
   data <- h5g[dataname][]
   i <- h5g[iname][]
   p <- h5g[pname][]
   h5::h5close(h5f)
-  return(Matrix::sparseMatrix(i=i+1,p=p,x=data))
+  return(Matrix::sparseMatrix(i=i,p=p,x=data,index1 = F,symmetric = isSymmetric))
 }
 
 read_coo_h5 <- function(h5filename,groupname,dataname="data",iname="i",jname="j",giveCsparse=F){
@@ -523,7 +529,7 @@ write_coo_h5 <- function(h5filename,spmat,groupname,dataname="data",iname="i",jn
 
 
 }
-write_ccs_h5 <- function(h5filename,spmat,groupname,dataname="data",iname="ir",pname="jc",compression_level=8){
+write_ccs_h5 <- function(h5filename,spmat,groupname,dataname="data",iname="ir",pname="jc",compression_level=8,symmetric=F){
   require(h5)
   h5f <- h5::h5file(h5filename,'a')
   h5g <- createGroup(h5f,groupname)
@@ -533,6 +539,7 @@ write_ccs_h5 <- function(h5filename,spmat,groupname,dataname="data",iname="ir",p
   data <- spmat@x
   h5::createAttribute(.Object = h5g,attributename = "Layout",data="CCS")
   h5::createAttribute(.Object = h5g,attributename = "Dimensions",data=dim(spmat))
+  h5::createAttribute(.Object = h5g,attributename = "isSymmetric",data=ifelse(symmetric,"TRUE","FALSE"))
   id <- h5::createDataSet(.Object = h5g,
                           datasetname = iname,
                           data=i,
@@ -570,7 +577,7 @@ write_vec <- function(h5filename,vec,datapath){
   h5f <- h5::h5file(h5filename,'a')
   data <- h5f[datapath] <- vec
   h5::h5close(h5f)
-  return(data)
+#  return(data)
 }
 
 
