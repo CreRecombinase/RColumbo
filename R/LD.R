@@ -73,36 +73,61 @@ chunk_df <- function(df,chunk.size=NULL,n.chunks=NULL){
 
 chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL){
   require(h5)
-  #cat("Starting to read snph5:",snph5)
-  #snpleg <-read_df_h5(snph5,"SNPinfo",filtervec=snpinter)
-  #cat("Starting to read exph5:",exph5)
-  #expleg <- read_df_h5(exph5,"EXPinfo",filtervec=expinter)
-  #expdat <- read_dmat_chunk_ind(exph5,"EXPdata","expression",expinter)
-  #snpdat <- read_dmat_chunk_ind(snph5,"SNPdata","genotype",snpinter)
-  #  feqtl <- really_fast_eQTL(Genotype = snpdat,snpanno = snpleg,Expression = expdat,expanno = expleg)
-  cat("Reading Genotype data\n")
-  genof <-h5file(snph5,mode = 'r')
-  Genotype <- genof["/SNPdata/genotype"][,snpinter]
-  h5close(genof)
+
+
+  cat("Reading Genotype data\n",snph5,"\n")
+  Genotype <- read_ind_h5(snph5,"SNPdata","genotype",snpinter)
+  # genof <-h5file(snph5,mode = 'r')
+  # Genotype <- genof["/SNPdata/genotype"][,snpinter]
+  # h5close(genof)
   cat("Reading Expression\n")
-  expf <- h5file(exph5,mode='r')
-  Expression <- expf["/EXPdata/expression"][,expinter]
-  h5close(expf)
+  Expression <- read_ind_h5(exph5,"EXPdata","expression",expinter)
+  # expf <- h5file(exph5,mode='r')
+  # Expression <- expf["/EXPdata/expression"][,expinter]
+  # h5close(expf)
   cat("Mapping eQTL\n")
   eqtl <- fastest_eQTL(Genotype,Expression)
   cat("Reading legends\n")
-  sub_expleg <- read_df_h5(exph5,"EXPinfo",filtervec=expinter)
-  sub_snpleg <- read_df_h5(snph5,"SNPinfo",filtervec=snpinter)
+  expleg <- read_df_h5(exph5,"EXPinfo",filtervec=expinter) %>% mutate(exp_ind=expinter)
+  snpleg <- read_df_h5(snph5,"SNPinfo",filtervec=snpinter) %>% mutate(snp_ind=snpinter)
   cat("Writing eQTLmats\n")
-  write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "beta_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,1])
-  write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "t_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,2])
+  # write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "beta_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,1])
+  # write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "t_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,2])
   cat("Writing legends\n")
-  write_df_h5(df = sub_snpleg,groupname = "SNPinfo",outfile = outh5,deflate_level = 4)
-  write_df_h5(df = sub_expleg,groupname = "EXPinfo",outfile = outh5,deflate_level = 4)
+  write_eqtl_h5(outh5,eqtl,expleg)
+  write_df_h5(df = snpleg,groupname = "SNPinfo",outfile = outh5,deflate_level = 4)
+  write_df_h5(df = expleg,groupname = "EXPinfo",outfile = outh5,deflate_level = 4)
   cat("Done!\n")
   return(dim(eqtl))
 }
 
+write_eqtl_h5 <- function(output_file,eqtl_array,expleg){
+
+  stopifnot(ncol(eqtl_array)==nrow(expleg))
+
+  for(i in 1:nrow(expleg)){
+    if(i%%100==0){
+      cat("Writing gene",i," of ",nrow(expleg),"\n")
+    }
+    write_vec(output_file,c(eqtl_array[,i,1]),datapath=paste0("/",expleg$fgeneid[i],"/","betahat"))
+    write_vec(output_file,c(eqtl_array[,i,2]),datapath=paste0("/",expleg$fgeneid[i],"/","se"))
+  }
+}
+
+
+subset_LD <- function(input_h5file,output_h5file,m=85,Ne=11490.672741,cutoff=1e-3,snpinter=NULL){
+  library(Matrix)
+  stopifnot(file.exists(input_h5file))
+  snpA <-read_ind_h5(input_h5file,"SNPdata","genotype",snpinter)
+  mapA <-read_vec(input_h5file,"/SNPinfo/map")[snpinter]
+
+  stopifnot(ncol(snpA)==length(snpinter),length(mapA)==length(snpinter))
+
+  ldA <- calcLD(hmata=snpA,hmatb = snpA,mapa = mapA,mapb = mapA,m = m,Ne=Ne,cutoff = cutoff,isDiag = T)
+  ld_sp <- gen_sparsemat(ldmat = ldA,istart = 1,jstart = 1,nSNPs = ncol(snpA))
+  write_ccs_h5(h5filename = output_h5file,spmat = ld_sp,groupname = "R",symmetric = T)
+
+}
 
 
 block_LD <- function(input_h5file,output_h5file,m=85,Ne=11490.672741,cutoff=1e-3,rowchunk,chunksize){
@@ -133,8 +158,16 @@ block_LD <- function(input_h5file,output_h5file,m=85,Ne=11490.672741,cutoff=1e-3
   Asnps <- ncol(snpA)
   mapa <- map_d[snpAsnps]
   stopifnot(length(mapa)==ncol(snpA))
+
   ctime <- system.time(ldA <-calcLD(hmata = snpA,hmatb = snpA,mapa = mapa,mapb = mapa,m = m,Ne = Ne,cutoff = cutoff,isDiag = T))
-  ld_sp <- gen_sparsemat(ldmat = ldA,istart = snpAsnps[1],jstart = snpAsnps[1],nSNPs = n_snps)
+  if(snpAsnps[length(snpAsnps)]<n_snps){
+    snpBsnps <- (snpAsnps[length(snpAsnps)]+1):min(n_snps,chunksize*(rowchunk+1))
+    stopifnot(length(snpBsnps)<=chunksize)
+    matsize <-length(snpAsnps)+length(snpAsnps)
+  }else{
+    matsize <- length(snpAsnps)
+  }
+  ld_sp <- gen_sparsemat(ldmat = ldA,istart = 1,jstart = 1,nSNPs = matsize)
 
   rm(ldA)
   gc()
@@ -145,14 +178,14 @@ block_LD <- function(input_h5file,output_h5file,m=85,Ne=11490.672741,cutoff=1e-3
     mapb <- map_d[snpBsnps]
     stopifnot(length(mapb)==ncol(snpB))
     ldB <- calcLD(hmata=snpB,hmatb=snpB,mapa=mapb,mapb=mapb,m=m,Ne=Ne,cutoff=cutoff,isDiag=T)
-    ldB_sp <- gen_sparsemat(ldmat = ldB,istart = snpBsnps[1],jstart = snpBsnps[1],nSNPs = n_snps)
+    ldB_sp <- gen_sparsemat(ldmat = ldB,istart = length(snpAsnps)+1,jstart = length(snpAsnps)+1,nSNPs = matsize)
     rm(ldB)
     gc()
     ld_sp <- ld_sp+ldB_sp
     ldAB <- calcLD(hmata=snpA,hmatb=snpB,mapa=mapa,mapb=mapb,m=m,Ne=Ne,cutoff=cutoff,isDiag=F)
     rm(snpA,snpB)
     gc()
-    ldAB_sp <- gen_sparsemat(ldmat = ldAB,istart = snpAsnps[1],jstart = snpBsnps[1],nSNPs = n_snps)
+    ldAB_sp <- gen_sparsemat(ldmat = ldAB,istart = 1,jstart = length(snpAsnps)+1,nSNPs = matsize)
     ld_sp <- ld_sp+ldAB_sp
     snpAsnps <- c(snpAsnps,snpBsnps)
   }

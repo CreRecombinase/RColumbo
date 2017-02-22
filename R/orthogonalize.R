@@ -3,6 +3,7 @@ orthogonalize_dataset <- function(h5filename,newh5filename,covar_h5file,datagrou
 
   require(h5)
   require(BBmisc)
+  #cvd <- h5file(covar_h5file,'r')
   cvdat <- read_2d_mat_h5(covar_h5file,groupn = "Covardat","covariates")
   cvdat <- cbind(1,cvdat)
   covariates <- orthogonalize_covar(cvdat)

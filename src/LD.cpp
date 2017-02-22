@@ -128,9 +128,9 @@ arma::mat calcLD(const arma::mat hmata, const arma::mat hmatb, const arma::rowve
     std::cout<<"Sum of distmat is "<<accu(distmat)<<std::endl;
   arma::mat S=ip_cov(hmata,hmatb,isdiag);
 
-    std::cout<<"Sum of covmat is "<<accu(S)<<std::endl;
+  std::cout<<"Sum of covmat is "<<accu(S)<<std::endl;
 
-    std::cout<<"Performing shrinkage"<<std::endl;
+  std::cout<<"Performing shrinkage"<<std::endl;
   compute_shrinkage(distmat,S, hmata, theta, m, Ne,cutoff, isdiag);
     std::cout<<"Sum of cormat is "<<accu(distmat)<<std::endl;
   arma::mat rowveca = arma::var(hmata)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);

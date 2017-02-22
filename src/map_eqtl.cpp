@@ -53,7 +53,8 @@ arma::cube fastest_eQTL(const arma::mat &Genotype, const arma::mat &Expression){
   arma::mat rmat = arma::cor(Genotype,Expression);
   arma::mat Betas= betaMatrix(Genotype,Expression);
   arma::mat tstat = sqrt(n-2)*(rmat/arma::sqrt(1-arma::pow(rmat,2)));
-  return(arma::join_slices(Betas,tstat));
+  arma::mat semat = Betas/tstat;
+  return(arma::join_slices(Betas,semat));
 }
 
 

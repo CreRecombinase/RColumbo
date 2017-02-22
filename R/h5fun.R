@@ -211,7 +211,20 @@ write_covar_2d <- function(covarf,h5filename,chunksize=1,deflate_level=9){
   h5write(covardat$ID,file=h5file,name="/Covarinfo/id")
 }
 
+# write_rows_gzfile <- function(gzfilename,subset_rows,h5filename,groupname,dataname,max.size=335544320L){
+#   library(data.table)
+#   tempf <- tempfile()
+#   write.table(subset_rows,file=tempf,sep="\n",row.names=F,col.names=F,quote=F)
+#   cmdtxt <-paste0('awk \'FNR==NR{line[$0]=$0; next} FNR in line\' ',tempf, ' <(gzip -cd ', gzfilename,')')
+#   tcmd <- system(cmdtxt,intern = T)
+#   all_data <- fread(input = cmdtxt)
+#
+#   tsh <- system()
+#
+# }
+
 write_rows_gzfile_h5 <- function(gzfilename,subset_rows,h5filename,groupname,dataname,max.size=335544320L){
+  library(iotools)
   gzf <- gzfile(gzfilename,open = 'rt')
   chunk_mat <- iotools::chunk.reader(gzf,sep=" ")
   i <- 1
@@ -414,8 +427,8 @@ gigsize <- function(rows,cols,size=8){
 #' @template h5fun
 #' @export
 read_ccs_h5 <- function(h5filename,groupname,dataname="data",iname="ir",pname="jc"){
-  requireNamespace("h5")
-  requireNamespace("Matrix")
+  require("h5")
+  require("Matrix")
   h5f <- h5::h5file(h5filename,mode = 'r')
   h5g <- h5f[groupname]
   h5attr(h5g,"Layout")
@@ -529,6 +542,7 @@ write_coo_h5 <- function(h5filename,spmat,groupname,dataname="data",iname="i",jn
 
 
 }
+
 write_ccs_h5 <- function(h5filename,spmat,groupname,dataname="data",iname="ir",pname="jc",compression_level=8,symmetric=F){
   require(h5)
   h5f <- h5::h5file(h5filename,'a')
@@ -572,12 +586,14 @@ read_vec <- function(h5filename,datapath){
   return(data)
 }
 
-write_vec <- function(h5filename,vec,datapath){
-  requireNamespace("h5")
+write_vec <- function(h5filename,vec,datapath,deflate_level=4,chunksize=NULL){
+  require(h5)
   h5f <- h5::h5file(h5filename,'a')
-  data <- h5f[datapath] <- vec
+  if(is.null(chunksize)){
+    chunksize <- length(vec)/2
+  }
+  data <- h5f[datapath,compression=deflate_level,chunksize=chunksize] <- vec
   h5::h5close(h5f)
-#  return(data)
 }
 
 
