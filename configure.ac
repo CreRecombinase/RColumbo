@@ -21,7 +21,7 @@ fi
 if test -z "${LIBS}"; then
   dnl prefer ggrep if installed
   AC_CHECK_PROG(GREP,ggrep,`which ggrep`, `which grep`)
-  
+
   dnl check if $GREP supports option -o
   AC_MSG_CHECKING([whether ${GREP} accepts -o])
   if `echo '' | ${GREP} -o '' >/dev/null 2>&1`
@@ -32,14 +32,13 @@ if test -z "${LIBS}"; then
     AC_MSG_ERROR([${GREP} does not support option -o])
   fi
   [
-  LIBS=`${H5CPP} -show | ${GREP} -o "\-L[^[:space:]]\+" | tr "\n" " "` 
+  LIBS=`${H5CPP} -show | ${GREP} -o "\-L[^[:space:]]\+" | tr "\n" " "`
   ]
 : ${R_BLAS=`R CMD config BLAS_LIBS`}
-  
-  dnl Fix for newer Debian versions
-  LIBS="${LIBS} ${R_BLAS}"	
-  LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -lhdf5_cpp -lhdf5 -lz -lblosc"
 
+  dnl Fix for newer Debian versions
+  LIBS="${LIBS} ${R_BLAS}"
+  LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib/ -lhdf5_cpp -lhdf5 -lz -lblosc -ldaal_core -ldaal_thread -ltbb"
 fi
 
 if test -z "${CPPFLAGS}"; then
@@ -60,7 +59,7 @@ if test -z "${CPPFLAGS}"; then
 
   [
   CPPFLAGS=`${H5CPP} -show -c myconftest.cpp | ${GREP} -o "\-I[^[:space:]]\+" | tr "\n" " "`
-  CPPFLAGS="${CPPFLAGS} -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_64BIT_WORD -I${HOME}/include"
+  CPPFLAGS="${CPPFLAGS} -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_64BIT_WORD -I${HOME}/include -daal"
   ]
 
   rm -f myconftest.cpp
@@ -91,6 +90,6 @@ dnl AC_CHECK_FUNCS([floor memset sqrt strdup strerror strtol])
 dnl substitute CPPFLAGS and LIBS
 AC_SUBST(CPPFLAGS)
 AC_SUBST(LIBS)
-dnl and do subsitution in the src/Makevars.in 
+dnl and do subsitution in the src/Makevars.in
 AC_CONFIG_FILES([src/Makevars])
 AC_OUTPUT

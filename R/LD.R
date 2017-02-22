@@ -87,9 +87,20 @@ chunk_eQTL_mat <- function(exph5,snph5,outh5,snpinter=NULL,expinter=NULL){
   # h5close(expf)
   cat("Mapping eQTL\n")
   eqtl <- fastest_eQTL(Genotype,Expression)
+
+cat("Computing p-values\n")
+sig_cutoff <- 1e-3
+  nind <- nrow(Genotype)
+  p_mat <-2*(1-pt(abs(eqtl[,,1])/eqtl[,,2],nind-1))
+  snp_sig <-apply(p_mat,1,function(x,y){
+    sum(x<y)
+  },y=sig_cutoff)/ncol(p_mat)
+  gene_sig <- apply(p_mat,2,function(x,y){
+    sum(x<y)
+  },y=sig_cutoff)/nrow(p_mat)
   cat("Reading legends\n")
-  expleg <- read_df_h5(exph5,"EXPinfo",filtervec=expinter) %>% mutate(exp_ind=expinter)
-  snpleg <- read_df_h5(snph5,"SNPinfo",filtervec=snpinter) %>% mutate(snp_ind=snpinter)
+  expleg <- read_df_h5(exph5,"EXPinfo",filtervec=expinter) %>% mutate(exp_ind=expinter,sig_snps=gene_sig)
+  snpleg <- read_df_h5(snph5,"SNPinfo",filtervec=snpinter) %>% mutate(snp_ind=snpinter,sig_genes=snp_sig)
   cat("Writing eQTLmats\n")
   # write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "beta_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,1])
   # write_2dmat_h5(h5f = outh5,groupn = "eQTL",datan = "t_mat",chunksize = as.integer(c(length(snpinter)/2,length(expinter)/2)),deflate_level = 4,data = eqtl[,,2])

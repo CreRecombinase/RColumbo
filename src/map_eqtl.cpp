@@ -57,6 +57,18 @@ arma::cube fastest_eQTL(const arma::mat &Genotype, const arma::mat &Expression){
   return(arma::join_slices(Betas,semat));
 }
 
+//[[Rcpp::export]]
+arma::cube d_fastest_eQTL(const arma::mat &Genotype, const arma::mat &Expression){
+  using namespace Rcpp;
+
+  double n =Genotype.n_rows;
+  Rcpp::Rcout<<"Computing correlation"<<std::endl;
+  arma::mat rmat = arma::cor(Genotype,Expression);
+  arma::mat Betas= betaMatrix(Genotype,Expression);
+  arma::mat tstat = sqrt(n-2)*(rmat/arma::sqrt(1-arma::pow(rmat,2)));
+  arma::mat semat = Betas/tstat;
+  return(arma::join_slices(Betas,semat));
+}
 
 //[[Rcpp::export]]
 void orthogonalize_dataset(std::string h5filename,std::string newh5filename,std::string covar_h5file,std::string datagroup, std::string datasetname,std::string newdatasetname,size_t chunksize,const unsigned int deflate_level){
