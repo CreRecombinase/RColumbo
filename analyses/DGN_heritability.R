@@ -95,32 +95,6 @@ vpdf <- bind_rows(nfdfl)
 vpdf <- filter(vpdf,Source=="V(G)/Vp") %>% rename(h=Variance) %>% select(-Source)
 sdf <- bind_rows(nndfl)
 
-saveRDS(sdf,"/media/nwknoblauch/Data/DGN/DGN_ortho_summary.RDS")
-saveRDS(vpdf,"/media/nwknoblauch/Data/DGN/DGN_ortho_estimates.RDS")
-
-library(ggplot2)
-her <- vpdf
-dgn_her <- rename(her,DGN_h=h,DGN_SE=SE)
-filter(her) %>% ggplot()+geom_histogram(aes(x=h),bins=100)+ggtitle("Heritability of all (orthogonalized wrt covariates) genes \n(GCTA trans+cis)")
-filter(her,h>1e-06) %>% ggplot()+geom_histogram(aes(x=h),bins=100)+ggtitle("Heritability of heritable genes\n(orthogonalized wrt covariates) \n(h>1e-6) \n(GCTA trans+cis)")
-
-
-ovpdf <- vpdf
-osdf <- sdf
-
-vpdf <- readRDS("/media/nwknoblauch/Data/GTEx/GCTA_trans_ortho_estimates.RDS")
-sdf <- readRDS("/media/nwknoblauch/Data/GTEx/GCTA_trans_summary.RDS")
-
-gtex_her <- filter(vpdf,Source=="V(G)/Vp") %>% rename(GTEx_h=Variance,GTEx_SE=SE) %>% select(-Source)
-
-nher<- inner_join(gtex_her,dgn_her,by="fgeneid")
-
-
-ggplot(nher)+geom_point(aes(x=DGN_h,y=GTEx_h))
-filter(nher,GTEx_h>1e-6,DGN_h>1e-6)%>% ggplot(aes(x=DGN_h,y=GTEx_h))+geom_point()+geom_smooth(method="lm")
-ggplot(nher)+geom_point(aes(x=ortho_h,y=no_ortho_h))+ggtitle("Heritability of raw expression \nvs\n heritability of expression orthogonalized to covariates")
-
-
 
 
 

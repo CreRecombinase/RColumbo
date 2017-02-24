@@ -23,7 +23,6 @@ iso_col <- data_frame(isocol=colnames(iso_dat)[-1])
 iso_col <- mutate(iso_col,coord=gsub(".+(chr.+)","\\1",isocol))
 niso_col <- separate(iso_col,coord,into = c("chr","start","stop"))
 niso_col <-mutate(niso_col,chr=as.integer(gsub("chr([0-9]+)","\\1",chr)))
-niso_col <- mutate(niso_col,fgeneid=1:n())
 exp_leg <- select(niso_col,-isocol) %>% mutate(start=as.integer(start),stop=as.integer(stop),chr=as.integer(chr)) %>% rename(end=stop)
 niso_col <- filter(niso_col,!is.na(chr))
 
@@ -70,8 +69,8 @@ dgn_ids <- read.gdsn(index.gdsn(dgn_gds,"sample.id"))
 
 
 dgn_leg <- data_frame(ind=read.gdsn(index.gdsn(dgn_gds,"snp.id")),
-                          chrom=as.integer(read.gdsn(index.gdsn(dgn_gds,"snp.chromosome"))),
-                          pos=as.integer(read.gdsn(index.gdsn(dgn_gds,"snp.position"))))
+                      chrom=as.integer(read.gdsn(index.gdsn(dgn_gds,"snp.chromosome"))),
+                      pos=as.integer(read.gdsn(index.gdsn(dgn_gds,"snp.position"))))
 
 t_dgn_ids <- gsub("WG[0-9]+-DNA.+_[0-9]+_(LD[0-9]+)-.+","\\1",x = dgn_ids)
 rownames(dgn_snp) <- t_dgn_ids

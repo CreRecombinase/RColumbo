@@ -6,6 +6,17 @@
 
 using namespace Rcpp;
 
+// daal_cov
+Rcpp::NumericMatrix daal_cov(Rcpp::NumericMatrix& X);
+RcppExport SEXP RColumbo_daal_cov(SEXP XSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix& >::type X(XSEXP);
+    rcpp_result_gen = Rcpp::wrap(daal_cov(X));
+    return rcpp_result_gen;
+END_RCPP
+}
 // data_bytes
 size_t data_bytes(const std::string h5file, const std::string groupname, const std::string dataname);
 RcppExport SEXP RColumbo_data_bytes(SEXP h5fileSEXP, SEXP groupnameSEXP, SEXP datanameSEXP) {

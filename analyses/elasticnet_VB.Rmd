@@ -25,13 +25,14 @@ el_files <- dir("/media/nwknoblauch/Data/GTEx/cis_elasticnet/",full.names = T)
 h5ls(el_files[1])
 overall <- bind_rows(lapply(el_files,read_h5_df,groupname="overall"))
 lambda_min <- bind_rows(lapply(el_files,read_h5_df,groupname="lambda_min"))
-overall <- group_by(overall,fgeneid) %>% mutate(scaled_estimate=(estimate-mean(estimate))/var(estimate),
-                                                scaled_high=(conf.high-mean(conf.high))/var(conf.high),
-                                                scaled_low=(conf.low-mean(conf.low))/var(conf.low)) %>% 
+# overall <- group_by(overall,fgeneid) %>% mutate(scaled_estimate=(estimate-mean(estimate))/var(estimate),
+#                                                 scaled_high=(conf.high-mean(conf.high))/var(conf.high),
+#                                                 scaled_low=(conf.low-mean(conf.low))/var(conf.low))
 
 
 
 ```
+
 ```{r}
 filter(overall,estimate==max(abs(estimate)))
 ```

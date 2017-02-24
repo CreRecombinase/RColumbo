@@ -17,10 +17,9 @@ h5file <- args[2]
 grm_pref <-args[3]
 cat_covf <- args[4]
 cont_covf <- args[5]
-estfile <- args[6]
-sumfile <- args[7]
-
-
+bed_pref <- args[6]
+estfile <- args[7]
+sumfile <- args[8]
 
 
 #dgn_bed <- "/media/nwknoblauch/Data/DGN/Lev/DGN"
@@ -53,8 +52,11 @@ fdfl <- list()
 ndfl <- list()
 expf <- tempfile()
 hsqf <- tempfile()
-for(i in i:nexp){
-  cat(i," of ",nexp,"\n")
+cat("Starting!\n")
+for(i in 1:nexp){
+  if(i%%1000==0){
+    cat(i," of ",nexp,"\n")
+  }
 
   expped <- mutate(expped,Expression=sexpmat[,i]) %>% select(Family,Individual,Expression)
   write.table(expped,file = expf,sep="\t",col.names = F,row.names = F,
@@ -66,12 +68,12 @@ for(i in i:nexp){
                          " --covar ",cat_covf,
                          " --qcovar ",cont_covf,
                          " --out ",hsqf,"  --thread-num 10 --reml-maxit 200")
-  system(gcta_command,ignore.stdout = F,ignore.stderr = F)
+  system(gcta_command,ignore.stdout = T,ignore.stderr = T)
   hsqfile <- paste0(hsqf,".hsq")
   if(file.exists(hsqfile)){
-    fdf <-read.table("ptest.hsq",sep="\t",nrows = 4,header=T)
+    fdf <-read.table(hsqfile,sep="\t",nrows = 4,header=T)
     fdfl[[i]] <- fdf
-    ndf <- read.table("ptest.hsq",sep="\t",skip = 5,header=F)
+    ndf <- read.table(hsqfile,sep="\t",skip = 5,header=F)
     ndfl[[i]] <- ndf
     file.remove(hsqfile)
     file.remove(expf)
@@ -103,7 +105,6 @@ nndfl <- mapply(function(df,gid){
 vpdf <- bind_rows(nfdfl)
 vpdf <- filter(vpdf,Source=="V(G)/Vp") %>% rename(h=Variance) %>% select(-Source)
 sdf <- bind_rows(nndfl)
-
 saveRDS(sdf,sumfile)
 saveRDS(vpdf,estfile)
 

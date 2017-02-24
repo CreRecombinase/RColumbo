@@ -129,10 +129,6 @@ fastest_eQTL <- function(Genotype, Expression) {
     .Call('RColumbo_fastest_eQTL', PACKAGE = 'RColumbo', Genotype, Expression)
 }
 
-d_fastest_eQTL <- function(Genotype, Expression) {
-    .Call('RColumbo_d_fastest_eQTL', PACKAGE = 'RColumbo', Genotype, Expression)
-}
-
 orthogonalize_dataset <- function(h5filename, newh5filename, covar_h5file, datagroup, datasetname, newdatasetname, chunksize, deflate_level) {
     invisible(.Call('RColumbo_orthogonalize_dataset', PACKAGE = 'RColumbo', h5filename, newh5filename, covar_h5file, datagroup, datasetname, newdatasetname, chunksize, deflate_level))
 }
