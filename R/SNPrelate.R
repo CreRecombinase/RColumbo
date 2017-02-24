@@ -46,3 +46,53 @@ write_gtex_gdsn <- function(geno_txt,geno_gdsn,chunksize=1e5){
   closefn.gds(newfile)
   return(T)
 }
+
+gdsn_to_h5 <- function(geno_gdsn,geno_h5,chunksize=1e6,doFlip=F){
+  require(SNPRelate)
+  require(dplyr)
+  require(tidyr)
+  require(BBmisc)
+  require(h5)
+  geno_gds <- openfn.gds(geno_gdsn)
+  snp_leg <- data_frame(chrom=read.gdsn(index.gdsn(geno_gds,"snp.chromosome")),
+                        pos = read.gdsn(index.gdsn(geno_gds,"snp.position")),
+                        allele=read.gdsn(index.gdsn(geno_gds,"snp.allele")))
+  snp_leg <- separate(snp_leg,allele,into = c("ref","alt"),convert = T)
+
+  write_df_h5(df = snp_leg,groupname = "SNPinfo",outfile = geno_h5,deflate_level = 4,chunksize = as.integer(nrow(snp_leg)/2))
+  sample_id <-read.gdsn(index.gdsn(geno_gds,"sample.id"))
+  snpnum <-nrow(snp_leg)
+  indnum <-length(sample_id)
+  chunknum <- ceiling(snpnum/chunksize)
+
+  hf <- h5file(geno_h5,mode = 'a')
+  # group <- hf['/SNPdata']
+   group <- createGroup(hf,"SNPdata")
+  gdset <- createDataSet(.Object = group,
+                         datasetname = "genotype",
+                         type = "double",
+                         dimensions = c(indnum,snpnum),
+                         chunksize =as.integer(c(indnum,250000L)),
+                         maxdimensions = as.integer(c(indnum,snpnum)),
+                         compression = 4L)
+  colc <- chunk(1:snpnum,chunk.size = chunksize)
+  chunknum <- length(colc)
+  for(i in 1:chunknum){
+    cat(i,"of ",chunknum,"\n")
+    gdset[1:indnum,colc[[i]]] <-  read.gdsn(index.gdsn(geno_gds,"genotype"),start=c(1,colc[[i]][1]),count=c(-1,length(colc[[i]])))
+    gc()
+  }
+  closefn.gds(geno_gds)
+  h5close(hf)
+  return(T)
+
+
+}
+
+
+
+
+
+
+
+

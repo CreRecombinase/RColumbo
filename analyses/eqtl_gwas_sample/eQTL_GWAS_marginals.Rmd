@@ -6,16 +6,31 @@ output: html_notebook
 
 To keep consistent with the eQTL estimates (because GWAS and eQTL sometimes report different reference and alternate alleles), I switch the reference and effect alleles so that the effect allele occurs before the reference allele alphabetically. (this is weird, but it was easy to implement)
 
+Let's first take a look at the heritability of orthogonalized gene-expression
+```{r}
+heritabilityf <- "/media/nwknoblauch/Data/GTEx/GCTA_trans_ortho_estimates.RDS"
+h_df <- readRDS(heritabilityf) %>% filter(Source=="V(G)/Vp") %>% rename(h=Variance) %>% select(-Source) %>% arrange(desc(h))
+
+```
 
 First let's choose which genes we want based on how well they performed in PrediXcan cross-validation (some good, some bad). 
 ```{r}
 library(dplyr)
 library(RColumbo)
 library(feather)
+
 gtexdbf <- "~/Downloads/PredictDB_Covariance/TW_Whole_Blood/TW_Whole_Blood_0.5.db"
 
 gtexdb <- src_sqlite(gtexdbf,create = F)
 gtex_genes <- tbl(src = gtexdb,"extra") %>% arrange(pred.perf.qval) %>% collect(n=Inf) %>% mutate(fgeneid=as.integer(gsub("ENSG([0-9]+).+","\\1",gene)))
+
+gtex_genes <- inner_join(h_df,gtex_genes,by="fgeneid")
+
+ggplot(gtex_genes,aes(x=h,y=pred.perf.R2))+geom_point()+geom_abline()
+
+best_genes <- h_df %>% mutate(cut_level=cut(h,breaks = c(0,1e-5,0.5,1-1e-6))) %>% 
+  group_by(cut_level) %>% sample_n(346) %>% ungroup()
+ggplot(h_df)+geom_histogram(aes(x=log(h)))
 ```
 
 
@@ -23,7 +38,7 @@ gtex_genes <- tbl(src = gtexdb,"extra") %>% arrange(pred.perf.qval) %>% collect(
 I've made 4 p-value significance regions from which I sample 1 gene each
 ```{r}
 set.seed(6022)
-gtex_sample_genes <- gtex_genes %>% mutate(cut_level=cut(pred.perf.pval,breaks = c(0,1e-5,0.05,0.1,0.9))) %>% 
+gtex_sample_genes <- gtex_genes %>% mutate(cut_level=cut(pred.perf.pval,breaks = c(0,1e-5,0.05,0.1,1-1e-6))) %>% 
   group_by(cut_level) %>% sample_n(1) %>% ungroup()
 gtex_sample_genes
 ```
@@ -33,11 +48,11 @@ gtex_sample_genes
 **all** cis-eQTL results for those genes (stored in a big HDF5 file)
 ```{r}
 gtex_marg_h5 <- "/home/nwknoblauch/Desktop/eQTL/Snake/Whole_Blood_Analysis.v6p.all_snpgene_pairs.h5"
-gtex_cis_marg <- read_h5_df(gtex_marg_h5,groupname = "cis_eQTL",subcols = c("fgeneid","chrom","pos","weight","slope_se")) %>% 
-  rename(thetahat=weight,se_thetahat=slope_se)
-gtex_cis_marg <- inner_join(gtex_cis_marg,gtex_sample_genes,by="fgeneid") %>% select(chrom,se_thetahat,thetahat,gene,genename)
-head(gtex_cis_marg)
-write.table(gtex_cis_marg,"~/Dropbox/RColumbo/analyses/eqtl_gwas_sample/GTEx_WB_cis.tsv",col.names = T,row.names=F,sep="\t",quote=F)
+gtex_cis <- read_h5_df(gtex_marg_h5,groupname = "cis_eQTL",subcols = c("fgeneid","chrom","pos","weight","slope_se")) %>% 
+  rename(thetahat=weight,se_thetahat=slope_se) %>% inner_join(best_genes,by="fgeneid") %>% mutate(isCis=T)
+#gtex_cis_marg <- inner_join(gtex_cis_marg,best_genes,by="fgeneid") 
+head(gtex_cis)
+write.table(gtex_cis,"~/Dropbox/RColumbo/analyses/eqtl_gwas_sample/GTEx_WB_cis.tsv",col.names = T,row.names=F,sep="\t",quote=F)
 ```
 
 
@@ -48,13 +63,18 @@ gtex_trans <- bind_rows(
   lapply(
     gtex_marg_trans_h5s,
     function(x,subset_df){
-      return(read_h5_df(x,groupname = "trans_eQTL") %>% semi_join(subset_df,by="fgeneid"))
+      return(read_h5_df(x,groupname = "trans_eQTL") %>% inner_join(subset_df,by="fgeneid")) %>% rename(thetahat=theta,se_thetahat=serr) %>% mutate(isCis=F)
     },
-    subset_df=gtex_sample_genes
+    subset_df=best_genes
     )
   )
-gtex_trans <- rename(gtex_trans,thetahat=theta,se_thetahat=serr)
-gtex_trans <- select(gtex_sample_genes,gene,genename,fgeneid) %>% inner_join(gtex_trans,by="fgeneid") %>% select(-fgeneid)
+
+#gtex_trans <- gtex_trans %>% inner_join(best_genes,by="fgeneid")
+gtex_cistrans <- bind_rows(gtex_trans,gtex_cis_marg)
+
+group_by(gtex_trans,fgeneid) %>% summarise(nsig=n(),h=h[1]) %>% ggplot(aes(x=log(h),y=log(nsig)))+geom_point()+geom_smooth()
+filter(gtex_trans,h>1e-5) %>% group_by(fgeneid) %>% summarise(nsig=n(),h=h[1]) %>% ggplot(aes(x=log(h),y=log(nsig)))+geom_point()+geom_smooth()
+
 
 write.table(gtex_trans,"~/Dropbox/RColumbo/analyses/eqtl_gwas_sample/GTEx_WB_trans_truncated.tsv",col.names=T,row.names=F,quote=F,sep="\t")
 ```
@@ -65,14 +85,27 @@ Chromosme 12 is nicely sized.
 
 
 ```{r}
+library(ggplot2)
 
-gwasf <- "/media/nwknoblauch/Data/gwas_data/iibdgc-trans-ancestry-summary-stats/EUR.IBD.gwas.assoc_2.feather"
-gwas_data <- read_feather(gwasf)
-gwas_data <- rename(gwas_data,pvalg=p.value,se_betahat=serr.g)
+
+gwasf <- "/media/nwknoblauch/Data/gwas_data/iibdgc-trans-ancestry-summary-stats/EUR.IBD.gwas.assoc.gz"
+gwas_data <- read.table(gwasf,header=T,sep="\t",stringsAsFactors = F)
+gwas_data <- filter(gwas_data,CHR==12)
+#gwas_data <- rename(gwas_data,pvalg=p.value,se_betahat=serr.g)
+
+filter(gwas_data,CHR==12)%>%ggplot()+geom_point(aes(x=BP,y=-log10(P),col=log10(FRQ_A_12882)))
+
 gwas_data <- mutate(gwas_data,betahat=ifelse(ref_allele<eff_allele,log(1/OR),log(OR))) %>% select(-eff_allele,-ref_allele)
-gwas_data <- filter(gwas_data,chrom==12)
+
 write.table(gwas_data,"~/Dropbox/RColumbo//analyses/eqtl_gwas_sample/IBD_GWAS_Chr12.tsv",sep="\t",col.names=T,row.names=F,quote=F)
+tgwas_data <- read.table("~/Dropbox/RColumbo//analyses/eqtl_gwas_sample/IBD_GWAS_Chr12.tsv",sep="\t",header=T,stringsAsFactors = F)
+
+ngwas <- inner_join(tgwas_data,gwas_data,by)
+
+
 ```
+
+
 
 
 
