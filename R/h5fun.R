@@ -84,18 +84,21 @@ matLines <- function(gzc,nr,nc){
 #'@param covarf covariate file
 #'@param h5file output H5file
 #'@param chunksize (this is not really necessary)
-write_covar_h5 <- function(covarf,h5file,chunksize=1,deflate_level=9){
-  require(rhdf5)
+write_covar_h5 <- function(covarf,h5filename,chunksize=1,deflate_level=9){
   library(dplyr)
   covardat <- read.table(covarf,header=T,stringsAsFactors = F)
   matdat <-t(data.matrix(select(covardat,-ID)))
-  write_2dmat_h5(h5file,"Covardat","covariates",data = matdat)
-  h5createGroup(file = h5file,group = "Covarinfo")
-  h5createDataset(h5file,"/Covarinfo/id",
-                  dims=c(nrow(covardat)),
-                  storage.mode="character",size=max(nchar(covardat$ID))+1,
-                  chunk=chunksize,level=deflate_level)
-  h5write(covardat$ID,file=h5file,name="/Covarinfo/id")
+  write_2dmat_h5(h5filename,"Covardat","covariates",data = matdat)
+  h5f <- h5file(h5filename,'a')
+  h5g <- createGroup(h5f,"Covarinfo")
+  h5g['id'] <- covardat$ID
+  # h5createGroup(file = h5file,group = "Covarinfo")
+  # h5createDataset(h5file,"/Covarinfo/id",
+  #                 dims=c(nrow(covardat)),
+  #                 storage.mode="character",size=max(nchar(covardat$ID))+1,
+  #                 chunk=chunksize,level=deflate_level)
+  # h5write(covardat$ID,file=h5file,name="/Covarinfo/id")
+  h5close(h5f)
 
 }
 
