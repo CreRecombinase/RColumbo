@@ -1,3 +1,7 @@
-PKG_LIBS = -L/usr/local/lib  -L/usr/local/lib/R/lib -lRblas -L. -L/home/nwknoblauch/lib -L/home/nwknoblauch/lib64 -lhdf5_cpp -lhdf5 -lz -lblosc
-PKG_CPPFLAGS = -I/usr/local/include  -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_64BIT_WORD -I/home/nwknoblauch/include
+HDF5_CFLAGS = -I/usr/local/include 
+HDF5_LIBS = -L/usr/local/lib  -L/usr/local/lib/ -lhdf5_cpp -lhdf5 -lz
+BLOSC_CFLAGS = 
+BLOSC_LIBS = 
+PKG_LIBS += $(LAPACK_LIBS) $(HDF5_LIBS) $(BLOSC_LIBS) $(BLAS_LIBS) $(FLIBS)
+PKG_CPPFLAGS = $(HDF5_CFLAGS) $(BLOSC_CFLAGS) -I../inst/include  -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_64BIT_WORD
 CXX_STD = CXX11

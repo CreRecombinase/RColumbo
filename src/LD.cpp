@@ -96,7 +96,19 @@ void compute_shrinkage(arma::mat &distmat,arma::mat &S, const arma::mat &hmata ,
 
 
 //[[Rcpp::export]]
-arma::sp_mat gen_sparsemat(arma::mat ldmat,const arma::uword istart,const arma::uword jstart,const arma::uword nSNPs){
+arma::sp_mat gen_sparsemat(arma::mat ldmat,const arma::uword istart,const arma::uword jstart,const arma::uword nSNPs,Rcpp::LogicalVector makeSymmetric){
+
+  if((nSNPs==ldmat.n_cols)&&(istart==1)&&(jstart==1)){
+    if(makeSymmetric[0]){
+      arma::sp_mat retS(symmatu(ldmat));
+      return(retS);
+    }else{
+      arma::sp_mat retS(ldmat);
+      return(retS);
+    }
+  }
+
+
   arma::uvec nz=arma::find(ldmat!=0);
   arma::umat indmat=arma::ind2sub(size(ldmat),nz);
   if(indmat.n_cols>0){

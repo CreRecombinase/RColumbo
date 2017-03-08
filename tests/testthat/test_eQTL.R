@@ -1,0 +1,15 @@
+library(RColumbo)
+library(testthat)
+library(dplyr)
+library(tidyr)
+context("eQTL mapping")
+data("ref_X")
+data("ref_Y")
+data("ref_Covariates")
+data("ref_betahat_se")
+
+data_df <-map_eqtl_lm(ref_X,ref_Y,Covariates = ref_Covariates) %>% mutate(snp_ind=1:n(),exp_ind=1) %>% rename(slope=betahat,slope_se=se)
+test_that("eQTL mapping matches external gold standard",{
+  expect_equal(data_df$slope,ref_betahat_se$slope,tolerance=1e-6)
+  expect_equal(data_df$slope_se,ref_betahat_se$slope_se,tolerance=1e-1)
+})

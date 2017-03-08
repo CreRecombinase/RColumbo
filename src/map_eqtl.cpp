@@ -1,6 +1,6 @@
 #include "RcppArmadillo.h"
 //[[Rcpp::depends(RcppArmadillo)]]
-#include "h5func.hpp"
+// #include "h5func.hpp"
 //#include <cmath>
 #include <vector>
 #include <algorithm>
@@ -70,30 +70,67 @@ arma::cube d_fastest_eQTL(const arma::mat &Genotype, const arma::mat &Expression
   return(arma::join_slices(Betas,semat));
 }
 
-//[[Rcpp::export]]
-void orthogonalize_dataset(std::string h5filename,std::string newh5filename,std::string covar_h5file,std::string datagroup, std::string datasetname,std::string newdatasetname,size_t chunksize,const unsigned int deflate_level){
-  arma::mat ocovariates= arma::conv_to<arma::mat>::from(read_fmat_h5(covar_h5file,"Covardat","covariates",0,40));
-  ocovariates = join_horiz(arma::mat(ocovariates.n_rows,1,arma::fill::ones),ocovariates);
-  arma::mat Covariates = orthogonalize_covar(ocovariates);
-  size_t Nrows= get_rownum_h5(h5filename,datagroup,datasetname);
-  Rcpp::Rcout<<"total number of rows:"<<Nrows<<std::endl;
-  size_t nchunks=ceil(((double)Nrows)/(double)chunksize);
 
-  Rcpp::Rcout<<"total number of chunks:"<<nchunks<<std::endl;
-  for(size_t i=0;i<nchunks;i++){
-    Rcpp::Rcout<<"Starting chunk"<<i<<" of size:"<<chunksize<<std::endl;
-    size_t offset =i*chunksize;
-    Rcpp::Rcout<<"Reading data for chunk"<<i<<std::endl;
-    arma::mat Data = arma::conv_to<arma::mat>::from(read_fmat_h5(h5filename,datagroup,datasetname,offset,chunksize));
-    Rcpp::Rcout<<"Orthogonalizing data wrt (orthogonalized)covariates for chunk"<<i<<std::endl;
-    arma::mat oData =orthogonalize_data(Data,Covariates);
-    Rcpp::Rcout<<"oData is of dimensions:"<<oData.n_rows<<"x"<<oData.n_cols<<std::endl;
-    write_mat_h5(newh5filename,datagroup,newdatasetname,Nrows,oData.n_rows,oData,deflate_level);
-  }
+
+void fast_eqtl_lm (const arma::vec &Genotype, const arma::vec &Expression, const int n, arma::vec &retvec){
+
+  double xtx= arma::dot(Genotype,Genotype);
+  retvec[0] =dot(Expression,Genotype)/xtx;
+  arma::vec resid =  Expression-Genotype*retvec[0];
+  double s2 =  arma::dot(resid,resid)/(n-1);
+  retvec[1]  = sqrt(s2/xtx);
 
 }
 
 
+
+//[[Rcpp::export]]
+arma::mat eqtl_lm(const arma::mat &Genotype, const arma::vec &Expression){
+
+  arma::mat retmat(2,Genotype.n_cols);
+  int n=Expression.size();
+  arma::vec resid(n);
+  double xtx=0;
+  double b=0;
+  double s2=0;
+
+  for(size_t i=0; i<retmat.n_cols;i++){
+    xtx=arma::dot(Genotype.col(i),Genotype.col(i));
+    b=arma::dot(Expression,Genotype.col(i))/xtx;
+    resid=Expression-Genotype.col(i)*b;
+    s2=arma::dot(resid,resid)/(n-2);
+    retmat.at(0,i)=b;
+    retmat.at(1,i)=sqrt(s2/xtx);
+  }
+  return(arma::trans(retmat));
+
+}
+
+
+
+// void orthogonalize_dataset(std::string h5filename,std::string newh5filename,std::string covar_h5file,std::string datagroup, std::string datasetname,std::string newdatasetname,size_t chunksize,const unsigned int deflate_level){
+//   arma::mat ocovariates= arma::conv_to<arma::mat>::from(read_fmat_h5(covar_h5file,"Covardat","covariates",0,40));
+//   ocovariates = join_horiz(arma::mat(ocovariates.n_rows,1,arma::fill::ones),ocovariates);
+//   arma::mat Covariates = orthogonalize_covar(ocovariates);
+//   size_t Nrows= get_rownum_h5(h5filename,datagroup,datasetname);
+//   Rcpp::Rcout<<"total number of rows:"<<Nrows<<std::endl;
+//   size_t nchunks=ceil(((double)Nrows)/(double)chunksize);
+//
+//   Rcpp::Rcout<<"total number of chunks:"<<nchunks<<std::endl;
+//   for(size_t i=0;i<nchunks;i++){
+//     Rcpp::Rcout<<"Starting chunk"<<i<<" of size:"<<chunksize<<std::endl;
+//     size_t offset =i*chunksize;
+//     Rcpp::Rcout<<"Reading data for chunk"<<i<<std::endl;
+//     arma::mat Data = arma::conv_to<arma::mat>::from(read_fmat_h5(h5filename,datagroup,datasetname,offset,chunksize));
+//     Rcpp::Rcout<<"Orthogonalizing data wrt (orthogonalized)covariates for chunk"<<i<<std::endl;
+//     arma::mat oData =orthogonalize_data(Data,Covariates);
+//     Rcpp::Rcout<<"oData is of dimensions:"<<oData.n_rows<<"x"<<oData.n_cols<<std::endl;
+//     write_mat_h5(newh5filename,datagroup,newdatasetname,Nrows,oData.n_rows,oData,deflate_level);
+//   }
+//
+// }
+//
+//
 
 
 

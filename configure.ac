@@ -18,6 +18,7 @@ if test -z "${H5CPP}"; then
         - RPM-based (e.g Fedora): 'sudo yum install hdf5-devel'])
 fi
 
+
 if test -z "${LIBS}"; then
   dnl prefer ggrep if installed
   AC_CHECK_PROG(GREP,ggrep,`which ggrep`, `which grep`)
@@ -32,13 +33,11 @@ if test -z "${LIBS}"; then
     AC_MSG_ERROR([${GREP} does not support option -o])
   fi
   [
-  LIBS=`${H5CPP} -show | ${GREP} -o "\-L[^[:space:]]\+" | tr "\n" " "`
+  HDF5_LIBS=`${H5CPP} -show | ${GREP} -o "\-L[^[:space:]]\+" | tr "\n" " "`
   ]
-: ${R_BLAS=`R CMD config BLAS_LIBS`}
-
   dnl Fix for newer Debian versions
-  LIBS="${LIBS} ${R_BLAS}"
-  LIBS="${LIBS} -L. -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib/ -lhdf5_cpp -lhdf5 -lz -lblosc -ldaal_core -ldaal_thread -ltbb"
+
+  HDF5_LIBS="${HDF5_LIBS} -L/usr/local/lib/ -lhdf5_cpp -lhdf5 -lz"
 fi
 
 if test -z "${CPPFLAGS}"; then
@@ -58,8 +57,8 @@ if test -z "${CPPFLAGS}"; then
   echo 'int main() { return; }' > myconftest.cpp
 
   [
-  CPPFLAGS=`${H5CPP} -show -c myconftest.cpp | ${GREP} -o "\-I[^[:space:]]\+" | tr "\n" " "`
-  CPPFLAGS="${CPPFLAGS} -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -DARMA_64BIT_WORD -I${HOME}/include -daal"
+  HDF5_CFLAGS=`${H5CPP} -show -c myconftest.cpp | ${GREP} -o "\-I[^[:space:]]\+" | tr "\n" " "`
+
   ]
 
   rm -f myconftest.cpp
@@ -88,8 +87,11 @@ dnl AC_CHECK_FUNCS([floor memset sqrt strdup strerror strtol])
 
 
 dnl substitute CPPFLAGS and LIBS
-AC_SUBST(CPPFLAGS)
-AC_SUBST(LIBS)
+AC_SUBST(HDF5_CFLAGS)
+AC_SUBST(HDF5_LIBS)
+
+AC_SUBST(BLOSC_CFLAGS)
+AC_SUBST(BLOSC_LIBS)
 dnl and do subsitution in the src/Makevars.in
-AC_CONFIG_FILES([src/Makevars])
-AC_OUTPUT
+AC_OUTPUT(src/Makevars)
+

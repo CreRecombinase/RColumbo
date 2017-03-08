@@ -4,6 +4,15 @@ chunk_h5file <- function(in_h5file,out_h5dir,chunksize=NULL){
 
 }
 
+
+set_attr <- function(h5filename,groupname,attrname,attrvalue){
+  require(h5)
+  hff <- h5file(h5filename,'a')
+  h5g <- hff[groupname]
+  h5::createAttribute(.Object = h5g,attributename =attrname,data=attrvalue)
+  h5close(hff)
+}
+
 chunk_h5d <- function(in_h5file,in_groupname,in_dataname,out_h5dir,out_fname,out_groupname,out_dataname,chunksize=NULL){
   require(h5)
   stopifnot(!is.null(chunksize))
@@ -369,9 +378,9 @@ read_df_h5 <- function(h5filepath,groupname=NULL,subcols=NULL,filtervec=NULL){
       return(x=c(file[x][]))
     }else{
       if(fvec[length(fvec)]==(fvec[1]+length(fvec)-1)){
-      return(file[x][filtervec])
+      return(file[x][fvec])
       }else{
-        return(file[x][][filtervec])
+        return(file[x][][fvec])
       }
     }
   },file=f,fvec=filtervec),dsnames)
@@ -576,6 +585,16 @@ write_ccs_h5 <- function(h5filename,spmat,groupname,dataname="data",iname="ir",p
 
   h5close(h5f)
   return(T)
+}
+
+
+read_attr <- function(h5filename,datapath,attrname){
+  requireNamespace("h5")
+  h5f <- h5::h5file(h5filename,'r')
+  datag <- h5f[datapath]
+  retval <- h5attr(datag,attrname)
+  h5::h5close(h5f)
+  return(retval)
 }
 
 read_vec <- function(h5filename,datapath){

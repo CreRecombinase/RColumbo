@@ -1,5 +1,5 @@
 
-orthogonalize_dataset <- function(h5filename,newh5filename,covar_h5file,datagroup,datasetname,newdatasetname,chunksize){
+orthogonalize_dataset <- function(h5filename,newh5filename,covar_h5file,datagroup,datasetname,newdatasetname,chunksize,scale=F){
 
   require(h5)
   require(BBmisc)
@@ -17,14 +17,16 @@ orthogonalize_dataset <- function(h5filename,newh5filename,covar_h5file,datagrou
 
   odataf <- h5file(newh5filename,mode='a')
   odatag <- odataf[datagroup]
+  h5::createAttribute(.Object = odatag,attributename ="isScaled",data=as.integer(scale))
   odatad <- createDataSet(odatag,datasetname = newdatasetname,type = "double",
                           dimensions = as.integer(dim(datad)),
                           chunksize = as.integer(c(nrow(datad),5000L)),maxdimensions = as.integer(dim(datad)),compression = 4L)
   for(i in 1:nchunks){
     cat("Chunk ",i," of ",nchunks,"\n")
-    odatad[,chunkseq[[i]]] <- orthogonalize_data(datad[,chunkseq[[i]]],covariates)
+    odatad[,chunkseq[[i]]] <- scale(orthogonalize_data(datad[,chunkseq[[i]]],covariates),center=scale,scale = scale)
   }
   h5close(dataf)
+
   h5close(odataf)
 }
 
