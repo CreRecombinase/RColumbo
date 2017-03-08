@@ -45,7 +45,3 @@ eqtl_lm <- function(Genotype, Expression) {
     .Call('RColumbo_eqtl_lm', PACKAGE = 'RColumbo', Genotype, Expression)
 }
 
-convertSparse <- function(mat) {
-    invisible(.Call('RColumbo_convertSparse', PACKAGE = 'RColumbo', mat))
-}
-

@@ -153,13 +153,3 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// convertSparse
-void convertSparse(S4 mat);
-RcppExport SEXP RColumbo_convertSparse(SEXP matSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< S4 >::type mat(matSEXP);
-    convertSparse(mat);
-    return R_NilValue;
-END_RCPP
-}
