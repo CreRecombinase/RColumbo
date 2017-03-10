@@ -6,6 +6,19 @@
 
 using namespace Rcpp;
 
+// wrap_ip_dist
+arma::mat wrap_ip_dist(const arma::rowvec& cummapa, const arma::rowvec& cummapb, bool isDiag);
+RcppExport SEXP RColumbo_wrap_ip_dist(SEXP cummapaSEXP, SEXP cummapbSEXP, SEXP isDiagSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::rowvec& >::type cummapa(cummapaSEXP);
+    Rcpp::traits::input_parameter< const arma::rowvec& >::type cummapb(cummapbSEXP);
+    Rcpp::traits::input_parameter< bool >::type isDiag(isDiagSEXP);
+    rcpp_result_gen = Rcpp::wrap(wrap_ip_dist(cummapa, cummapb, isDiag));
+    return rcpp_result_gen;
+END_RCPP
+}
 // ip_cov
 arma::mat ip_cov(const arma::mat& Hpanela, const arma::mat& Hpanelb, bool isDiag);
 RcppExport SEXP RColumbo_ip_cov(SEXP HpanelaSEXP, SEXP HpanelbSEXP, SEXP isDiagSEXP) {

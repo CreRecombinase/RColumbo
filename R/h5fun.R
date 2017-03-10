@@ -4,6 +4,14 @@ chunk_h5file <- function(in_h5file,out_h5dir,chunksize=NULL){
 
 }
 
+exists_group <- function(h5filename,groupname){
+  require(h5)
+  hff <- h5file(h5filename,'r')
+  exg <- existsGroup(hff,groupname = groupname)
+  h5close(hff)
+  return(exg)
+}
+
 
 set_attr <- function(h5filename,groupname,attrname,attrvalue){
   require(h5)
@@ -110,7 +118,7 @@ read_ind_h5 <- function(h5filename,groupname,dataname,index){
   hf <- h5file(h5filename,'r')
   hd <- hf[paste0('/',groupname,'/',dataname)]
   dimd <- dim(hd)
-  subd <- hd[,minind:maxind][,(index-minind)+1]
+  subd <- hd[,minind:maxind][,(index-minind)+1,drop=F]
   h5close(hf)
   return(subd)
 }

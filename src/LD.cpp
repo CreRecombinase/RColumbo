@@ -22,9 +22,12 @@
 // available from R
 //
 
-void ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb,arma::mat &distmat,bool isDiag){
-  //  std::cout<<"Doing p_dist"<<std::endl;
-  distmat.set_size(cummapa.n_elem,cummapb.n_elem);
+
+//[[Rcpp::export]]
+arma::mat wrap_ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb,bool isDiag){
+  arma::mat distmat(cummapa.n_elem,cummapb.n_elem,arma::fill::zeros);
+
+//  distmat.set_size(cummapa.n_elem,cummapb.n_elem);
   if(isDiag){
     for(arma::uword ind=0; ind<distmat.n_rows; ind++){
       distmat.row(ind).tail(distmat.n_cols-ind-1)=cummapb.tail(cummapb.n_elem-ind-1)-cummapa(ind);
@@ -35,8 +38,25 @@ void ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb,arma::mat &
       distmat.row(ind)=cummapb-cummapa(ind);
     }
   }
-  std::cout<<"Done with p_dist"<<std::endl;
+  return(distmat);
 }
+
+
+  void ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb,arma::mat &distmat,bool isDiag){
+    //  std::cout<<"Doing p_dist"<<std::endl;
+    distmat.set_size(cummapa.n_elem,cummapb.n_elem);
+    if(isDiag){
+      for(arma::uword ind=0; ind<distmat.n_rows; ind++){
+        distmat.row(ind).tail(distmat.n_cols-ind-1)=cummapb.tail(cummapb.n_elem-ind-1)-cummapa(ind);
+      }
+    }
+    else{
+      for(arma::uword ind=0; ind<distmat.n_rows; ind++){
+        distmat.row(ind)=cummapb-cummapa(ind);
+      }
+    }
+    std::cout<<"Done with p_dist"<<std::endl;
+  }
 
 
 
@@ -137,14 +157,14 @@ arma::mat calcLD(const arma::mat hmata, const arma::mat hmatb, const arma::rowve
   double nmsum =arma::sum(1/arma::regspace<arma::vec>(1,(2*m-1)));
   double theta =(1/nmsum)/(2*m+1/nmsum);
   ip_dist(mapa,mapb,distmat,isdiag);
-    std::cout<<"Sum of distmat is "<<accu(distmat)<<std::endl;
+//    std::cout<<"Sum of distmat is "<<accu(distmat)<<std::endl;
   arma::mat S=ip_cov(hmata,hmatb,isdiag);
 
-  std::cout<<"Sum of covmat is "<<accu(S)<<std::endl;
+//  std::cout<<"Sum of covmat is "<<accu(S)<<std::endl;
 
   std::cout<<"Performing shrinkage"<<std::endl;
   compute_shrinkage(distmat,S, hmata, theta, m, Ne,cutoff, isdiag);
-    std::cout<<"Sum of cormat is "<<accu(distmat)<<std::endl;
+//    std::cout<<"Sum of cormat is "<<accu(distmat)<<std::endl;
   arma::mat rowveca = arma::var(hmata)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
   arma::mat colvecb= arma::var(hmatb)*(1-theta)*(1-theta)+0.5*theta*(1-0.5*theta);
   cov_2_cor(distmat,rowveca,colvecb,isdiag);
