@@ -440,7 +440,13 @@ gigsize <- function(rows,cols,size=8){
 }
 
 
+#'Compute allele frequency for a region
+#'
+calc_af_h5 <- function(h5filename,index){
 
+  return(calcAF(read_ind_h5(h5filename,"SNPdata","genotype",index)))
+
+}
 
 #' read a sparse matrix from HDF5
 #' read a sparse matrix from HDF5 stored in Compressed Column Storage (CCS) format

@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 
+// [[Rcpp::interfaces(r,cpp)]]
 
 // This is a simple example of exporting a C++ function to R. You can
 // source this function into an R session using the Rcpp::sourceCpp
@@ -27,6 +28,11 @@ arma::mat orthogonalize_covar(const arma::mat &Covariates){
 //[[Rcpp::export]]
 arma::mat orthogonalize_data(const arma::mat &Data, const arma::mat &covariates){
   return(Data-arma::trans((Data.t()*covariates)*covariates.t()));
+}
+
+//[[Rcpp::export]]
+arma::vec calcAF(const arma::mat &Genotype){
+  return(arma::conv_to<::arma::vec>::from(arma::mean(Genotype)/2));
 }
 
 // [[Rcpp::export]]

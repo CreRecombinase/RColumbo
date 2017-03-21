@@ -1,13 +1,15 @@
 
-# param_snpfile <- "/media/nwknoblauch/Data/GTEx/GTEx_Whole_Blood_1KG/Adipose_Subcutaneous/SNP.chunks.h5"
-# snp_chunk <- 1
-# exp_chunk <-1
-# param_expfile <- "/media/nwknoblauch/Data/GTEx/GTEx_Whole_Blood_1KG/Adipose_Subcutaneous/EXP_Adipose_Subcutaneous.h5"
-# tissue <- "Adipose_Subcutaneous"
-# scale_ortho_exp=T
-# m=85
-# Ne=11490.672741
-# cutoff=1e-3
+param_snpfile <- "/media/nwknoblauch/Data/GTEx/GTEx_Whole_Blood_1KG/Adipose_Subcutaneous/SNP.chunks.h5"
+snp_chunk <- 1
+exp_chunk <-1
+param_expfile <- "/media/nwknoblauch/Data/GTEx/GTEx_Whole_Blood_1KG/Adipose_Subcutaneous/EXP_Adipose_Subcutaneous.h5"
+exp_chunksize <- 1
+
+tissue <- "Adipose_Subcutaneous"
+scale_ortho_exp=T
+m=85
+Ne=11490.672741
+cutoff=1e-3
 # em_logodds=F
 run_RSS <- function(param_snpfile,param_expfile,snp_chunk,exp_chunk,tissue,
                     scale_ortho_exp=F,m=85,Ne=11490.672741,cutoff=1e-3,
@@ -68,6 +70,8 @@ run_RSS <- function(param_snpfile,param_expfile,snp_chunk,exp_chunk,tissue,
 
 
   R <- gen_sparsemat(calcLD(hmata=snpA,hmatb = snpA,mapa = mapA,mapb = mapA,m = m,Ne=Ne,cutoff = cutoff,isDiag = T),istart=1,jstart=1,nSNPs = ncol(snpA),makeSymmetric = T)
+  saveRDS(R,"~/Dropbox/test_rssr/R.RDS")
+
   rm(snpA,mapA,eqtl_snpdat,eqtl_expdat,eqtl_covdat)
 
   fit_dfl <- list()

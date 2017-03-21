@@ -23,6 +23,8 @@
 //
 
 
+// [[Rcpp::interfaces(r,cpp)]]
+
 //[[Rcpp::export]]
 arma::mat wrap_ip_dist(const arma::rowvec &cummapa,const arma::rowvec &cummapb,bool isDiag){
   arma::mat distmat(cummapa.n_elem,cummapb.n_elem,arma::fill::zeros);

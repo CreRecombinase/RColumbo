@@ -33,6 +33,10 @@ orthogonalize_data <- function(Data, covariates) {
     .Call('RColumbo_orthogonalize_data', PACKAGE = 'RColumbo', Data, covariates)
 }
 
+calcAF <- function(Genotype) {
+    .Call('RColumbo_calcAF', PACKAGE = 'RColumbo', Genotype)
+}
+
 betaMatrix <- function(Genotype, Expression) {
     .Call('RColumbo_betaMatrix', PACKAGE = 'RColumbo', Genotype, Expression)
 }
@@ -49,3 +53,7 @@ eqtl_lm <- function(Genotype, Expression) {
     .Call('RColumbo_eqtl_lm', PACKAGE = 'RColumbo', Genotype, Expression)
 }
 
+# Register entry points for exported C++ functions
+methods::setLoadAction(function(ns) {
+    .Call('RColumbo_RcppExport_registerCCallable', PACKAGE = 'RColumbo')
+})
