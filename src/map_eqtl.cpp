@@ -32,7 +32,7 @@ arma::mat orthogonalize_data(const arma::mat &Data, const arma::mat &covariates)
 
 //[[Rcpp::export]]
 arma::vec calcAF(const arma::mat &Genotype){
-  return(arma::conv_to<::arma::vec>::from(arma::mean(Genotype)/2));
+  return(arma::conv_to<arma::vec>::from(arma::mean(Genotype)/2));
 }
 
 // [[Rcpp::export]]
